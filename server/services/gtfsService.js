@@ -274,25 +274,52 @@ function findTransitCandidates(originCoords, destCoords, arrivalTime = '09:00', 
     });
   });
 
-  // If no direct single-line connection was found, construct a multi-leg connection via key interchange hubs
-  // Hubs: Dadar (WR/CR), Andheri (WR/Metro1), Ghatkopar (CR/Metro1), Saki Naka
-  if (candidates.length < 3) {
+  // If no direct single-line connection was found or we have room for viable alternatives,
+  // construct multimodal multi-leg connections via key interchange hubs matching allowedModes
+  if (candidates.length < 4) {
     const interchangeHubs = [
-      { name: 'Andheri Station Hub', wr_stop: 'ST_ADH_WR', m1_stop: 'ST_M1_ADH', lat: 19.1197, lon: 72.8464 },
-      { name: 'Ghatkopar Interchange', cr_stop: 'ST_GC', m1_stop: 'ST_M1_GHK', lat: 19.0864, lon: 72.9081 },
-      { name: 'Dadar Junction', wr_stop: 'ST_DDR_WR', cr_stop: 'ST_DDR_CR', lat: 19.0180, lon: 72.8435 },
-      { name: 'Saki Naka / Powai Gate', m1_stop: 'ST_M1_SAK', bus_stop: 'ST_POWAI_PLZ', lat: 19.1037, lon: 72.8878 }
+      { 
+        name: 'Andheri Station Hub', 
+        modes: ['train', 'metro', 'bus'], 
+        lat: 19.1197, lon: 72.8464,
+        firstLegAgency: 'WR Line', firstLegMode: 'train',
+        secondLegAgency: 'BEST / Metro', secondLegMode: allowedModes.includes('bus') ? 'bus' : 'metro'
+      },
+      { 
+        name: 'Ghatkopar Interchange', 
+        modes: ['train', 'metro'], 
+        lat: 19.0864, lon: 72.9081,
+        firstLegAgency: 'CR Line', firstLegMode: 'train',
+        secondLegAgency: 'Metro Line 1', secondLegMode: 'metro'
+      },
+      { 
+        name: 'Dadar Junction', 
+        modes: ['train'], 
+        lat: 19.0180, lon: 72.8435,
+        firstLegAgency: 'WR Fast', firstLegMode: 'train',
+        secondLegAgency: 'CR Fast', secondLegMode: 'train'
+      },
+      { 
+        name: 'Saki Naka / Powai Gate', 
+        modes: ['metro', 'bus'], 
+        lat: 19.1037, lon: 72.8878,
+        firstLegAgency: 'Metro Line 1', firstLegMode: 'metro',
+        secondLegAgency: 'BEST Feeder', secondLegMode: 'bus'
+      }
     ];
 
     for (const hub of interchangeHubs) {
-      // Check if origin can reach hub and hub can reach destination
+      // Check if both leg modes are allowed by the student
+      if (!allowedModes.includes(hub.firstLegMode) || !allowedModes.includes(hub.secondLegMode)) {
+        continue;
+      }
+
       const origStop = originNearbyStops[0];
       const destStop = destNearbyStops[0];
       if (!origStop || !destStop) continue;
 
       const totalDirectDist = haversineDistance(originCoords.lat, originCoords.lon, destCoords.lat, destCoords.lon);
       if (totalDirectDist > 1.5) {
-        // Form an interchange route
         const leg1Dist = +(haversineDistance(origStop.stop_lat, origStop.stop_lon, hub.lat, hub.lon)).toFixed(1);
         const leg2Dist = +(haversineDistance(hub.lat, hub.lon, destStop.stop_lat, destStop.stop_lon)).toFixed(1);
 
@@ -306,16 +333,20 @@ function findTransitCandidates(originCoords, destCoords, arrivalTime = '09:00', 
         const estDepMin = targetArrivalMin - totalDuration;
         const estArrMin = estDepMin + totalDuration;
 
+        const leg1Fare = hub.firstLegMode === 'train' ? 10 : (hub.firstLegMode === 'metro' ? 20 : 10);
+        const leg2Fare = hub.secondLegMode === 'train' ? 10 : (hub.secondLegMode === 'metro' ? 20 : 15);
+        const totalFare = leg1Fare + leg2Fare;
+
         candidates.push({
-          id: `route-gtfs-transfer-${hub.name.toLowerCase().replace(/\s+/g, '-')}`,
+          id: `route-gtfs-transfer-${hub.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
           title: `Transit via ${hub.name} (1 Transfer)`,
           subtitle: `${origStop.stop_name} → ${hub.name} → ${destStop.stop_name}`,
-          primaryMode: 'train',
-          modesIncluded: ['train', 'metro', 'bus', 'walk'],
+          primaryMode: hub.firstLegMode,
+          modesIncluded: Array.from(new Set([hub.firstLegMode, hub.secondLegMode, 'walk'])),
           durationMinutes: totalDuration,
           walkingDurationMinutes: walk1 + walk2 + transferMin,
           totalWalkingDistanceKm: +((origStop.distanceMeters + destStop.distanceMeters) / 1000 + 0.4).toFixed(2),
-          fareRupees: 25,
+          fareRupees: totalFare,
           transfers: 1,
           estimatedDeparture: minutesToTime(estDepMin),
           estimatedArrival: minutesToTime(estArrMin),
@@ -331,13 +362,13 @@ function findTransitCandidates(originCoords, destCoords, arrivalTime = '09:00', 
             },
             {
               type: 'TRANSIT',
-              description: `Board Local / Metro towards ${hub.name}`,
+              description: `Board ${hub.firstLegAgency} towards ${hub.name}`,
               from: origStop.stop_name,
               to: hub.name,
-              agency: 'WR / MMRDA',
-              routeShortName: 'Line Link',
-              mode: 'train',
-              fareRupees: 10,
+              agency: hub.firstLegAgency,
+              routeShortName: `${hub.firstLegMode.toUpperCase()} Link`,
+              mode: hub.firstLegMode,
+              fareRupees: leg1Fare,
               distanceKm: leg1Dist,
               durationMinutes: leg1Duration
             },
@@ -352,13 +383,13 @@ function findTransitCandidates(originCoords, destCoords, arrivalTime = '09:00', 
             },
             {
               type: 'TRANSIT',
-              description: `Connecting BEST Feeder / Line to ${destStop.stop_name}`,
+              description: `Connecting ${hub.secondLegAgency} to ${destStop.stop_name}`,
               from: hub.name,
               to: destStop.stop_name,
-              agency: 'BEST Undertaking',
-              routeShortName: 'BEST Feeder',
-              mode: 'bus',
-              fareRupees: 15,
+              agency: hub.secondLegAgency,
+              routeShortName: `${hub.secondLegMode.toUpperCase()} Feeder`,
+              mode: hub.secondLegMode,
+              fareRupees: leg2Fare,
               distanceKm: leg2Dist,
               durationMinutes: leg2Duration
             },
@@ -380,67 +411,69 @@ function findTransitCandidates(originCoords, destCoords, arrivalTime = '09:00', 
           ],
           sourceLabel: 'Verified GTFS Multi-Agency Network'
         });
-        break; // Add one high quality interchange
+        break; // Add one high quality interchange matching allowed modes
       }
     }
   }
 
-  // Also include a Shared Auto / Feeder road route alternative
+  // Include Road / Auto alternative ONLY IF allowedModes includes 'auto'
   const roadDistKm = +(haversineDistance(originCoords.lat, originCoords.lon, destCoords.lat, destCoords.lon) * 1.3).toFixed(2);
-  const autoDurationMin = Math.max(15, Math.round(roadDistKm * 2.8 + 8));
-  const autoFareRupees = Math.max(28, Math.round(roadDistKm * 18));
-  const autoDepMin = targetArrivalMin - autoDurationMin;
+  if (allowedModes.includes('auto')) {
+    const autoDurationMin = Math.max(15, Math.round(roadDistKm * 2.8 + 8));
+    const autoFareRupees = Math.max(28, Math.round(roadDistKm * 18));
+    const autoDepMin = targetArrivalMin - autoDurationMin;
 
-  candidates.push({
-    id: 'route-shared-auto-cab',
-    title: 'Shared Auto / Metered Cab (Road)',
-    subtitle: 'Direct Road Arterial Connection',
-    primaryMode: 'auto',
-    modesIncluded: ['auto', 'walk'],
-    durationMinutes: autoDurationMin,
-    walkingDurationMinutes: 4,
-    totalWalkingDistanceKm: 0.3,
-    fareRupees: autoFareRupees,
-    transfers: 0,
-    estimatedDeparture: minutesToTime(autoDepMin),
-    estimatedArrival: minutesToTime(targetArrivalMin),
-    legs: [
-      {
-        type: 'WALK',
-        description: 'Walk to nearest auto/cab stand',
-        from: 'Origin',
-        to: 'Auto Stand',
-        distanceKm: 0.2,
-        durationMinutes: 3,
-        mode: 'walk'
-      },
-      {
-        type: 'ROAD',
-        description: `Direct auto/cab ride via main arterial link (${roadDistKm} km)`,
-        from: 'Origin Stand',
-        to: 'College Gate',
-        mode: 'auto',
-        fareRupees: autoFareRupees,
-        distanceKm: roadDistKm,
-        durationMinutes: autoDurationMin - 4
-      },
-      {
-        type: 'WALK',
-        description: 'Walk into college gate',
-        from: 'Drop Point',
-        to: 'College Gate',
-        distanceKm: 0.1,
-        durationMinutes: 1,
-        mode: 'walk'
-      }
-    ],
-    stopsCount: 2,
-    transitStations: [],
-    sourceLabel: 'Estimated Road Routing'
-  });
+    candidates.push({
+      id: 'route-shared-auto-cab',
+      title: 'Shared Auto / Metered Cab (Road)',
+      subtitle: 'Direct Road Arterial Connection',
+      primaryMode: 'auto',
+      modesIncluded: ['auto', 'walk'],
+      durationMinutes: autoDurationMin,
+      walkingDurationMinutes: 4,
+      totalWalkingDistanceKm: 0.3,
+      fareRupees: autoFareRupees,
+      transfers: 0,
+      estimatedDeparture: minutesToTime(autoDepMin),
+      estimatedArrival: minutesToTime(targetArrivalMin),
+      legs: [
+        {
+          type: 'WALK',
+          description: 'Walk to nearest auto/cab stand',
+          from: 'Origin',
+          to: 'Auto Stand',
+          distanceKm: 0.2,
+          durationMinutes: 3,
+          mode: 'walk'
+        },
+        {
+          type: 'ROAD',
+          description: `Direct auto/cab ride via main arterial link (${roadDistKm} km)`,
+          from: 'Origin Stand',
+          to: 'College Gate',
+          mode: 'auto',
+          fareRupees: autoFareRupees,
+          distanceKm: roadDistKm,
+          durationMinutes: autoDurationMin - 4
+        },
+        {
+          type: 'WALK',
+          description: 'Walk into college gate',
+          from: 'Drop Point',
+          to: 'College Gate',
+          distanceKm: 0.1,
+          durationMinutes: 1,
+          mode: 'walk'
+        }
+      ],
+      stopsCount: 2,
+      transitStations: [],
+      sourceLabel: 'Estimated Road Routing'
+    });
+  }
 
-  // If distance is walkable (< 3.5 km), include pure walking alternative
-  if (roadDistKm <= 3.5) {
+  // Include Pure Walking alternative ONLY IF allowedModes includes 'walk' and distance is feasible
+  if (allowedModes.includes('walk') && roadDistKm <= 4.0) {
     const walkDuration = Math.round(roadDistKm * 13.5);
     candidates.push({
       id: 'route-pure-walk',
@@ -472,7 +505,18 @@ function findTransitCandidates(originCoords, destCoords, arrivalTime = '09:00', 
     });
   }
 
-  return candidates;
+  // STRICT GUARANTEE: Filter out any candidate that uses a disallowed mode in primaryMode or transit legs
+  const filteredCandidates = candidates.filter(cand => {
+    if (!allowedModes.includes(cand.primaryMode)) return false;
+    for (const leg of cand.legs) {
+      if ((leg.type === 'TRANSIT' || leg.type === 'ROAD') && leg.mode) {
+        if (!allowedModes.includes(leg.mode)) return false;
+      }
+    }
+    return true;
+  });
+
+  return filteredCandidates;
 }
 
 module.exports = {

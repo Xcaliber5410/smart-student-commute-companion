@@ -4,10 +4,22 @@ const axios = require('axios');
  * Builds deterministic grounded explanation when Gemini is unavailable or fails
  */
 function buildDeterministicExplanation(recommendedRoute, scoringResults, weather, activeReports, userPreferences) {
+  if (!recommendedRoute) {
+    return {
+      recommendedRouteId: null,
+      departureTime: null,
+      summary: 'No routes match your selected modes and budget constraints.',
+      reason: `No transit options were found within your max budget of ₹${userPreferences.maxBudgetRupees || 100}. Try relaxing your mode filters or increasing your budget limit.`,
+      warnings: ['No matching routes found.'],
+      confidence: 'none',
+      aiProvider: 'Deterministic Grounded Engine'
+    };
+  }
+
   const warnings = [];
 
   // Weather warning
-  if (weather.rainProbability > 40) {
+  if (weather && weather.rainProbability > 40) {
     warnings.push(`High rain probability (${weather.rainProbability}%). Outdoor walking legs carry elevated delay and soaking risk.`);
   }
 
@@ -58,6 +70,10 @@ function buildDeterministicExplanation(recommendedRoute, scoringResults, weather
  */
 async function generateAiRecommendation(candidates, scoringResults, weather, activeReports, userPreferences, targetArrival) {
   const recommendedRoute = scoringResults.recommended;
+  if (!recommendedRoute || !candidates || candidates.length === 0) {
+    return buildDeterministicExplanation(null, scoringResults, weather, activeReports, userPreferences);
+  }
+
   const apiKey = process.env.GEMINI_API_KEY || '';
 
   // If no API key is provided, return deterministic explanation immediately

@@ -26,8 +26,29 @@ export default function RouteResults({
   if (!planResult) return null;
 
   const { recommendation, alternatives, weather } = planResult;
-  const recRoute = recommendation.route;
-  const aiReasoning = recommendation.aiReasoning;
+  const recRoute = recommendation?.route;
+  const aiReasoning = recommendation?.aiReasoning;
+
+  if (!recRoute) {
+    return (
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-8 text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-white">No Routes Match Filter Settings</h3>
+          <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto">
+            {aiReasoning?.reason || 'No transit options were found within your selected modes and budget.'}
+          </p>
+        </div>
+        <div className="text-xs text-slate-400 bg-slate-950/70 p-3 rounded-xl max-w-sm mx-auto border border-slate-800 text-left space-y-1">
+          <div className="font-semibold text-slate-300">Suggestions:</div>
+          <div>• Enable more <strong>Allowed Modes</strong> (e.g. BEST Bus or Metro).</div>
+          <div>• Increase your <strong>Max Budget</strong> using the slider or quick presets.</div>
+        </div>
+      </div>
+    );
+  }
 
   const getModeIcon = (mode) => {
     switch (mode) {

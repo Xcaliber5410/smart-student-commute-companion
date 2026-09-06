@@ -30,7 +30,7 @@ module.exports = function createApiRouter(io) {
     preferredModes: z.array(z.string()).optional().default(['train', 'metro', 'bus', 'auto', 'walk']),
     preference: z.enum(['balanced', 'fastest', 'cheapest', 'rain-safe']).optional().default('balanced'),
     walkingToleranceMinutes: z.number().min(5).max(60).optional().default(20),
-    maxBudgetRupees: z.number().min(5).max(500).optional().default(100)
+    maxBudgetRupees: z.number().min(0).max(2000).optional().default(100)
   });
 
   router.post('/plan', async (req, res) => {
@@ -54,8 +54,12 @@ module.exports = function createApiRouter(io) {
         Promise.resolve(getActiveReports())
       ]);
 
-      // 3. Generate candidate routes from Mumbai GTFS and OSRM
-      const candidates = findTransitCandidates(originGeo, destGeo, desiredArrivalTime, preferredModes);
+      // 3. Generate candidate routes from Mumbai GTFS and OSRM with strict allowed modes
+      const rawCandidates = findTransitCandidates(originGeo, destGeo, desiredArrivalTime, preferredModes);
+
+      // Strict budget filter: If options exist within max budget, eliminate all exceeding options
+      const withinBudgetCandidates = rawCandidates.filter(c => c.fareRupees <= maxBudgetRupees);
+      const candidates = withinBudgetCandidates.length > 0 ? withinBudgetCandidates : rawCandidates;
 
       // 4. Enrich candidates with road/walking geometry from OSRM
       const enrichedCandidates = await Promise.all(
@@ -111,6 +115,36 @@ module.exports = function createApiRouter(io) {
         disruptionEvals
       );
 
+      // If no valid route found, return structured empty result
+      if (!scoringResults.recommended) {
+        return res.json({
+          success: true,
+          query: {
+            origin: originGeo,
+            destination: destGeo,
+            desiredArrivalTime,
+            preference,
+            maxBudgetRupees,
+            preferredModes
+          },
+          weather,
+          recommendation: {
+            route: null,
+            aiReasoning: {
+              recommendedRouteId: null,
+              departureTime: null,
+              summary: 'No routes match your selected modes and budget constraints.',
+              reason: `No transit options were found within your max budget of ₹${maxBudgetRupees} using the allowed modes (${preferredModes.join(', ')}). Try increasing your budget or selecting more transport modes.`,
+              warnings: ['No matching routes found for current filter settings.'],
+              confidence: 'none',
+              aiProvider: 'Smart Commute Filter Engine'
+            }
+          },
+          alternatives: [],
+          allCandidatesCount: 0
+        });
+      }
+
       // 7. Grounded AI explanation via Gemini 3.8 Flash (or deterministic fallback)
       const aiExplanation = await generateAiRecommendation(
         scoringResults.rankedCandidates,
@@ -127,21 +161,26 @@ module.exports = function createApiRouter(io) {
         recommendedRoute = scoringResults.recommended;
       }
 
-      // Collect at least two distinct alternative routes
-      const alternatives = scoringResults.rankedCandidates.filter(c => c.id !== recommendedRoute.id);
+      // Collect distinct alternative routes strictly within budget
+      const alternatives = scoringResults.rankedCandidates.filter(c => 
+        c.id !== recommendedRoute.id && (withinBudgetCandidates.length === 0 || c.fareRupees <= maxBudgetRupees)
+      );
       const practicalAlternatives = [];
 
-      // Add fastest alternative
-      if (scoringResults.fastestAlternative && scoringResults.fastestAlternative.id !== recommendedRoute.id) {
+      // Add fastest alternative (if within budget)
+      if (scoringResults.fastestAlternative && 
+          scoringResults.fastestAlternative.id !== recommendedRoute.id &&
+          (withinBudgetCandidates.length === 0 || scoringResults.fastestAlternative.fareRupees <= maxBudgetRupees)) {
         practicalAlternatives.push({
           ...scoringResults.fastestAlternative,
           badgeLabel: 'Fastest Alternative'
         });
       }
 
-      // Add cheapest alternative
+      // Add cheapest alternative (if within budget)
       if (scoringResults.cheapestAlternative &&
           scoringResults.cheapestAlternative.id !== recommendedRoute.id &&
+          (withinBudgetCandidates.length === 0 || scoringResults.cheapestAlternative.fareRupees <= maxBudgetRupees) &&
           !practicalAlternatives.some(a => a.id === scoringResults.cheapestAlternative.id)) {
         practicalAlternatives.push({
           ...scoringResults.cheapestAlternative,
@@ -149,9 +188,10 @@ module.exports = function createApiRouter(io) {
         });
       }
 
-      // Add rain-safe alternative
+      // Add rain-safe alternative (if within budget)
       if (scoringResults.rainSafeAlternative &&
           scoringResults.rainSafeAlternative.id !== recommendedRoute.id &&
+          (withinBudgetCandidates.length === 0 || scoringResults.rainSafeAlternative.fareRupees <= maxBudgetRupees) &&
           !practicalAlternatives.some(a => a.id === scoringResults.rainSafeAlternative.id)) {
         practicalAlternatives.push({
           ...scoringResults.rainSafeAlternative,

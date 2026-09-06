@@ -139,9 +139,14 @@ export default function App() {
       const data = await planCommute(formData);
       if (data.success) {
         setPlanResult(data);
-        setSelectedRouteId(data.recommendation.route.id);
+        const bestRoute = data.recommendation?.route;
+        setSelectedRouteId(bestRoute?.id || null);
         if (!isInitial) {
-          showToast(`Generated ${data.allCandidatesCount} candidate options! Best route: ${data.recommendation.route.title}`);
+          if (bestRoute) {
+            showToast(`Found ${data.allCandidatesCount} options! Best route: ${bestRoute.title} (₹${bestRoute.fareRupees})`);
+          } else {
+            showToast('No routes matched your selected modes and budget.', 'warning');
+          }
         }
       }
     } catch (err) {

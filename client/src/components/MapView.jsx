@@ -54,15 +54,16 @@ export default function MapView({
   const defaultCenter = [19.0760, 72.8777];
 
   const allRoutes = useMemo(() => {
-    if (!planResult) return [];
+    if (!planResult || !planResult.recommendation?.route) return [];
     const list = [planResult.recommendation.route];
     if (planResult.alternatives) {
-      list.push(...planResult.alternatives);
+      list.push(...planResult.alternatives.filter(Boolean));
     }
     return list;
   }, [planResult]);
 
   const selectedRoute = useMemo(() => {
+    if (allRoutes.length === 0) return null;
     return allRoutes.find(r => r.id === selectedRouteId) || allRoutes[0];
   }, [allRoutes, selectedRouteId]);
 

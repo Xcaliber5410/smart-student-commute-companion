@@ -59,27 +59,40 @@ function getModeReliability(mode) {
  * Scores each candidate route deterministically
  */
 function scoreRoutes(candidates, weather, userPreferences, disruptionEvaluations) {
-  if (!candidates || candidates.length === 0) return [];
+  if (!candidates || candidates.length === 0) {
+    return {
+      rankedCandidates: [],
+      recommended: null,
+      fastestAlternative: null,
+      cheapestAlternative: null,
+      rainSafeAlternative: null
+    };
+  }
 
   const preference = (userPreferences.preference || 'balanced').toLowerCase();
   const weights = WEIGHT_PROFILES[preference] || WEIGHT_PROFILES.balanced;
   const walkingToleranceMin = userPreferences.walkingToleranceMinutes || 20;
-  const maxBudget = userPreferences.maxBudgetRupees || 150;
+  const maxBudget = userPreferences.maxBudgetRupees !== undefined ? userPreferences.maxBudgetRupees : 150;
+
+  // STRICT BUDGET FILTER:
+  // If candidates exist that fit within the user's max budget, strictly eliminate all over-budget candidates.
+  const withinBudgetCandidates = candidates.filter(c => c.fareRupees <= maxBudget);
+  const eligibleCandidates = withinBudgetCandidates.length > 0 ? withinBudgetCandidates : candidates;
 
   // Find min/max ranges for normalization
-  const durations = candidates.map(c => c.durationMinutes);
+  const durations = eligibleCandidates.map(c => c.durationMinutes);
   const minDuration = Math.min(...durations);
   const maxDuration = Math.max(...durations) || minDuration + 1;
 
-  const fares = candidates.map(c => c.fareRupees);
+  const fares = eligibleCandidates.map(c => c.fareRupees);
   const minFare = Math.min(...fares);
   const maxFare = Math.max(...fares) || minFare + 1;
 
-  const walks = candidates.map(c => c.walkingDurationMinutes);
+  const walks = eligibleCandidates.map(c => c.walkingDurationMinutes);
   const minWalk = Math.min(...walks);
   const maxWalk = Math.max(...walks) || minWalk + 1;
 
-  const scoredCandidates = candidates.map(candidate => {
+  const scoredCandidates = eligibleCandidates.map(candidate => {
     const disruptionEval = disruptionEvaluations[candidate.id] || { disruptionScore: 0, alerts: [] };
 
     // 1. Travel Time Sub-Score (0 to 100, lower duration = higher score)
@@ -121,7 +134,7 @@ function scoreRoutes(candidates, weather, userPreferences, disruptionEvaluations
     const costRatio = maxFare === minFare ? 1 : 1 - ((candidate.fareRupees - minFare) / (maxFare - minFare));
     let costScore = Math.round(costRatio * 100);
     if (candidate.fareRupees > maxBudget) {
-      costScore = Math.max(0, costScore - 40); // Over-budget penalty
+      costScore = Math.max(0, costScore - 60); // Over-budget penalty
     }
 
     // Compute composite weighted score
@@ -158,20 +171,22 @@ function scoreRoutes(candidates, weather, userPreferences, disruptionEvaluations
   scoredCandidates.sort((a, b) => b.scores.composite - a.scores.composite);
 
   // Identify distinct alternatives
-  const fastest = [...scoredCandidates].sort((a, b) => a.durationMinutes - b.durationMinutes)[0];
-  const cheapest = [...scoredCandidates].sort((a, b) => a.fareRupees - b.fareRupees)[0];
+  const fastest = [...scoredCandidates].sort((a, b) => a.durationMinutes - b.durationMinutes)[0] || null;
+  const cheapest = [...scoredCandidates].sort((a, b) => a.fareRupees - b.fareRupees)[0] || null;
   const rainSafe = [...scoredCandidates].sort((a, b) => {
     // Metro and lowest walking is most rain safe
     const rainScoreA = (a.primaryMode === 'metro' ? 30 : 0) - a.walkingDurationMinutes * 2;
     const rainScoreB = (b.primaryMode === 'metro' ? 30 : 0) - b.walkingDurationMinutes * 2;
     return rainScoreB - rainScoreA;
-  })[0];
+  })[0] || null;
+
+  const topRoute = scoredCandidates[0] || null;
 
   return {
     rankedCandidates: scoredCandidates,
-    recommended: scoredCandidates[0],
-    fastestAlternative: fastest.id !== scoredCandidates[0].id ? fastest : (scoredCandidates[1] || fastest),
-    cheapestAlternative: cheapest.id !== scoredCandidates[0].id ? cheapest : (scoredCandidates[1] || cheapest),
+    recommended: topRoute,
+    fastestAlternative: fastest && topRoute && fastest.id !== topRoute.id ? fastest : (scoredCandidates[1] || fastest),
+    cheapestAlternative: cheapest && topRoute && cheapest.id !== topRoute.id ? cheapest : (scoredCandidates[1] || cheapest),
     rainSafeAlternative: rainSafe
   };
 }

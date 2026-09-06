@@ -223,17 +223,48 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
                 <IndianRupee className="w-3.5 h-3.5 text-amber-400" />
                 Max Budget
               </span>
-              <span className="text-amber-400 font-bold">₹{formData.maxBudgetRupees}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-amber-400 text-xs font-mono">₹</span>
+                <input
+                  type="number"
+                  min="5"
+                  max="1500"
+                  step="5"
+                  value={formData.maxBudgetRupees}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setFormData({ ...formData, maxBudgetRupees: isNaN(val) ? 0 : val });
+                  }}
+                  className="w-16 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-right font-bold text-amber-400 text-xs focus:outline-none focus:border-amber-400"
+                />
+              </div>
             </div>
             <input
               type="range"
               min="10"
-              max="200"
+              max="600"
               step="10"
-              value={formData.maxBudgetRupees}
-              onChange={(e) => setFormData({ ...formData, maxBudgetRupees: parseInt(e.target.value) })}
+              value={Math.min(600, formData.maxBudgetRupees || 10)}
+              onChange={(e) => setFormData({ ...formData, maxBudgetRupees: parseInt(e.target.value, 10) })}
               className="w-full accent-amber-500 bg-slate-950 rounded-lg cursor-pointer h-1.5"
             />
+            {/* Quick Budget Chips */}
+            <div className="flex items-center gap-1 mt-1.5 overflow-x-auto pb-0.5">
+              {[25, 50, 100, 200, 350, 500].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, maxBudgetRupees: preset })}
+                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                    formData.maxBudgetRupees === preset
+                      ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 font-bold'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  ₹{preset}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
