@@ -1,0 +1,55 @@
+stop_id,stop_name,stop_lat,stop_lon,location_type
+ST_CCG,"Churchgate Station",18.9322,72.8264,0
+ST_MEL,"Marine Lines Station",18.9438,72.8239,0
+ST_MMCT,"Mumbai Central Station",18.9696,72.8193,0
+ST_DDR_WR,"Dadar Station (WR)",19.0178,72.8432,0
+ST_BA,"Bandra Station",19.0544,72.8406,0
+ST_VLP,"Vile Parle Station",19.0999,72.8439,0
+ST_ADH_WR,"Andheri Station (WR)",19.1197,72.8464,0
+ST_JOS,"Jogeshwari Station",19.1352,72.8492,0
+ST_GMN,"Goregaon Station",19.1646,72.8494,0
+ST_MDD,"Malad Station",19.1866,72.8486,0
+ST_KND,"Kandivali Station",19.2045,72.8522,0
+ST_BVI,"Borivali Station",19.2294,72.8567,0
+ST_CSMT,"CSMT Station",18.94,72.8354,0
+ST_BY,"Byculla Station",18.9774,72.8331,0
+ST_DDR_CR,"Dadar Station (CR)",19.0182,72.8438,0
+ST_MTN,"Matunga Station (CR)",19.027,72.854,0
+ST_SIN,"Sion Station",19.039,72.8617,0
+ST_CLA,"Kurla Station",19.0657,72.8794,0
+ST_GC,"Ghatkopar Station",19.0864,72.9081,0
+ST_VK,"Vikhroli Station",19.1111,72.9287,0
+ST_KJMG,"Kanjurmarg Station",19.1294,72.9372,0
+ST_BND,"Bhandup Station",19.1437,72.9379,0
+ST_TNA,"Thane Station",19.186,72.9757,0
+ST_VDLR,"Vadala Road Station",19.0163,72.8587,0
+ST_GTBN,"GTB Nagar Station",19.0336,72.8647,0
+ST_CMBR,"Chembur Station",19.0624,72.9029,0
+ST_M1_VER,"Versova Metro",19.1315,72.8166,0
+ST_M1_DN,"DN Nagar Metro",19.1306,72.8344,0
+ST_M1_AZD,"Azad Nagar Metro",19.1287,72.8407,0
+ST_M1_ADH,"Andheri Metro Station",19.12,72.8475,0
+ST_M1_WEH,"WEH Metro Station",19.1158,72.8569,0
+ST_M1_CHK,"Chakala (JB Nagar) Metro",19.1115,72.8661,0
+ST_M1_ARP,"Airport Road Metro",19.1085,72.8749,0
+ST_M1_MRL,"Marol Naka Metro",19.1082,72.8809,0
+ST_M1_SAK,"Saki Naka Metro",19.1037,72.8878,0
+ST_M1_GHK,"Ghatkopar Metro Station",19.086,72.9088,0
+ST_M2A_DH,"Dahisar East Metro",19.2568,72.8601,0
+ST_M2A_KND,"Kandivali West Metro",19.2065,72.8385,0
+ST_M2A_ADH,"Andheri West Metro",19.1306,72.8344,0
+ST_M7_GUND,"Gundavali Metro (Andheri East)",19.1165,72.8575,0
+ST_M3_AAR,"Aarey JVLR Metro",19.1412,72.8752,0
+ST_M3_SPZ,"SEEPZ Metro",19.1228,72.8744,0
+ST_M3_BKC,"BKC Metro Station",19.0645,72.868,0
+ST_IIT_MAIN,"IIT Bombay Main Gate (Powai)",19.1334,72.9133,0
+ST_IIT_LAKE,"IIT Lake Gate / Hiranandani",19.1285,72.918,0
+ST_POWAI_PLZ,"Powai Plaza",19.1189,72.9084,0
+ST_VJTI,"VJTI College Gate (Matunga)",19.0223,72.8561,0
+ST_RUIA,"Ruia & Podar College (Matunga)",19.0238,72.8524,0
+ST_NMIMS,"NMIMS / Mithibai College (Vile Parle W)",19.1025,72.8375,0
+ST_DJSCE,"DJ Sanghvi Engg College (Vile Parle W)",19.1077,72.8371,0
+ST_SPIT,"SPIT / Bhavan Campus (Andheri W)",19.1232,72.8361,0
+ST_HR_KC,"HR / KC College (Churchgate)",18.931,72.8275,0
+ST_XAV,"St. Xavier College (Fort)",18.943,72.8315,0
+ST_AGARKAR,"Agarkar Chowk Bus Terminus (Andheri E)",19.1205,72.8485,0

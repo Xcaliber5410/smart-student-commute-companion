@@ -1,0 +1,20 @@
+{
+  "name": "smart-student-commute-server",
+  "version": "1.0.0",
+  "description": "Backend for Smart Student Commute Companion",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.21.0",
+    "axios": "^1.7.9",
+    "better-sqlite3": "^11.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "zod": "^3.24.2"
+  }
+}

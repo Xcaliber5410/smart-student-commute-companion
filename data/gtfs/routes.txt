@@ -1,0 +1,16 @@
+route_id,agency_id,route_short_name,route_long_name,route_type,route_color,route_text_color
+WR_SLOW,WR,WR-SL,Western Line (Slow - All Stops),2,E11D48,FFFFFF
+WR_FAST,WR,WR-FT,Western Line (Fast),2,BE123C,FFFFFF
+CR_SLOW,CR,CR-SL,Central Line (Slow - All Stops),2,1D4ED8,FFFFFF
+CR_FAST,CR,CR-FT,Central Line (Fast),2,1E40AF,FFFFFF
+HR_MAIN,CR,HR-SL,Harbour Line (CSMT - Panvel/Wadala),2,D97706,FFFFFF
+METRO_1,MMRDA,Line 1,Metro Line 1 (Versova - Andheri - Ghatkopar),1,059669,FFFFFF
+METRO_2A,MMRDA,Line 2A,Metro Line 2A (Dahisar East - Andheri West),1,F59E0B,000000
+METRO_7,MMRDA,Line 7,Metro Line 7 (Dahisar East - Gundavali),1,EF4444,FFFFFF
+METRO_3,MMRDA,Line 3,Metro Line 3 Aqua Line (Aarey JVLR - BKC),1,06B6D4,FFFFFF
+BEST_418,BEST,Bus 418,Andheri Station (E) to IIT Main Gate / Powai,3,DC2626,FFFFFF
+BEST_492,BEST,Bus 492,Thane Stn to SEEPZ via IIT Powai,3,DC2626,FFFFFF
+BEST_203,BEST,Bus 203,Dahisar Bridge to Juhu via Andheri West,3,DC2626,FFFFFF
+BEST_60,BEST,Bus 60,Matunga Station to VJTI / Wadala,3,DC2626,FFFFFF
+BEST_138,BEST,Bus 138,Churchgate Stn to CSMT / Fort Colleges,3,DC2626,FFFFFF
+BEST_AS422,BEST,Bus AS-422,Agarkar Chowk Andheri to Powai Lake,3,DC2626,FFFFFF
