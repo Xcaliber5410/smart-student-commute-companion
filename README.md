@@ -130,7 +130,7 @@ npm run dev
 
 ---
 
-## 🏆 Hackathon Demo Walkthrough
+## 🏆 Demo Walkthrough
 
 1. Open [http://localhost:5173](http://localhost:5173).
 2. Click **Plan My Commute** (default: Andheri East → IIT Bombay Powai).
