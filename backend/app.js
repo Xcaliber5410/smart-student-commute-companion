@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const config = require('./config');
-const createApiRouter = require('./routes/api');
+const createApiRouter = require('./routes');
 
 /**
  * Creates and configures the Express application instance.

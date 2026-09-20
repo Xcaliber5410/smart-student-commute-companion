@@ -36,6 +36,14 @@ backend/
 ├── app.js                   # Express application factory (CORS, body parsing, routes, errors)
 ├── config/
 │   └── index.js             # Centralized environment configuration & Zod validation
+├── controllers/             # Decoupled HTTP request handlers (pure business/data interaction)
+│   ├── demoController.js
+│   ├── feedbackController.js
+│   ├── healthController.js
+│   ├── planController.js
+│   ├── reportController.js
+│   ├── rideGroupController.js
+│   └── transitController.js
 ├── db/
 │   ├── commute.db           # SQLite database file (WAL mode)
 │   └── database.js          # SQLite connection, table DDL schemas, and demo seed data
@@ -43,12 +51,21 @@ backend/
 │   └── architecture.md      # Backend architecture and technical specification
 ├── .env.example             # Documented backend environment variables and safe placeholders
 ├── package.json             # Backend dependencies and scripts
-├── routes/
-│   └── api.js               # Monolithic Express router (API routes, Zod schemas, DB logic)
+├── routes/                  # Centralized, decoupled route registration
+│   ├── api.js               # Backward-compatible bridge delegating to index.js
+│   ├── demoRoutes.js        # Demo reset endpoint
+│   ├── feedbackRoutes.js    # Student rating and feedback endpoint
+│   ├── healthRoutes.js      # Health check endpoint
+│   ├── index.js             # Centralized router aggregator & introspection
+│   ├── planRoutes.js        # Commute planner endpoint
+│   ├── reportRoutes.js      # Crowdsourced disruption reports & alert endpoints
+│   ├── rideGroupRoutes.js   # Travel Together carpooling endpoints
+│   └── transitRoutes.js     # GTFS spatial/text search endpoint
 ├── scripts/
 │   ├── verify_all.js        # Automated end-to-end integration test script
 │   ├── verify_bootstrap.js  # Automated server bootstrap, lifecycle, and idempotency test suite
-│   └── verify_config.js     # Automated configuration validation & secret redaction test suite
+│   ├── verify_config.js     # Automated configuration validation & secret redaction test suite
+│   └── verify_routes.js     # Automated route completeness, uniqueness & registry test suite
 ├── server.js                # Server entry point, listener lifecycle, graceful shutdown
 └── services/
     ├── aiPlannerService.js  # Grounded Gemini explanation & deterministic reasoning fallback
@@ -88,7 +105,41 @@ backend/
 - Implements graceful shutdown listeners for `SIGTERM` and `SIGINT` with a 5-second safety timeout.
 - Uses `if (require.main === module)` to only start listening when executed directly as a script.
 
-#### 4. Persistence Layer (`db/database.js`)
+#### 4. Controller Layer (`controllers/`)
+- Pure request/response handlers extracted out of route files.
+- Extracts and validates request inputs (query parameters, URL params, request body).
+- Invokes domain services and database operations.
+- Formats HTTP responses with standard JSON envelopes and appropriate status codes (`200 OK`, `201 Created`, `400 Bad Request`, `404 Not Found`, `500 Internal Server Error`).
+
+#### 5. Centralized API Router (`routes/`)
+- `routes/index.js` acts as the single central route aggregator.
+- Mounts isolated domain routers: `healthRoutes`, `planRoutes`, `reportRoutes`, `transitRoutes`, `rideGroupRoutes`, `feedbackRoutes`, and `demoRoutes`.
+- Guarantees each route is registered **exactly once** with zero duplicate handlers.
+- Preserves 100% backward compatibility via `routes/api.js` re-export.
+- Provides `getRegisteredEndpoints(router)` helper for introspection and regression testing.
+
+##### Guidelines for Registering New Routes
+When adding a new backend module or domain endpoint:
+1. **Create Controller**: Define handler functions in `backend/controllers/<domain>Controller.js`. Keep handlers focused on HTTP request parsing, calling domain services, and returning JSON.
+2. **Create Route Module**: Define an isolated router factory in `backend/routes/<domain>Routes.js`:
+   ```javascript
+   const express = require('express');
+   const { myHandler } = require('../controllers/myController');
+
+   function createMyRoutes() {
+     const router = express.Router();
+     router.get('/my-path', myHandler);
+     return router;
+   }
+   module.exports = createMyRoutes;
+   ```
+3. **Register in Aggregator**: In `backend/routes/index.js`, import the route factory and mount it inside `createApiRouter(io)`:
+   ```javascript
+   router.use(createMyRoutes());
+   ```
+4. **Run Verification**: Run `npm --prefix backend run verify:routes` to ensure the endpoint is detected, valid, and contains no duplicates.
+
+#### 6. Persistence Layer (`db/database.js`)
 - Manages single connection instance to `commute.db` with WAL mode (`journal_mode = WAL`).
 - Bootstraps 11 database tables:
   1. `geocoding_cache`: Caches geocoding queries with timestamps.
