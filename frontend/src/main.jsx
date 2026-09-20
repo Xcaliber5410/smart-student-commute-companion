@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
 import { validateConfig } from './config/index.js';
+import { registerServiceWorker } from './utils/registerSW.js';
 
 // Validate configuration before rendering the app
 try {
@@ -31,3 +32,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 );
+
+// Register service worker after app renders
+registerServiceWorker().catch(error => {
+  console.error('Service worker registration failed:', error);
+  // App continues to work without service worker
+});
