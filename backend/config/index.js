@@ -28,6 +28,10 @@ const envSchema = z.object({
     .max(65535, 'PORT must be between 1 and 65535')
     .default(5000),
 
+  HOST: z
+    .string()
+    .default('0.0.0.0'),
+
   NODE_ENV: z
     .enum(['development', 'production', 'test'], {
       errorMap: () => ({ message: "NODE_ENV must be one of: 'development', 'production', 'test'" })
@@ -135,6 +139,7 @@ const uniqueAllowedOrigins = Array.from(new Set(allowedOrigins));
  */
 const config = {
   port: validatedConfig.PORT,
+  host: validatedConfig.HOST,
   nodeEnv: validatedConfig.NODE_ENV,
   isProduction: validatedConfig.NODE_ENV === 'production',
   isDevelopment: validatedConfig.NODE_ENV === 'development',
@@ -154,6 +159,7 @@ const config = {
   toSanitizedObject() {
     return {
       port: this.port,
+      host: this.host,
       nodeEnv: this.nodeEnv,
       clientUrl: this.clientUrl,
       allowedOrigins: this.allowedOrigins,

@@ -33,6 +33,7 @@
 
 ```
 backend/
+├── app.js                   # Express application factory (CORS, body parsing, routes, errors)
 ├── config/
 │   └── index.js             # Centralized environment configuration & Zod validation
 ├── db/
@@ -46,8 +47,9 @@ backend/
 │   └── api.js               # Monolithic Express router (API routes, Zod schemas, DB logic)
 ├── scripts/
 │   ├── verify_all.js        # Automated end-to-end integration test script
+│   ├── verify_bootstrap.js  # Automated server bootstrap, lifecycle, and idempotency test suite
 │   └── verify_config.js     # Automated configuration validation & secret redaction test suite
-├── server.js                # Server entry point, middleware setup, Socket.IO channels
+├── server.js                # Server entry point, listener lifecycle, graceful shutdown
 └── services/
     ├── aiPlannerService.js  # Grounded Gemini explanation & deterministic reasoning fallback
     ├── disruptionService.js # Community report decay calculations, filtering & route impact
@@ -63,22 +65,30 @@ backend/
 #### 1. Centralized Configuration Module (`config/index.js`)
 - Single source of truth for all runtime environment settings.
 - Automatically locates `.env` in `backend/` and project root.
-- Uses Zod schema validation to validate `PORT`, `NODE_ENV`, `CLIENT_URL`, `GEMINI_API_KEY`, `REQUIRE_GEMINI_KEY`, and `DATABASE_PATH`.
-- Provides safe defaults for non-sensitive values (`PORT=5000`, `NODE_ENV=development`, `CLIENT_URL=http://localhost:5173`).
+- Uses Zod schema validation to validate `PORT`, `HOST`, `NODE_ENV`, `CLIENT_URL`, `GEMINI_API_KEY`, `REQUIRE_GEMINI_KEY`, and `DATABASE_PATH`.
+- Provides safe defaults for non-sensitive values (`PORT=5000`, `HOST=0.0.0.0`, `NODE_ENV=development`, `CLIENT_URL=http://localhost:5173`).
 - Strictly sanitizes error messages and log outputs, ensuring API keys and secrets are never leaked.
 - Enforces production safety rules (e.g. rejecting localhost `CLIENT_URL` in `production`).
 - Provides `toSanitizedObject()` helper for safe diagnostics and startup banners.
 
-#### 2. Server Core (`server.js`)
-- Initializes Express application and HTTP server.
-- Sets up CORS with strict origins (`http://localhost:5173`, `http://127.0.0.1:5173`).
-- Mounts `express.json()` body parser.
-- Instantiates Socket.IO server on the same HTTP port.
-- Manages real-time room joining (`join_commute_channel`) and disconnections.
-- Mounts `/api` router passing the `io` instance.
-- Provides top-level global error handling middleware.
+#### 2. Application Factory (`app.js`)
+- Separates application initialization from the HTTP network listener.
+- Configures CORS using centralized `config.allowedOrigins` and enables credentials.
+- Attaches `express.json()` request body parsing.
+- Mounts `/api` router using the provided Socket.IO instance.
+- Configures top-level centralized error handling.
+- Exports `createApp({ io })`, enabling programmatic testing and serverless compatibility without binding to network ports.
 
-#### 3. Persistence Layer (`db/database.js`)
+#### 3. Server Core & Lifecycle Management (`server.js`)
+- Initializes HTTP server and binds Socket.IO with CORS rules.
+- Manages Socket.IO real-time channels and disconnections.
+- Attaches the Express application from `createApp({ io })`.
+- Provides `startServer(port, host)` with idempotency protection against duplicate listeners.
+- Provides `closeServer()` to cleanly release network sockets, Socket.IO clients, and SQLite connections.
+- Implements graceful shutdown listeners for `SIGTERM` and `SIGINT` with a 5-second safety timeout.
+- Uses `if (require.main === module)` to only start listening when executed directly as a script.
+
+#### 4. Persistence Layer (`db/database.js`)
 - Manages single connection instance to `commute.db` with WAL mode (`journal_mode = WAL`).
 - Bootstraps 11 database tables:
   1. `geocoding_cache`: Caches geocoding queries with timestamps.
@@ -89,14 +99,14 @@ backend/
   6. `gtfs_agency`, `gtfs_routes`, `gtfs_stops`, `gtfs_trips`, `gtfs_stop_times`, `gtfs_calendar`: Static GTFS transit data.
 - Exports `db` instance and `resetDemo()` method to re-seed deterministic baseline data.
 
-#### 4. API Router (`routes/api.js`)
+#### 5. API Router (`routes/api.js`)
 Currently acts as a combination of router, controller, and query layer:
 - Validates requests via Zod (`planSchema`, `reportSchema`, `rideGroupSchema`, `feedbackSchema`).
 - Handles all `/api/*` endpoints.
 - Directly invokes SQL prepared statements on `db`.
 - Emits Socket.IO events (`live_report_created`, `live_report_updated`, `live_report_expired`, `demo_reset`).
 
-#### 5. Domain Services (`services/`)
+#### 6. Domain Services (`services/`)
 - **`gtfsService.js`**:
   - Implements bounding-box pre-filtering and exact Haversine distance calculation for stop discovery.
   - Queries scheduled trips matching origin-destination stop pairs.

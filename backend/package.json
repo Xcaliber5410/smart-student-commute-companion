@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "verify:config": "node scripts/verify_config.js"
+    "verify:config": "node scripts/verify_config.js",
+    "verify:bootstrap": "node scripts/verify_bootstrap.js"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
