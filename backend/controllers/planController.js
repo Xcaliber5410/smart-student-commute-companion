@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { ValidationError } = require('../errors');
 const { geocodeArea } = require('../services/geocodingService');
 const { getOsrmRoute } = require('../services/routingService');
 const { getMumbaiWeather } = require('../services/weatherService');
@@ -20,11 +21,11 @@ const planSchema = z.object({
 /**
  * Commute planner controller
  */
-async function planCommute(req, res) {
+async function planCommute(req, res, next) {
   try {
     const parsed = planSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation failed', details: parsed.error.format() });
+      return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
     const { origin, destination, desiredArrivalTime, preferredModes, preference, walkingToleranceMinutes, maxBudgetRupees } = parsed.data;
@@ -215,11 +216,7 @@ async function planCommute(req, res) {
       disruptionReportsConsidered: activeReports.length
     });
   } catch (err) {
-    console.error('Plan error:', err);
-    res.status(500).json({
-      error: 'Failed to generate commute plan',
-      message: err.message
-    });
+    next(err);
   }
 }
 

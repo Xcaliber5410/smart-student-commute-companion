@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { db } = require('../db/database');
 const { getActiveReports } = require('../services/disruptionService');
+const { ValidationError, NotFoundError } = require('../errors');
 
 const reportSchema = z.object({
   pseudonym: z.string().min(2).max(30).optional().default('Student_Rider'),
@@ -13,7 +14,7 @@ const reportSchema = z.object({
   durationObservedMinutes: z.number().optional().default(60)
 });
 
-function getLiveReports(req, res) {
+function getLiveReports(req, res, next) {
   try {
     const reports = getActiveReports();
     res.json({
@@ -22,11 +23,11 @@ function getLiveReports(req, res) {
       reports
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 
-function getAlerts(req, res) {
+function getAlerts(req, res, next) {
   try {
     const reports = getActiveReports();
     res.json({
@@ -41,16 +42,16 @@ function getAlerts(req, res) {
       }))
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 
 function createReport(io) {
-  return (req, res) => {
+  return (req, res, next) => {
     try {
       const parsed = reportSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: 'Validation failed', details: parsed.error.format() });
+        return next(new ValidationError('Validation failed', parsed.error.format()));
       }
 
       const { pseudonym, area, route_name, route_id, mode, message, impact, durationObservedMinutes } = parsed.data;
@@ -96,14 +97,13 @@ function createReport(io) {
         report: createdReport
       });
     } catch (err) {
-      console.error('Create report error:', err);
-      res.status(500).json({ error: err.message });
+      next(err);
     }
   };
 }
 
 function confirmReport(io) {
-  return (req, res) => {
+  return (req, res, next) => {
     try {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
@@ -133,13 +133,13 @@ function confirmReport(io) {
         report: updatedReport
       });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      next(err);
     }
   };
 }
 
 function contradictReport(io) {
-  return (req, res) => {
+  return (req, res, next) => {
     try {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
@@ -174,7 +174,7 @@ function contradictReport(io) {
         report: updatedReport
       });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      next(err);
     }
   };
 }

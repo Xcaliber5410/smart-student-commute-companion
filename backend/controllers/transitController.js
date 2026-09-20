@@ -4,7 +4,7 @@ const { findNearbyStops } = require('../services/gtfsService');
 /**
  * Transit stop and route search controller
  */
-function searchTransit(req, res) {
+function searchTransit(req, res, next) {
   try {
     const { q, lat, lon } = req.query;
     if (lat && lon) {
@@ -16,7 +16,7 @@ function searchTransit(req, res) {
     const routes = db.prepare('SELECT * FROM gtfs_routes WHERE route_short_name LIKE ? OR route_long_name LIKE ? LIMIT 15').all(`%${query}%`, `%${query}%`);
     res.json({ success: true, stops, routes });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 

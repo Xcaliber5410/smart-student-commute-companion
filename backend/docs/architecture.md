@@ -49,6 +49,10 @@ backend/
 │   └── database.js          # SQLite connection, table DDL schemas, and demo seed data
 ├── docs/
 │   └── architecture.md      # Backend architecture and technical specification
+├── errors/                  # Centralized operational error classes (AppError, ValidationError, etc.)
+│   └── index.js
+├── middleware/              # Express middleware layer
+│   └── errorHandler.js      # Global error handler, 404 catch-all, diagnostic sanitization
 ├── .env.example             # Documented backend environment variables and safe placeholders
 ├── package.json             # Backend dependencies and scripts
 ├── routes/                  # Centralized, decoupled route registration
@@ -65,6 +69,7 @@ backend/
 │   ├── verify_all.js        # Automated end-to-end integration test script
 │   ├── verify_bootstrap.js  # Automated server bootstrap, lifecycle, and idempotency test suite
 │   ├── verify_config.js     # Automated configuration validation & secret redaction test suite
+│   ├── verify_errors.js     # Automated centralized error handling & production safety test suite
 │   └── verify_routes.js     # Automated route completeness, uniqueness & registry test suite
 ├── server.js                # Server entry point, listener lifecycle, graceful shutdown
 └── services/
@@ -138,6 +143,18 @@ When adding a new backend module or domain endpoint:
    router.use(createMyRoutes());
    ```
 4. **Run Verification**: Run `npm --prefix backend run verify:routes` to ensure the endpoint is detected, valid, and contains no duplicates.
+
+#### 5. Centralized Error Handling (`errors/` & `middleware/errorHandler.js`)
+- **Operational Error Hierarchy (`errors/index.js`)**:
+  - `AppError` (base operational error with HTTP status, machine-readable `code`, optional `details`).
+  - Specialized subclasses: `ValidationError` (400), `BadRequestError` (400), `NotFoundError` (404), `UnauthorizedError` (401), `ForbiddenError` (403), `ConflictError` (409).
+- **Global Error Handler (`middleware/errorHandler.js`)**:
+  - Catches operational and unhandled runtime errors.
+  - Automatically formats `ZodError` validation failures and JSON parser syntax errors into structured 400 responses.
+  - In production (`NODE_ENV === 'production'`), masks unexpected 500 errors to a safe generic message, completely redacting internal stack traces, system paths, and secrets.
+  - Sanitizes server-side diagnostic logs to prevent leaking auth tokens (`x-user-token`, `authorization`) or API credentials.
+- **Unmatched Route Handler (`notFoundHandler`)**:
+  - Catches 404s before they fall through to Express default HTML, delivering uniform JSON responses.
 
 #### 6. Persistence Layer (`db/database.js`)
 - Manages single connection instance to `commute.db` with WAL mode (`journal_mode = WAL`).

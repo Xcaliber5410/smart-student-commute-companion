@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { db } = require('../db/database');
+const { ValidationError } = require('../errors');
 
 const feedbackSchema = z.object({
   recommendation_id: z.string().optional().default(''),
@@ -8,11 +9,11 @@ const feedbackSchema = z.object({
   comment: z.string().optional().default('')
 });
 
-function submitFeedback(req, res) {
+function submitFeedback(req, res, next) {
   try {
     const parsed = feedbackSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation failed', details: parsed.error.format() });
+      return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
     const { recommendation_id, is_useful, tags, comment } = parsed.data;
@@ -24,7 +25,7 @@ function submitFeedback(req, res) {
 
     res.status(201).json({ success: true, message: 'Thank you for your student feedback!' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 

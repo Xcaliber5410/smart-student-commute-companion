@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { db } = require('../db/database');
+const { ValidationError, NotFoundError, BadRequestError } = require('../errors');
 
 const rideGroupSchema = z.object({
   creator_pseudonym: z.string().min(2),
@@ -11,20 +12,20 @@ const rideGroupSchema = z.object({
   notes: z.string().optional().default('')
 });
 
-function getRideGroups(req, res) {
+function getRideGroups(req, res, next) {
   try {
     const groups = db.prepare('SELECT * FROM ride_groups ORDER BY created_at DESC LIMIT 20').all();
     res.json({ success: true, groups });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 
-function createRideGroup(req, res) {
+function createRideGroup(req, res, next) {
   try {
     const parsed = rideGroupSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation failed', details: parsed.error.format() });
+      return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
     const { creator_pseudonym, origin_area, destination_college, departure_time, mode, max_members, notes } = parsed.data;
@@ -39,24 +40,24 @@ function createRideGroup(req, res) {
     const created = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(groupId);
     res.status(201).json({ success: true, group: created });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 
-function joinRideGroup(req, res) {
+function joinRideGroup(req, res, next) {
   try {
     const { id } = req.params;
     const group = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(id);
-    if (!group) return res.status(404).json({ error: 'Ride group not found' });
+    if (!group) return next(new NotFoundError('Ride group not found'));
     if (group.current_members >= group.max_members) {
-      return res.status(400).json({ error: 'This group is already full' });
+      return next(new BadRequestError('This group is already full', 'GROUP_FULL'));
     }
 
     db.prepare('UPDATE ride_groups SET current_members = current_members + 1 WHERE id = ?').run(id);
     const updated = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(id);
     res.json({ success: true, message: 'Joined commute group successfully!', group: updated });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 

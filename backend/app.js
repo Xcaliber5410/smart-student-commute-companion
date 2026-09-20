@@ -3,6 +3,7 @@ const cors = require('cors');
 const config = require('./config');
 const createApiRouter = require('./routes');
 const { getHealth } = require('./controllers/healthController');
+const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 /**
  * Creates and configures the Express application instance.
@@ -31,14 +32,16 @@ function createApp(options = {}) {
   // 4. Mount API routes
   app.use('/api', createApiRouter(io));
 
-  // 5. Centralized Error Handler
-  app.use((err, req, res, next) => {
-    console.error('[Server Error]', err);
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: err.message
-    });
-  });
+  // 5. Hook for injecting testing routes or pre-404 middleware
+  if (typeof options.beforeNotFound === 'function') {
+    options.beforeNotFound(app);
+  }
+
+  // 6. 404 Catch-all for unmatched routes
+  app.use(notFoundHandler);
+
+  // 7. Centralized Error Handler
+  app.use(errorHandler);
 
   return app;
 }
