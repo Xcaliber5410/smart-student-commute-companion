@@ -66,6 +66,7 @@ backend/
 │   ├── rideGroupRoutes.js   # Travel Together carpooling endpoints
 │   └── transitRoutes.js     # GTFS spatial/text search endpoint
 ├── scripts/
+│   ├── smoke_test.js        # Automated isolated foundation smoke test suite
 │   ├── verify_all.js        # Automated end-to-end integration test script
 │   ├── verify_bootstrap.js  # Automated server bootstrap, lifecycle, and idempotency test suite
 │   ├── verify_config.js     # Automated configuration validation & secret redaction test suite
@@ -329,10 +330,95 @@ backend/
 
 ---
 
-## 7. Verification Results
+## 7. Day 1 Completed Foundation Infrastructure
 
-- [x] **Repository Consistency**: Documented paths, endpoints, and schemas match the active codebase.
-- [x] **Zero Code Changes to Runtime**: No runtime backend files were modified.
-- [x] **No Frontend Changes**: No files in `/frontend` were touched.
-- [x] **No Dependency Changes**: `package.json` and `package-lock.json` remain untouched.
-- [x] **Roadmap Alignment**: Day 1 objectives (audit and architecture documentation) are completely fulfilled.
+During Day 1 of the 21-day roadmap, the core backend foundation was completely established and hardened:
+1. **Centralized Configuration (`backend/config/index.js`)**: Zod-validated environment configuration with safe defaults, production constraints, and secret redaction in logging.
+2. **Decoupled Server Bootstrap (`backend/app.js` & `backend/server.js`)**: Application factory `createApp()` decoupled from network listener `startServer()`, supporting safe imports without port binding and graceful shutdown (`SIGTERM`, `SIGINT`).
+3. **Centralized Route Registration (`backend/routes/index.js` & `backend/controllers/`)**: Business logic decoupled from routers into dedicated controllers, preventing duplicate handler registration and establishing a consistent factory pattern.
+4. **Health Check Endpoint (`backend/controllers/healthController.js`)**: Dual root `/health` and prefixed `/api/health` endpoints returning uptime, status, and service metadata with zero database dependencies.
+5. **Centralized Error Handling (`backend/middleware/errorHandler.js` & `backend/errors/`)**: Operational error hierarchy (`AppError`, `ValidationError`, `NotFoundError`), structured JSON error responses, 404 catch-all, and production suppression of stack traces and secrets.
+
+---
+
+## 8. Developer Operations Reference
+
+### 1. Startup Commands
+From the project root or backend folder:
+```bash
+# Start backend in development mode (auto-reload on changes)
+npm --prefix backend run dev
+
+# Start backend in production mode
+npm --prefix backend run start
+
+# Start with custom host/port
+PORT=5050 HOST=127.0.0.1 npm --prefix backend run start
+```
+
+### 2. Environment Configuration Reference
+Documented in `backend/.env.example`:
+
+| Variable | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `PORT` | number (1024–65535) | `5000` | Port for Express & Socket.IO HTTP listener |
+| `HOST` | string | `0.0.0.0` | Network binding interface |
+| `NODE_ENV` | enum | `development` | Environment mode (`development`, `production`, `test`) |
+| `CLIENT_URL` | url | `http://localhost:5173` | Allowed CORS frontend origin |
+| `GEMINI_API_KEY` | string (secret) | `""` | Optional Google Gemini Flash API key (masked in logs) |
+| `REQUIRE_GEMINI_KEY`| boolean | `false` | When true, server startup halts if key is absent |
+
+### 3. Health-Check Endpoints
+- **Root Endpoint**: `GET /health` (for Docker/K8s liveness probes and cloud load balancers)
+- **API Endpoint**: `GET /api/health` (for frontend client heartbeat)
+- **Status Code**: `200 OK`
+- **Response Format**:
+  ```json
+  {
+    "status": "ok",
+    "service": "Smart Student Commute Companion API",
+    "city": "Mumbai",
+    "uptime": 42,
+    "timestamp": "2026-09-20T18:00:00.000Z"
+  }
+  ```
+- **Guarantees**: Zero database queries, zero external network requests, zero secrets/tokens exposed.
+
+### 4. Testing Commands & Test Suites
+
+The backend uses Node's native `assert` and `http` modules for fast, zero-dependency, isolated test execution:
+
+```bash
+# Run isolated foundation smoke test suite (dynamic port, no external keys required)
+npm --prefix backend test
+
+# Run specific validation suites
+npm --prefix backend run verify:config     # Centralized config schema & secret masking
+npm --prefix backend run verify:bootstrap  # Application lifecycle, listener isolation, re-binding
+npm --prefix backend run verify:routes     # Endpoint completeness, handler uniqueness, route count
+npm --prefix backend run verify:errors     # Validation 400s, operational 404s, prod stack masking
+
+# Run all verification and smoke test suites sequentially
+npm --prefix backend run test:all
+
+# Run end-to-end integration tests (requires server running on port 5000)
+node backend/scripts/verify_all.js
+```
+
+---
+
+## 9. Known Limitations Discovered During Day 1
+
+1. **Node 24 / Windows SQLite Native Driver Compilation**:
+   - **Context**: On Windows systems running Node.js v24.14.1+, `better-sqlite3` fails to compile from source if Microsoft Visual C++ Build Tools and Python are not installed.
+   - **Mitigation Implemented**: Added a transparent polyfill shim in `backend/db/database.js` falling back to Node's built-in `node:sqlite` (`DatabaseSync`) with `pragma()` and `transaction()` polyfills. The backend seamlessly boots across both Node v18/v22 and Node v24.
+2. **Gemini AI API Offline / Absent Key Mode**:
+   - **Context**: If `GEMINI_API_KEY` is not provided in development, AI-based route explanation generation cannot reach Google APIs.
+   - **Mitigation Implemented**: The system includes a deterministic fallback explanation generator (`aiPlannerService.js`) that synthesizes student-friendly commute tips without failing the commute planning pipeline.
+3. **External Spatial & Weather Service Fallbacks**:
+   - **Context**: Geocoding (Nominatim), routing geometry (OSRM), and live weather (Open-Meteo) depend on third-party HTTP endpoints subject to rate limits.
+   - **Mitigation Implemented**: Three-tier geocoder (dictionary lookup for 30+ Mumbai hubs, local SQLite cache, Nominatim), linear coordinate interpolation for routing geometry, and 15-minute in-memory caching for weather.
+4. **Authentication & User Profiles (Scheduled for Day 2+)**:
+   - **Context**: The Day 1 scope focused exclusively on architecture, routing, configuration, health checks, error handling, and test foundations.
+   - **Status**: Live report confirmation votes and ride groups currently utilize client-generated pseudonyms and `x-user-token` header identification. Formal student authentication (JWTs, college email verification) is designated for upcoming roadmap phases.
+
