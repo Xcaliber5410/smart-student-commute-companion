@@ -1,9 +1,40 @@
-const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const config = require('../config');
 
-const dbPath = path.join(__dirname, 'commute.db');
-const db = new Database(dbPath);
+function instantiateDatabase(dbPath) {
+  try {
+    const BetterSqlite = require('better-sqlite3');
+    return new BetterSqlite(dbPath);
+  } catch (err) {
+    try {
+      const { DatabaseSync } = require('node:sqlite');
+      const nativeDb = new DatabaseSync(dbPath);
+      nativeDb.pragma = function (pragmaStr) {
+        return this.exec(`PRAGMA ${pragmaStr};`);
+      };
+      nativeDb.transaction = function (fn) {
+        return function (...args) {
+          nativeDb.exec('BEGIN TRANSACTION;');
+          try {
+            const result = fn(...args);
+            nativeDb.exec('COMMIT;');
+            return result;
+          } catch (err) {
+            nativeDb.exec('ROLLBACK;');
+            throw err;
+          }
+        };
+      };
+      return nativeDb;
+    } catch (nativeErr) {
+      throw new Error(`SQLite driver initialization failed: neither better-sqlite3 nor node:sqlite is operational (${err.message}).`);
+    }
+  }
+}
+
+const dbPath = config?.database?.path || path.join(__dirname, 'commute.db');
+const db = instantiateDatabase(dbPath);
 
 // Enable WAL mode for better concurrency
 db.pragma('journal_mode = WAL');

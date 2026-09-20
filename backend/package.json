@@ -5,7 +5,13 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "verify:config": "node scripts/verify_config.js",
+    "verify:bootstrap": "node scripts/verify_bootstrap.js",
+    "verify:routes": "node scripts/verify_routes.js",
+    "verify:errors": "node scripts/verify_errors.js",
+    "test": "node scripts/smoke_test.js",
+    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run test"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
