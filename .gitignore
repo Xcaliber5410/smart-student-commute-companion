@@ -6,3 +6,6 @@ dist
 *.sqlite
 *.sqlite3
 .DS_Store
+
+# Documentation and BRD files
+Smart_Student_Commute_Companion_BRD.pdf
