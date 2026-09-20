@@ -42,14 +42,29 @@ async function runAllTests() {
   const testPort = 5099;
   const testHost = '127.0.0.1';
 
-  await runAsyncTest('startServer() binds listener to configured host/port and serves /api/health', async () => {
+  await runAsyncTest('startServer() binds listener to configured host/port and serves /health and /api/health', async () => {
     await startServer(testPort, testHost);
     assert.strictEqual(server.listening, true, 'Server must be listening after startServer()');
 
-    const res = await axios.get(`http://${testHost}:${testPort}/api/health`);
-    assert.strictEqual(res.status, 200, 'Health endpoint should return 200');
-    assert.strictEqual(res.data.status, 'ok', 'Health status should be "ok"');
-    assert.strictEqual(res.data.city, 'Mumbai', 'City should be "Mumbai"');
+    // Test /api/health
+    const apiRes = await axios.get(`http://${testHost}:${testPort}/api/health`);
+    assert.strictEqual(apiRes.status, 200, 'API health endpoint should return 200');
+    assert.strictEqual(apiRes.data.status, 'ok', 'API health status should be "ok"');
+    assert.strictEqual(apiRes.data.city, 'Mumbai', 'City should be "Mumbai"');
+
+    // Test root /health
+    const rootRes = await axios.get(`http://${testHost}:${testPort}/health`);
+    assert.strictEqual(rootRes.status, 200, 'Root health endpoint should return 200');
+    assert.strictEqual(rootRes.data.status, 'ok', 'Root health status should be "ok"');
+    assert.strictEqual(rootRes.data.service, 'Smart Student Commute Companion API');
+    assert.strictEqual(typeof rootRes.data.uptime, 'number', 'Uptime should be a number');
+    assert.strictEqual(typeof rootRes.data.timestamp, 'string', 'Timestamp should be an ISO string');
+
+    // Ensure no sensitive fields leaked
+    const sensitiveKeys = ['GEMINI_API_KEY', 'apiKey', 'env', 'config', 'secrets', 'password', 'token'];
+    for (const key of sensitiveKeys) {
+      assert.strictEqual(rootRes.data[key], undefined, `Health endpoint must not expose sensitive key: ${key}`);
+    }
   });
 
   // TEST 4: Duplicate startServer() calls do not spawn multiple listeners

@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const config = require('./config');
 const createApiRouter = require('./routes');
+const { getHealth } = require('./controllers/healthController');
 
 /**
  * Creates and configures the Express application instance.
@@ -24,10 +25,13 @@ function createApp(options = {}) {
   // 2. Request body parsing
   app.use(express.json());
 
-  // 3. Mount API routes
+  // 3. Health check endpoints (root & API)
+  app.get('/health', getHealth);
+
+  // 4. Mount API routes
   app.use('/api', createApiRouter(io));
 
-  // 4. Centralized Error Handler
+  // 5. Centralized Error Handler
   app.use((err, req, res, next) => {
     console.error('[Server Error]', err);
     res.status(500).json({
