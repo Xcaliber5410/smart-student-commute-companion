@@ -1,8 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const config = require('../config');
 
-const dbPath = path.join(__dirname, 'commute.db');
+const dbPath = config?.database?.path || path.join(__dirname, 'commute.db');
 const db = new Database(dbPath);
 
 // Enable WAL mode for better concurrency

@@ -1,8 +1,22 @@
+# Dependencies & Build
 node_modules
 dist
+
+# Environment variables & secrets (never commit real credentials)
 .env
+.env.*
+!.env.example
+*.env
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# SQLite databases & temp files
 *.db
 *.db-*
 *.sqlite
 *.sqlite3
+
+# OS metadata
 .DS_Store
+Thumbs.db

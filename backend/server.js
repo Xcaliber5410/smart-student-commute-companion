@@ -1,5 +1,5 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const config = require('./config');
 
 const express = require('express');
 const http = require('http');
@@ -11,12 +11,9 @@ const { db } = require('./db/database');
 const app = express();
 const server = http.createServer(app);
 
-const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-
-// CORS configuration
+// CORS configuration using centralized allowed origins
 app.use(cors({
-  origin: [CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: config.allowedOrigins,
   credentials: true
 }));
 
@@ -25,7 +22,7 @@ app.use(express.json());
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: [CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: config.allowedOrigins,
     methods: ['GET', 'POST']
   }
 });
@@ -58,12 +55,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(config.port, () => {
   console.log(`=======================================================`);
   console.log(` Smart Student Commute Companion Server Running`);
-  console.log(` Port: ${PORT}`);
+  console.log(` Port: ${config.port}`);
   console.log(` City: Mumbai Public Transit Network (GTFS)`);
   console.log(` Socket.IO: Ready for Live Student Reports`);
-  console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(` Environment: ${config.nodeEnv}`);
+  console.log(` Gemini AI: ${config.geminiApiKey ? 'Configured (Active)' : 'Not configured (Deterministic fallback active)'}`);
+  console.log(` Database: SQLite (${config.database.path})`);
   console.log(`=======================================================`);
 });

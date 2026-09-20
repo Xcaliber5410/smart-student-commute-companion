@@ -1,4 +1,5 @@
 const axios = require('axios');
+const config = require('../config');
 
 /**
  * Builds deterministic grounded explanation when Gemini is unavailable or fails
@@ -74,7 +75,7 @@ async function generateAiRecommendation(candidates, scoringResults, weather, act
     return buildDeterministicExplanation(null, scoringResults, weather, activeReports, userPreferences);
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || '';
+  const apiKey = config.geminiApiKey || '';
 
   // If no API key is provided, return deterministic explanation immediately
   if (!apiKey || apiKey.trim() === '') {
