@@ -1,5 +1,6 @@
 import React from 'react';
 import { Compass, RotateCcw, ShieldCheck, Wifi, WifiOff, Users, AlertTriangle, MapPin } from 'lucide-react';
+import { ENABLE_DEMO_RESET } from '../config/index.js';
 
 export default function Navbar({ isConnected, onResetDemo, isResetting, activeTab, setActiveTab, reportsCount }) {
   return (
@@ -109,15 +110,17 @@ export default function Navbar({ isConnected, onResetDemo, isResetting, activeTa
             )}
           </div>
 
-          <button
-            onClick={onResetDemo}
-            disabled={isResetting}
-            title="Reset Hackathon demo reports & environment"
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all hover:border-slate-500 active:scale-95 disabled:opacity-50"
-          >
-            <RotateCcw className={`w-3.5 h-3.5 text-indigo-400 ${isResetting ? 'animate-spin' : ''}`} />
-            <span className="hidden md:inline">Reset Demo</span>
-          </button>
+          {ENABLE_DEMO_RESET && (
+            <button
+              onClick={onResetDemo}
+              disabled={isResetting}
+              title="Reset Hackathon demo reports & environment"
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all hover:border-slate-500 active:scale-95 disabled:opacity-50"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 text-indigo-400 ${isResetting ? 'animate-spin' : ''}`} />
+              <span className="hidden md:inline">Reset Demo</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

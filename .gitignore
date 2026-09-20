@@ -10,6 +10,9 @@ dist
 backend/.env
 backend/.env.*
 !backend/.env.example
+frontend/.env.local
+frontend/.env.production.local
+frontend/.env.development.local
 
 # SQLite databases & temp files
 *.db
