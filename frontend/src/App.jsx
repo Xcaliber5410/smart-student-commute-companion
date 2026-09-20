@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
+import MainLayout from './layouts/MainLayout';
+import Toast from './components/Toast';
+import NotFound from './components/NotFound';
 import PlannerForm from './components/PlannerForm';
 import RouteResults from './components/RouteResults';
 import MapView from './components/MapView';
@@ -234,79 +236,31 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Navbar */}
-      <Navbar 
-        isConnected={isConnected} 
-        onResetDemo={handleResetDemo} 
-        isResetting={isResetting}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        reportsCount={reports.length}
-      />
+  // Render helper for active tab content
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'planner':
+        return (
+          <>
+            <PlannerForm
+              formData={formData}
+              setFormData={setFormData}
+              onPlan={() => handlePlan(false)}
+              isLoading={isLoading}
+            />
 
-      {/* Floating Toast Message */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[3000] max-w-sm animate-fade-in">
-          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md text-xs font-semibold ${
-            toast.type === 'error' 
-              ? 'bg-rose-950/90 border-rose-500 text-rose-200' 
-              : (toast.type === 'warning' ? 'bg-amber-950/90 border-amber-500 text-amber-200' : 'bg-emerald-950/90 border-emerald-500 text-emerald-200')
-          }`}>
-            {toast.type === 'error' ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
-            <span>{toast.message}</span>
-          </div>
-        </div>
-      )}
+            <RouteResults
+              planResult={planResult}
+              selectedRouteId={selectedRouteId}
+              setSelectedRouteId={setSelectedRouteId}
+              onOpenFeedback={(recId) => {
+                setFeedbackRecId(recId);
+                setIsFeedbackModalOpen(true);
+              }}
+            />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          {/* Left Column: Planner / Travel Together / Live Feed (7 Cols) */}
-          <div className="lg:col-span-7 space-y-6">
-            {activeTab === 'planner' && (
-              <>
-                <PlannerForm
-                  formData={formData}
-                  setFormData={setFormData}
-                  onPlan={() => handlePlan(false)}
-                  isLoading={isLoading}
-                />
-
-                <RouteResults
-                  planResult={planResult}
-                  selectedRouteId={selectedRouteId}
-                  setSelectedRouteId={setSelectedRouteId}
-                  onOpenFeedback={(recId) => {
-                    setFeedbackRecId(recId);
-                    setIsFeedbackModalOpen(true);
-                  }}
-                />
-
-                {/* Quick Live Stream Section embedded below planner */}
-                <div className="pt-2">
-                  <LiveStudentFeed
-                    reports={reports}
-                    onConfirm={handleConfirmReport}
-                    onContradict={handleContradictReport}
-                    onOpenCreateReport={() => setIsReportModalOpen(true)}
-                    isConnected={isConnected}
-                  />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'together' && (
-              <TravelTogether
-                groups={groups}
-                onJoinGroup={handleJoinGroup}
-                onOpenCreateGroup={() => setIsGroupModalOpen(true)}
-              />
-            )}
-
-            {activeTab === 'feed' && (
+            {/* Quick Live Stream Section embedded below planner */}
+            <div className="pt-2">
               <LiveStudentFeed
                 reports={reports}
                 onConfirm={handleConfirmReport}
@@ -314,28 +268,69 @@ export default function App() {
                 onOpenCreateReport={() => setIsReportModalOpen(true)}
                 isConnected={isConnected}
               />
-            )}
-          </div>
+            </div>
+          </>
+        );
 
-          {/* Right Column: Sticky Leaflet Map (5 Cols) */}
-          <div className="lg:col-span-5 lg:sticky lg:top-24 h-[550px] lg:h-[calc(100vh-140px)]">
-            <MapView
-              planResult={planResult}
-              selectedRouteId={selectedRouteId}
-              disruptionReports={reports}
-            />
-          </div>
+      case 'together':
+        return (
+          <TravelTogether
+            groups={groups}
+            onJoinGroup={handleJoinGroup}
+            onOpenCreateGroup={() => setIsGroupModalOpen(true)}
+          />
+        );
 
-        </div>
-      </main>
+      case 'feed':
+        return (
+          <LiveStudentFeed
+            reports={reports}
+            onConfirm={handleConfirmReport}
+            onContradict={handleContradictReport}
+            onOpenCreateReport={() => setIsReportModalOpen(true)}
+            isConnected={isConnected}
+          />
+        );
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-400 mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Smart Student Commute Companion • Mumbai Hackathon MVP</span>
-          <span>OpenStreetMap &amp; Leaflet (No Mapbox) • OSRM Routing • Mumbai GTFS • Open-Meteo • Gemini 3.8 Flash</span>
-        </div>
-      </footer>
+      default:
+        return (
+          <NotFound 
+            message="Unknown View"
+            onNavigateHome={() => setActiveTab('planner')}
+          />
+        );
+    }
+  };
+
+  // Navbar props
+  const navbarProps = {
+    isConnected,
+    onResetDemo: handleResetDemo,
+    isResetting,
+    activeTab,
+    setActiveTab,
+    reportsCount: reports.length
+  };
+
+  return (
+    <>
+      <MainLayout 
+        navbarProps={navbarProps}
+        sidebar={
+          <MapView
+            planResult={planResult}
+            selectedRouteId={selectedRouteId}
+            disruptionReports={reports}
+          />
+        }
+      >
+        {renderTabContent()}
+      </MainLayout>
+
+      {/* Floating Toast Message */}
+      {toast && (
+        <Toast message={toast.message} type={toast.type} />
+      )}
 
       {/* Modals */}
       <CreateReportModal
@@ -358,6 +353,6 @@ export default function App() {
         onSubmit={handleFeedbackSubmit}
         recommendationId={feedbackRecId}
       />
-    </div>
+    </>
   );
 }

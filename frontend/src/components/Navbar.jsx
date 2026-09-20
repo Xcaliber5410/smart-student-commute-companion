@@ -46,46 +46,67 @@ export default function Navbar({ isConnected, onResetDemo, isResetting, activeTa
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs font-medium">
+        <nav className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs font-medium" role="navigation" aria-label="Main navigation">
           <button
             onClick={() => setActiveTab('planner')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveTab('planner');
+              }
+            }}
+            aria-current={activeTab === 'planner' ? 'page' : undefined}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
               activeTab === 'planner'
                 ? 'bg-emerald-500 text-slate-950 font-semibold shadow'
-                : 'text-slate-300 hover:text-white'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
             }`}
           >
-            <Compass className="w-3.5 h-3.5" />
+            <Compass className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Plan Route</span>
           </button>
           <button
             onClick={() => setActiveTab('together')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveTab('together');
+              }
+            }}
+            aria-current={activeTab === 'together' ? 'page' : undefined}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
               activeTab === 'together'
                 ? 'bg-emerald-500 text-slate-950 font-semibold shadow'
-                : 'text-slate-300 hover:text-white'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
+            <Users className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Travel Together</span>
           </button>
           <button
             onClick={() => setActiveTab('feed')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveTab('feed');
+              }
+            }}
+            aria-current={activeTab === 'feed' ? 'page' : undefined}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
               activeTab === 'feed'
                 ? 'bg-emerald-500 text-slate-950 font-semibold shadow'
-                : 'text-slate-300 hover:text-white'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
             }`}
           >
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
             <span>Live Alerts</span>
             {reportsCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 ml-0.5">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 ml-0.5" aria-label={`${reportsCount} active alerts`}>
                 {reportsCount}
               </span>
             )}
           </button>
-        </div>
+        </nav>
 
         {/* Right Status & Demo Controls */}
         <div className="flex items-center gap-3">
@@ -115,9 +136,10 @@ export default function Navbar({ isConnected, onResetDemo, isResetting, activeTa
               onClick={onResetDemo}
               disabled={isResetting}
               title="Reset Hackathon demo reports & environment"
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all hover:border-slate-500 active:scale-95 disabled:opacity-50"
+              aria-label="Reset demo environment"
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all hover:border-slate-500 active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-950"
             >
-              <RotateCcw className={`w-3.5 h-3.5 text-indigo-400 ${isResetting ? 'animate-spin' : ''}`} />
+              <RotateCcw className={`w-3.5 h-3.5 text-indigo-400 ${isResetting ? 'animate-spin' : ''}`} aria-hidden="true" />
               <span className="hidden md:inline">Reset Demo</span>
             </button>
           )}
