@@ -1,13 +1,13 @@
-const BASE_URL = '/api';
+import { API_BASE_URL } from '../config/index.js';
 
 export async function checkHealth() {
-  const res = await fetch(`${BASE_URL}/health`);
+  const res = await fetch(`${API_BASE_URL}/health`);
   if (!res.ok) throw new Error('Health check failed');
   return res.json();
 }
 
 export async function planCommute(planData) {
-  const res = await fetch(`${BASE_URL}/plan`, {
+  const res = await fetch(`${API_BASE_URL}/plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(planData)
@@ -20,13 +20,13 @@ export async function planCommute(planData) {
 }
 
 export async function fetchLiveReports() {
-  const res = await fetch(`${BASE_URL}/live-reports`);
+  const res = await fetch(`${API_BASE_URL}/live-reports`);
   if (!res.ok) throw new Error('Failed to fetch live reports');
   return res.json();
 }
 
 export async function postLiveReport(reportData) {
-  const res = await fetch(`${BASE_URL}/live-reports`, {
+  const res = await fetch(`${API_BASE_URL}/live-reports`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(reportData)
@@ -39,7 +39,7 @@ export async function postLiveReport(reportData) {
 }
 
 export async function confirmReport(reportId) {
-  const res = await fetch(`${BASE_URL}/live-reports/${reportId}/confirm`, {
+  const res = await fetch(`${API_BASE_URL}/live-reports/${reportId}/confirm`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -51,7 +51,7 @@ export async function confirmReport(reportId) {
 }
 
 export async function contradictReport(reportId) {
-  const res = await fetch(`${BASE_URL}/live-reports/${reportId}/contradict`, {
+  const res = await fetch(`${API_BASE_URL}/live-reports/${reportId}/contradict`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -63,13 +63,13 @@ export async function contradictReport(reportId) {
 }
 
 export async function fetchRideGroups() {
-  const res = await fetch(`${BASE_URL}/ride-groups`);
+  const res = await fetch(`${API_BASE_URL}/ride-groups`);
   if (!res.ok) throw new Error('Failed to fetch ride groups');
   return res.json();
 }
 
 export async function postRideGroup(groupData) {
-  const res = await fetch(`${BASE_URL}/ride-groups`, {
+  const res = await fetch(`${API_BASE_URL}/ride-groups`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(groupData)
@@ -79,7 +79,7 @@ export async function postRideGroup(groupData) {
 }
 
 export async function joinRideGroup(groupId) {
-  const res = await fetch(`${BASE_URL}/ride-groups/${groupId}/join`, {
+  const res = await fetch(`${API_BASE_URL}/ride-groups/${groupId}/join`, {
     method: 'POST'
   });
   if (!res.ok) {
@@ -90,7 +90,7 @@ export async function joinRideGroup(groupId) {
 }
 
 export async function submitFeedback(feedbackData) {
-  const res = await fetch(`${BASE_URL}/feedback`, {
+  const res = await fetch(`${API_BASE_URL}/feedback`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(feedbackData)
@@ -100,7 +100,7 @@ export async function submitFeedback(feedbackData) {
 }
 
 export async function resetDemoState() {
-  const res = await fetch(`${BASE_URL}/demo/reset`, {
+  const res = await fetch(`${API_BASE_URL}/demo/reset`, {
     method: 'POST'
   });
   if (!res.ok) throw new Error('Failed to reset demo state');

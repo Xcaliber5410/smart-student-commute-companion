@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" fill="#10b981"/>
+  <g transform="translate(38.400000000000006, 38.400000000000006) scale(4.8)">
+    <!-- Layered map/route symbol -->
+    <path d="M12 2L2 7l10 5 10-5-10-5z" fill="#ffffff" opacity="0.9"/>
+    <path d="M2 12l10 5 10-5" stroke="#ffffff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/>
+    <path d="M2 17l10 5 10-5" stroke="#ffffff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.5"/>
+  </g>
+</svg>
