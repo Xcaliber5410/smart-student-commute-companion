@@ -58,6 +58,18 @@ class ConflictError extends AppError {
   }
 }
 
+class ServiceUnavailableError extends AppError {
+  constructor(message = 'Service Unavailable', code = 'SERVICE_UNAVAILABLE') {
+    super(message, 503, code);
+  }
+}
+
+class DatabaseError extends AppError {
+  constructor(message = 'Database operation failed', code = 'DATABASE_ERROR', details = null) {
+    super(message, 500, code, details);
+  }
+}
+
 module.exports = {
   AppError,
   BadRequestError,
@@ -65,5 +77,7 @@ module.exports = {
   NotFoundError,
   UnauthorizedError,
   ForbiddenError,
-  ConflictError
+  ConflictError,
+  ServiceUnavailableError,
+  DatabaseError
 };

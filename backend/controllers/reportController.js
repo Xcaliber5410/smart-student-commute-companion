@@ -120,6 +120,11 @@ function confirmReport(io) {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
 
+      const existingReport = reportRepository.findById(id);
+      if (!existingReport) {
+        return next(new NotFoundError(`Disruption report with id '${id}' not found`));
+      }
+
       const result = reportRepository.addVote(id, userToken, 'confirm');
 
       if (result.alreadyVoted) {
@@ -148,6 +153,11 @@ function contradictReport(io) {
     try {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
+
+      const existingReport = reportRepository.findById(id);
+      if (!existingReport) {
+        return next(new NotFoundError(`Disruption report with id '${id}' not found`));
+      }
 
       const result = reportRepository.addVote(id, userToken, 'contradict');
 

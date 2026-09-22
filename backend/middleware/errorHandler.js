@@ -7,6 +7,7 @@
  */
 
 const { NotFoundError } = require('../errors');
+const { normalizeDatabaseError } = require('../db/dbErrors');
 
 /**
  * Sanitizes HTTP headers for diagnostic logs to prevent leaking secrets/tokens.
@@ -35,15 +36,27 @@ function notFoundHandler(req, res, next) {
 function errorHandler(err, req, res, next) {
   const isProduction = process.env.NODE_ENV === 'production';
 
-  let statusCode = err.statusCode || err.status || 500;
-  let code = err.code || 'INTERNAL_SERVER_ERROR';
-  let message = err.message || 'An unexpected error occurred';
-  let error = err.error || message;
-  let details = err.details || null;
-  const isOperational = Boolean(err.isOperational);
+  // Automatically normalize SQLite driver or database errors
+  const isSqliteError =
+    err.name === 'SqliteError' ||
+    (typeof err.code === 'string' && err.code.startsWith('SQLITE_')) ||
+    (typeof err.message === 'string' && (
+      err.message.includes('constraint failed') ||
+      err.message.includes('database is locked') ||
+      err.message.includes('no such table')
+    ));
+
+  const effectiveErr = isSqliteError ? normalizeDatabaseError(err) : err;
+
+  let statusCode = effectiveErr.statusCode || effectiveErr.status || 500;
+  let code = effectiveErr.code || 'INTERNAL_SERVER_ERROR';
+  let message = effectiveErr.message || 'An unexpected error occurred';
+  let error = effectiveErr.error || message;
+  let details = effectiveErr.details || null;
+  const isOperational = Boolean(effectiveErr.isOperational);
 
   // 1. Handle JSON syntax errors from body-parser (express.json)
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+  if (effectiveErr instanceof SyntaxError && effectiveErr.status === 400 && 'body' in effectiveErr) {
     statusCode = 400;
     code = 'INVALID_JSON';
     error = 'Malformed JSON';
@@ -51,12 +64,12 @@ function errorHandler(err, req, res, next) {
   }
 
   // 2. Handle Zod validation errors
-  if (err.name === 'ZodError') {
+  if (effectiveErr.name === 'ZodError') {
     statusCode = 400;
     code = 'VALIDATION_ERROR';
     error = 'Validation failed';
     message = 'Validation failed';
-    details = typeof err.format === 'function' ? err.format() : err.issues;
+    details = typeof effectiveErr.format === 'function' ? effectiveErr.format() : effectiveErr.issues;
   }
 
   // 3. Server-side diagnostic logging (redacting sensitive data)
