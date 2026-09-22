@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { db } = require('../db/database');
+const { reportRepository } = require('../repositories');
 const { getActiveReports } = require('../services/disruptionService');
 const { ValidationError, NotFoundError } = require('../errors');
 
@@ -59,15 +59,7 @@ function createReport(io) {
       const expiresAt = now + (durationObservedMinutes || 60) * 60 * 1000;
       const reportId = `rep-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-      const stmt = db.prepare(`
-        INSERT INTO live_commute_reports 
-        (id, pseudonym, area, route_name, route_id, mode, message, impact, status, created_at, expires_at, confirmation_count, contradiction_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, 1, 0)
-      `);
-
-      stmt.run(reportId, pseudonym, area, route_name, route_id, mode, message, impact, now, expiresAt);
-
-      const createdReport = {
+      const created = reportRepository.create({
         id: reportId,
         pseudonym,
         area,
@@ -80,7 +72,27 @@ function createReport(io) {
         created_at: now,
         expires_at: expiresAt,
         confirmation_count: 1,
-        contradiction_count: 0,
+        contradiction_count: 0
+      });
+
+      const reportRow = created ? created.toRow() : {
+        id: reportId,
+        pseudonym,
+        area,
+        route_name,
+        route_id,
+        mode,
+        message,
+        impact,
+        status: 'active',
+        created_at: now,
+        expires_at: expiresAt,
+        confirmation_count: 1,
+        contradiction_count: 0
+      };
+
+      const createdReport = {
+        ...reportRow,
         freshnessWeight: 1.0,
         ageMinutes: 0,
         ageFormatted: 'Just now'
@@ -108,22 +120,15 @@ function confirmReport(io) {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
 
-      // Record confirmation vote if not already voted
-      const checkStmt = db.prepare('SELECT * FROM live_report_confirmations WHERE report_id = ? AND user_token = ?');
-      const existing = checkStmt.get(id, userToken);
+      const result = reportRepository.addVote(id, userToken, 'confirm');
 
-      if (existing) {
+      if (result.alreadyVoted) {
         return res.json({ success: true, message: 'Vote already recorded', alreadyVoted: true });
       }
 
-      db.prepare('INSERT INTO live_report_confirmations (report_id, user_token, action, created_at) VALUES (?, ?, ?, ?)')
-        .run(id, userToken, 'confirm', Date.now());
+      const updatedReport = result.updatedReport ? result.updatedReport.toRow() : null;
 
-      db.prepare('UPDATE live_commute_reports SET confirmation_count = confirmation_count + 1 WHERE id = ?').run(id);
-
-      const updatedReport = db.prepare('SELECT * FROM live_commute_reports WHERE id = ?').get(id);
-
-      if (io) {
+      if (io && updatedReport) {
         io.emit('live_report_updated', updatedReport);
       }
 
@@ -144,27 +149,19 @@ function contradictReport(io) {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
 
-      const checkStmt = db.prepare('SELECT * FROM live_report_confirmations WHERE report_id = ? AND user_token = ?');
-      const existing = checkStmt.get(id, userToken);
+      const result = reportRepository.addVote(id, userToken, 'contradict');
 
-      if (existing) {
+      if (result.alreadyVoted) {
         return res.json({ success: true, message: 'Vote already recorded', alreadyVoted: true });
       }
 
-      db.prepare('INSERT INTO live_report_confirmations (report_id, user_token, action, created_at) VALUES (?, ?, ?, ?)')
-        .run(id, userToken, 'contradict', Date.now());
+      const updatedReport = result.updatedReport ? result.updatedReport.toRow() : null;
 
-      db.prepare('UPDATE live_commute_reports SET contradiction_count = contradiction_count + 1 WHERE id = ?').run(id);
-
-      const updatedReport = db.prepare('SELECT * FROM live_commute_reports WHERE id = ?').get(id);
-
-      // If contradictions significantly outnumber confirmations, auto-expire
-      if (updatedReport.contradiction_count >= updatedReport.confirmation_count + 3) {
-        db.prepare("UPDATE live_commute_reports SET status = 'expired' WHERE id = ?").run(id);
+      if (result.autoExpired) {
         if (io) {
           io.emit('live_report_expired', { id });
         }
-      } else if (io) {
+      } else if (io && updatedReport) {
         io.emit('live_report_updated', updatedReport);
       }
 

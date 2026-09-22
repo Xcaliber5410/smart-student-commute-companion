@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { db } = require('../db/database');
+const { feedbackRepository } = require('../repositories');
 const { ValidationError } = require('../errors');
 
 const feedbackSchema = z.object({
@@ -18,10 +18,14 @@ function submitFeedback(req, res, next) {
 
     const { recommendation_id, is_useful, tags, comment } = parsed.data;
     const id = `fb-${Date.now()}`;
-    db.prepare(`
-      INSERT INTO feedback (id, recommendation_id, is_useful, tags, comment, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, recommendation_id, is_useful ? 1 : 0, JSON.stringify(tags), comment, Date.now());
+    feedbackRepository.create({
+      id,
+      recommendation_id,
+      is_useful,
+      tags,
+      comment,
+      created_at: Date.now()
+    });
 
     res.status(201).json({ success: true, message: 'Thank you for your student feedback!' });
   } catch (err) {

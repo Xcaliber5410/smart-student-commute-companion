@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { db } = require('../db/database');
+const { rideGroupRepository } = require('../repositories/RideGroupRepository');
 const { ValidationError, NotFoundError, BadRequestError } = require('../errors');
 
 const rideGroupSchema = z.object({
@@ -14,8 +14,8 @@ const rideGroupSchema = z.object({
 
 function getRideGroups(req, res, next) {
   try {
-    const groups = db.prepare('SELECT * FROM ride_groups ORDER BY created_at DESC LIMIT 20').all();
-    res.json({ success: true, groups });
+    const groups = rideGroupRepository.findRecent(20);
+    res.json({ success: true, groups: groups.map(g => g.toRow()) });
   } catch (err) {
     next(err);
   }
@@ -28,17 +28,8 @@ function createRideGroup(req, res, next) {
       return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
-    const { creator_pseudonym, origin_area, destination_college, departure_time, mode, max_members, notes } = parsed.data;
-    const groupId = `grp-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
-
-    db.prepare(`
-      INSERT INTO ride_groups 
-      (id, creator_pseudonym, origin_area, destination_college, departure_time, mode, max_members, current_members, notes, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-    `).run(groupId, creator_pseudonym, origin_area, destination_college, departure_time, mode, max_members, notes, Date.now());
-
-    const created = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(groupId);
-    res.status(201).json({ success: true, group: created });
+    const created = rideGroupRepository.create(parsed.data);
+    res.status(201).json({ success: true, group: created.toRow() });
   } catch (err) {
     next(err);
   }
@@ -47,15 +38,14 @@ function createRideGroup(req, res, next) {
 function joinRideGroup(req, res, next) {
   try {
     const { id } = req.params;
-    const group = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(id);
+    const group = rideGroupRepository.findById(id);
     if (!group) return next(new NotFoundError('Ride group not found'));
-    if (group.current_members >= group.max_members) {
+    if (group.isFull()) {
       return next(new BadRequestError('This group is already full', 'GROUP_FULL'));
     }
 
-    db.prepare('UPDATE ride_groups SET current_members = current_members + 1 WHERE id = ?').run(id);
-    const updated = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(id);
-    res.json({ success: true, message: 'Joined commute group successfully!', group: updated });
+    const updated = rideGroupRepository.incrementMembers(id);
+    res.json({ success: true, message: 'Joined commute group successfully!', group: updated.toRow() });
   } catch (err) {
     next(err);
   }
