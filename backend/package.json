@@ -11,7 +11,10 @@
     "verify:routes": "node scripts/verify_routes.js",
     "verify:errors": "node scripts/verify_errors.js",
     "test": "node scripts/smoke_test.js",
-    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run test"
+    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run test",
+    "db:migrate": "node migrations/cli.js up",
+    "db:rollback": "node migrations/cli.js down",
+    "db:status": "node migrations/cli.js status"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
