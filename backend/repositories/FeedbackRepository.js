@@ -68,6 +68,24 @@ class FeedbackRepository {
     const rows = stmt.all(recommendationId);
     return rows.map(r => Feedback.fromRow(r));
   }
+
+  /**
+   * Computes helpful vs not helpful feedback summary for a recommendation.
+   *
+   * @param {string} recommendationId
+   * @returns {{ total: number, helpful: number, notHelpful: number, helpfulPercentage: number }}
+   */
+  getRatingSummary(recommendationId) {
+    const list = this.findByRecommendationId(recommendationId);
+    const total = list.length;
+    if (total === 0) {
+      return { total: 0, helpful: 0, notHelpful: 0, helpfulPercentage: 0 };
+    }
+    const helpful = list.filter(f => f.is_useful).length;
+    const notHelpful = total - helpful;
+    const helpfulPercentage = Math.round((helpful / total) * 100);
+    return { total, helpful, notHelpful, helpfulPercentage };
+  }
 }
 
 module.exports = {

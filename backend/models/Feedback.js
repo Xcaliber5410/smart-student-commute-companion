@@ -23,7 +23,7 @@ class Feedback {
 
   static create(input) {
     const now = Date.now();
-    const id = input.id || `fb-${now}`;
+    const id = input.id || `fb-${now}-${Math.random().toString(36).substring(2, 7)}`;
     return new Feedback({
       ...input,
       id,
