@@ -54,7 +54,8 @@ This project contains **zero dependencies on Mapbox**:
 ## 🛠️ Stack
 
 * **Frontend**: React 18, Vite, Tailwind CSS, React Leaflet, Lucide React, Socket.IO client
-* **Backend**: Node.js, Express, SQLite (`better-sqlite3`), Socket.IO, Zod, Axios, dotenv
+* **Backend**: Node.js, Express, SQLite (`better-sqlite3` with `node:sqlite` fallback), Socket.IO, Zod, Axios, dotenv
+* **Database & Persistence**: SQLite 3 (WAL mode), Transactional Migration Runner, Repository Pattern Layer
 * **AI Engine**: Gemini 3.8 Flash (`@google/genai`) with high thinking budget and JSON mode
 * **Transit Data**: GTFS compliant CSV tables (`agency`, `routes`, `stops`, `trips`, `stop_times`, `calendar`)
 
@@ -86,6 +87,8 @@ Create or edit `.env` in the root directory:
 PORT=5000
 NODE_ENV=development
 CLIENT_URL=http://localhost:5173
+DATABASE_PATH=./backend/db/commute.db
+DATABASE_WAL_MODE=true
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
@@ -99,6 +102,43 @@ npm run dev
 
 - **Frontend Application**: [http://localhost:5173](http://localhost:5173)
 - **Backend API Server**: [http://localhost:5000](http://localhost:5000)
+
+---
+
+## 🗄️ Database, Migrations & Testing
+
+The backend includes a production-grade database foundation with zero external database server requirements:
+
+### Schema Migrations
+```bash
+# Apply pending schema migrations
+npm --prefix backend run db:migrate
+
+# Roll back the most recent migration
+npm --prefix backend run db:rollback
+
+# Inspect migration status
+npm --prefix backend run db:status
+```
+
+### Automated Test Suites
+All tests run against isolated in-memory/ephemeral test databases with **zero mutation of production data**:
+
+```bash
+# Run isolated database integration test suite (15 tests: lifecycle, models, repos, transactions)
+npm --prefix backend run test:db
+
+# Run backend foundation smoke tests
+npm --prefix backend test
+
+# Run all backend test suites sequentially (config, bootstrap, routes, errors, smoke, DB)
+npm --prefix backend run test:all
+```
+
+For detailed specifications, see:
+- [Database Setup & Operations Guide](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/backend/docs/database_setup.md)
+- [Database Integration Audit](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/backend/docs/database_audit.md)
+- [Backend Architecture & Technical Specification](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/backend/docs/architecture.md)
 
 ---
 
