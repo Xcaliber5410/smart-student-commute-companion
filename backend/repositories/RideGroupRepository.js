@@ -87,6 +87,42 @@ class RideGroupRepository {
     stmt.run(id);
     return this.findById(id);
   }
+
+  /**
+   * Updates an existing ride group.
+   *
+   * @param {string} id
+   * @param {object} updates
+   * @returns {RideGroup|null}
+   */
+  update(id, updates) {
+    const existing = this.findById(id);
+    if (!existing) return null;
+
+    const departure = updates.departure_time !== undefined ? updates.departure_time : existing.departure_time;
+    const maxMembers = updates.max_members !== undefined ? Number(updates.max_members) : existing.max_members;
+    const notes = updates.notes !== undefined ? updates.notes : existing.notes;
+
+    const stmt = this.database.prepare(`
+      UPDATE ride_groups
+      SET departure_time = ?, max_members = ?, notes = ?
+      WHERE id = ?
+    `);
+    stmt.run(departure, maxMembers, notes, id);
+    return this.findById(id);
+  }
+
+  /**
+   * Deletes a ride group.
+   *
+   * @param {string} id
+   * @returns {boolean}
+   */
+  delete(id) {
+    const stmt = this.database.prepare('DELETE FROM ride_groups WHERE id = ?');
+    const res = stmt.run(id);
+    return res.changes > 0;
+  }
 }
 
 module.exports = {

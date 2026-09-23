@@ -150,6 +150,51 @@ class ReportRepository {
       autoExpired
     };
   }
+
+  /**
+   * Updates an existing live report.
+   *
+   * @param {string} id
+   * @param {object} updates
+   * @returns {LiveReport|null}
+   */
+  update(id, updates) {
+    const existing = this.findById(id);
+    if (!existing) return null;
+
+    const status = updates.status !== undefined ? updates.status : existing.status;
+    const message = updates.message !== undefined ? updates.message : existing.message;
+    const impact = updates.impact !== undefined ? updates.impact : existing.impact;
+
+    const stmt = this.database.prepare(`
+      UPDATE live_commute_reports
+      SET status = ?, message = ?, impact = ?
+      WHERE id = ?
+    `);
+    stmt.run(status, message, impact, id);
+    return this.findById(id);
+  }
+
+  /**
+   * Deletes a live report and associated confirmations.
+   *
+   * @param {string} id
+   * @returns {boolean}
+   */
+  delete(id) {
+    const deleteConfirmations = this.database.prepare('DELETE FROM live_report_confirmations WHERE report_id = ?');
+    const deleteReport = this.database.prepare('DELETE FROM live_commute_reports WHERE id = ?');
+
+    let changes = 0;
+    const executeTx = this.database.transaction(() => {
+      deleteConfirmations.run(id);
+      const res = deleteReport.run(id);
+      changes = res.changes;
+    });
+
+    executeTx();
+    return changes > 0;
+  }
 }
 
 module.exports = {

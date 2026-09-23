@@ -132,6 +132,54 @@ function getReport(req, res, next) {
   }
 }
 
+function updateReport(io) {
+  const handler = (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const updated = reportService.updateReport(id, req.body);
+      if (io && typeof io.emit === 'function') {
+        io.emit('live_report_updated', updated);
+      }
+      res.json({
+        success: true,
+        message: 'Report updated successfully',
+        report: updated
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  if (io && io.headers && typeof io.headers === 'object') {
+    return handler(io, arguments[1], arguments[2]);
+  }
+  return handler;
+}
+
+function deleteReport(io) {
+  const handler = (req, res, next) => {
+    try {
+      const { id } = req.params;
+      reportService.deleteReport(id);
+      if (io && typeof io.emit === 'function') {
+        io.emit('live_report_deleted', { id });
+      }
+      res.json({
+        success: true,
+        message: 'Report deleted successfully',
+        id
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  if (io && io.headers && typeof io.headers === 'object') {
+    return handler(io, arguments[1], arguments[2]);
+  }
+  return handler;
+}
+
 module.exports = {
   getLiveReports,
   getReport,
@@ -139,5 +187,7 @@ module.exports = {
   createReport,
   confirmReport,
   contradictReport,
+  updateReport,
+  deleteReport,
   reportSchema
 };

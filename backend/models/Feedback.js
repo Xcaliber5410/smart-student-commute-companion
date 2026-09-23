@@ -65,6 +65,17 @@ class Feedback {
       created_at: this.created_at
     };
   }
+
+  toJSON() {
+    return {
+      id: this.id,
+      recommendation_id: this.recommendation_id,
+      is_useful: Boolean(this.is_useful),
+      tags: this.tags,
+      comment: this.comment,
+      created_at: this.created_at
+    };
+  }
 }
 
 module.exports = {

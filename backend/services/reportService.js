@@ -165,6 +165,38 @@ class ReportService {
       autoExpired: Boolean(result.autoExpired)
     };
   }
+
+  /**
+   * Updates an existing disruption report.
+   *
+   * @param {string} id
+   * @param {object} updates
+   * @returns {object}
+   */
+  updateReport(id, updates) {
+    const existing = this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundError(`Disruption report with id '${id}' not found`);
+    }
+
+    const updated = this.repo.update(id, updates);
+    return updated.toRow ? updated.toRow() : updated;
+  }
+
+  /**
+   * Deletes an existing disruption report and its vote records.
+   *
+   * @param {string} id
+   * @returns {boolean}
+   */
+  deleteReport(id) {
+    const existing = this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundError(`Disruption report with id '${id}' not found`);
+    }
+
+    return this.repo.delete(id);
+  }
 }
 
 module.exports = {

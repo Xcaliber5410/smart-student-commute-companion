@@ -68,6 +68,45 @@ class RideGroupService {
     const updated = this.repo.incrementMembers(id);
     return updated.toRow ? updated.toRow() : updated;
   }
+
+  /**
+   * Updates an existing ride group.
+   *
+   * @param {string} id
+   * @param {object} updates
+   * @returns {object}
+   */
+  updateRideGroup(id, updates) {
+    const group = this.repo.findById(id);
+    if (!group) {
+      throw new NotFoundError(`Ride group with id '${id}' not found`);
+    }
+
+    if (updates.max_members !== undefined && updates.max_members < group.current_members) {
+      throw new BadRequestError(
+        `Max members (${updates.max_members}) cannot be less than current member count (${group.current_members})`,
+        'INVALID_CAPACITY'
+      );
+    }
+
+    const updated = this.repo.update(id, updates);
+    return updated.toRow ? updated.toRow() : updated;
+  }
+
+  /**
+   * Deletes an existing ride group.
+   *
+   * @param {string} id
+   * @returns {boolean}
+   */
+  deleteRideGroup(id) {
+    const group = this.repo.findById(id);
+    if (!group) {
+      throw new NotFoundError(`Ride group with id '${id}' not found`);
+    }
+
+    return this.repo.delete(id);
+  }
 }
 
 module.exports = {

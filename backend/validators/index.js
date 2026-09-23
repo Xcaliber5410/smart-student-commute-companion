@@ -11,9 +11,13 @@ const {
 } = require('./rideGroupValidators');
 const {
   createReportSchema,
+  updateReportSchema,
   reportFilterQuerySchema
 } = require('./reportValidators');
-const { submitFeedbackSchema } = require('./feedbackValidators');
+const {
+  submitFeedbackSchema,
+  updateFeedbackSchema
+} = require('./feedbackValidators');
 const { planCommuteSchema } = require('./planValidators');
 const { transitSearchQuerySchema } = require('./transitValidators');
 
@@ -28,9 +32,11 @@ module.exports = {
   rideGroupFilterQuerySchema,
   // Disruption Reports
   createReportSchema,
+  updateReportSchema,
   reportFilterQuerySchema,
   // Feedback
   submitFeedbackSchema,
+  updateFeedbackSchema,
   // Commute Plan
   planCommuteSchema,
   // Transit

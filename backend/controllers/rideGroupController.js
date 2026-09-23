@@ -55,10 +55,32 @@ function getRideGroup(req, res, next) {
   }
 }
 
+function updateRideGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+    const updated = rideGroupService.updateRideGroup(id, req.body);
+    res.json({ success: true, group: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function deleteRideGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+    rideGroupService.deleteRideGroup(id);
+    res.json({ success: true, message: 'Ride group deleted successfully', id });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getRideGroups,
   getRideGroup,
   createRideGroup,
+  updateRideGroup,
+  deleteRideGroup,
   joinRideGroup,
   rideGroupSchema
 };

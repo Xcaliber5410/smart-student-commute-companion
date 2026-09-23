@@ -86,6 +86,42 @@ class FeedbackRepository {
     const helpfulPercentage = Math.round((helpful / total) * 100);
     return { total, helpful, notHelpful, helpfulPercentage };
   }
+
+  /**
+   * Updates an existing feedback entry.
+   *
+   * @param {string} id
+   * @param {object} updates
+   * @returns {Feedback|null}
+   */
+  update(id, updates) {
+    const existing = this.findById(id);
+    if (!existing) return null;
+
+    const isUseful = updates.is_useful !== undefined ? (updates.is_useful ? 1 : 0) : (existing.is_useful ? 1 : 0);
+    const tags = updates.tags !== undefined ? JSON.stringify(updates.tags) : JSON.stringify(existing.tags);
+    const comment = updates.comment !== undefined ? updates.comment : existing.comment;
+
+    const stmt = this.database.prepare(`
+      UPDATE feedback
+      SET is_useful = ?, tags = ?, comment = ?
+      WHERE id = ?
+    `);
+    stmt.run(isUseful, tags, comment, id);
+    return this.findById(id);
+  }
+
+  /**
+   * Deletes a feedback entry by ID.
+   *
+   * @param {string} id
+   * @returns {boolean}
+   */
+  delete(id) {
+    const stmt = this.database.prepare('DELETE FROM feedback WHERE id = ?');
+    const res = stmt.run(id);
+    return res.changes > 0;
+  }
 }
 
 module.exports = {

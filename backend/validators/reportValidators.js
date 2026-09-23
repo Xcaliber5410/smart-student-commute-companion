@@ -19,6 +19,18 @@ const createReportSchema = z.object({
   durationObservedMinutes: z.coerce.number().int().min(5, 'Duration must be at least 5 minutes').max(720, 'Duration cannot exceed 12 hours').optional().default(60)
 });
 
+const updateReportSchema = z.object({
+  status: z.enum(['active', 'expired', 'resolved'], {
+    errorMap: () => ({ message: "Status must be 'active', 'expired', or 'resolved'" })
+  }).optional(),
+  message: z.string().trim().min(5, 'Message must be at least 5 characters').max(250).optional(),
+  impact: z.enum(['low', 'medium', 'high'], {
+    errorMap: () => ({ message: "Impact must be one of: 'low', 'medium', 'high'" })
+  }).optional()
+}).refine(data => Object.keys(data).length > 0, {
+  message: 'At least one field must be provided for update'
+});
+
 const reportFilterQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -29,5 +41,6 @@ const reportFilterQuerySchema = z.object({
 
 module.exports = {
   createReportSchema,
+  updateReportSchema,
   reportFilterQuerySchema
 };

@@ -5,9 +5,16 @@ const {
   getAlerts,
   createReport,
   confirmReport,
-  contradictReport
+  contradictReport,
+  updateReport,
+  deleteReport
 } = require('../controllers/reportController');
-const { validate, createReportSchema, idParamSchema } = require('../validators');
+const {
+  validate,
+  createReportSchema,
+  updateReportSchema,
+  idParamSchema
+} = require('../validators');
 
 function createReportRoutes(io) {
   const router = express.Router();
@@ -17,6 +24,16 @@ function createReportRoutes(io) {
   router.get('/alerts', getAlerts);
   router.post('/live-reports', validate({ body: createReportSchema }), createReport(io));
   router.post('/reports', validate({ body: createReportSchema }), createReport(io));
+  router.patch(
+    '/live-reports/:id',
+    validate({ params: idParamSchema, body: updateReportSchema }),
+    updateReport(io)
+  );
+  router.delete(
+    '/live-reports/:id',
+    validate({ params: idParamSchema }),
+    deleteReport(io)
+  );
   router.post('/live-reports/:id/confirm', validate({ params: idParamSchema }), confirmReport(io));
   router.post('/live-reports/:id/contradict', validate({ params: idParamSchema }), contradictReport(io));
 

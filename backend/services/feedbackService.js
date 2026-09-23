@@ -5,6 +5,7 @@
  */
 
 const { feedbackRepository } = require('../repositories/FeedbackRepository');
+const { NotFoundError } = require('../errors');
 
 class FeedbackService {
   constructor(repo = feedbackRepository) {
@@ -28,7 +29,7 @@ class FeedbackService {
       created_at: input.created_at || Date.now()
     });
 
-    return created.toRow ? created.toRow() : created;
+    return created.toJSON ? created.toJSON() : (created.toRow ? created.toRow() : created);
   }
 
   /**
@@ -79,6 +80,38 @@ class FeedbackService {
       };
     });
     return { feedback };
+  }
+
+  /**
+   * Updates an existing feedback entry.
+   *
+   * @param {string} id
+   * @param {object} updates
+   * @returns {object}
+   */
+  updateFeedback(id, updates) {
+    const existing = this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundError(`Feedback with id '${id}' not found`);
+    }
+
+    const updated = this.repo.update(id, updates);
+    return updated.toJSON ? updated.toJSON() : (updated.toRow ? updated.toRow() : updated);
+  }
+
+  /**
+   * Deletes a feedback entry by ID.
+   *
+   * @param {string} id
+   * @returns {boolean}
+   */
+  deleteFeedback(id) {
+    const existing = this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundError(`Feedback with id '${id}' not found`);
+    }
+
+    return this.repo.delete(id);
   }
 }
 

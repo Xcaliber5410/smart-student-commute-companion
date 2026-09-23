@@ -13,6 +13,15 @@ const submitFeedbackSchema = z.object({
   comment: z.string().trim().max(1000, 'Comment cannot exceed 1000 characters').optional().default('')
 });
 
+const updateFeedbackSchema = z.object({
+  is_useful: z.boolean().optional(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(10, 'Maximum 10 feedback tags allowed').optional(),
+  comment: z.string().trim().max(1000, 'Comment cannot exceed 1000 characters').optional()
+}).refine(data => Object.keys(data).length > 0, {
+  message: 'At least one field must be provided for update'
+});
+
 module.exports = {
-  submitFeedbackSchema
+  submitFeedbackSchema,
+  updateFeedbackSchema
 };

@@ -3,9 +3,16 @@ const {
   getRideGroups,
   getRideGroup,
   createRideGroup,
+  updateRideGroup,
+  deleteRideGroup,
   joinRideGroup
 } = require('../controllers/rideGroupController');
-const { validate, createRideGroupSchema, idParamSchema } = require('../validators');
+const {
+  validate,
+  createRideGroupSchema,
+  updateRideGroupSchema,
+  idParamSchema
+} = require('../validators');
 
 function createRideGroupRoutes() {
   const router = express.Router();
@@ -13,6 +20,16 @@ function createRideGroupRoutes() {
   router.get('/ride-groups', getRideGroups);
   router.get('/ride-groups/:id', validate({ params: idParamSchema }), getRideGroup);
   router.post('/ride-groups', validate({ body: createRideGroupSchema }), createRideGroup);
+  router.patch(
+    '/ride-groups/:id',
+    validate({ params: idParamSchema, body: updateRideGroupSchema }),
+    updateRideGroup
+  );
+  router.delete(
+    '/ride-groups/:id',
+    validate({ params: idParamSchema }),
+    deleteRideGroup
+  );
   router.post('/ride-groups/:id/join', validate({ params: idParamSchema }), joinRideGroup);
 
   return router;

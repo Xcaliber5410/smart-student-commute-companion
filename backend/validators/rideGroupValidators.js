@@ -16,6 +16,7 @@ const createRideGroupSchema = z.object({
 
 const updateRideGroupSchema = z.object({
   departure_time: z.string().trim().min(2).max(30).optional(),
+  max_members: z.coerce.number().int().min(2, 'Minimum group capacity is 2').max(6, 'Maximum group capacity is 6').optional(),
   notes: z.string().trim().max(500).optional(),
   status: z.enum(['open', 'full', 'departed', 'cancelled']).optional()
 }).refine(data => Object.keys(data).length > 0, {
