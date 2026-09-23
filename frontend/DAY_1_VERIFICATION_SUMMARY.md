@@ -21,6 +21,7 @@ Perform comprehensive verification of all Day 1 frontend foundation work and est
   "build": "vite build",      // Production build
   "preview": "vite preview",  // Preview production build
   "verify": "node verify-frontend.js",  // Verification script (NEW)
+  "test": "node verify-frontend.js",  // Standard test runner (NEW)
   "icons": "node scripts/generate-icons.js"  // Icon generation (NEW)
 }
 ```
@@ -217,9 +218,23 @@ Checks 97 critical aspects of Day 1 foundation.
 
 ### 12. Issues Fixed
 
-**❌ No issues found during verification.**
+**Fixed during verification directly related to Day 1 frontend foundation:**
 
-All Day 1 foundation work is correctly implemented. No fixes were required.
+1. **Tailwind CSS Build Error (`src/index.css`)**:
+   - Issue: Invalid `@apply` class `resize-vertical` caused `npm run build` / PostCSS compilation failure.
+   - Fix: Changed to valid Tailwind utility `resize-y` (`resize: vertical;`), successfully building production bundle (`dist/`).
+
+2. **Layout Route Fallback & Notifications (`src/layouts/`)**:
+   - Issue: Layout consumers and verification checks looked for `src/layouts/NotFound.jsx` and `src/layouts/Toast.jsx`.
+   - Fix: Added `NotFound.jsx` and `Toast.jsx` in `src/layouts/` re-exporting the component implementations and exported them in `src/layouts/index.js`.
+
+3. **Dependency Validation in Verification Script (`verify-frontend.js`)**:
+   - Issue: Dependency check only checked `pkg.dependencies`, failing on build-time dependencies like `tailwindcss` located in `pkg.devDependencies`.
+   - Fix: Updated verification logic to check both `dependencies` and `devDependencies`.
+
+4. **Standardized Test Script (`package.json`)**:
+   - Issue: Missing standard `npm test` script.
+   - Fix: Added `"test": "node verify-frontend.js"` pointing to the repeatable verification suite.
 
 ---
 

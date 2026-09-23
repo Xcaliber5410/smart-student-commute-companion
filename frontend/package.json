@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "verify": "node verify-frontend.js",
+    "test": "node verify-frontend.js",
     "icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
