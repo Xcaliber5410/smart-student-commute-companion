@@ -476,7 +476,7 @@ if (fileExists('package.json')) {
     // Check dependencies
     const deps = ['react', 'react-dom', 'lucide-react', 'tailwindcss'];
     deps.forEach(dep => {
-      if (pkg.dependencies && pkg.dependencies[dep]) {
+      if ((pkg.dependencies && pkg.dependencies[dep]) || (pkg.devDependencies && pkg.devDependencies[dep])) {
         pass(`Dependency present: ${dep}`);
       } else {
         fail(`Dependency missing: ${dep}`);
