@@ -89,6 +89,7 @@ function errorHandler(err, req, res, next) {
     : message;
 
   const responsePayload = {
+    success: false,
     error: safeError,
     message: safeMessage,
     code,

@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { feedbackService } = require('../services');
 const { ValidationError } = require('../errors');
+const { success, created } = require('../utils/apiResponse');
 
 const feedbackSchema = z.object({
   recommendation_id: z.string().optional().default(''),
@@ -18,7 +19,7 @@ function submitFeedback(req, res, next) {
 
     feedbackService.submitFeedback(parsed.data);
 
-    res.status(201).json({ success: true, message: 'Thank you for your student feedback!' });
+    return created(res, { message: 'Thank you for your student feedback!' });
   } catch (err) {
     next(err);
   }
@@ -27,7 +28,7 @@ function submitFeedback(req, res, next) {
 function getFeedback(req, res, next) {
   try {
     const result = feedbackService.listFeedback(req.query);
-    res.json({ success: true, ...result });
+    return success(res, { ...result });
   } catch (err) {
     next(err);
   }
@@ -37,7 +38,7 @@ function updateFeedback(req, res, next) {
   try {
     const { id } = req.params;
     const updated = feedbackService.updateFeedback(id, req.body);
-    res.json({ success: true, message: 'Feedback updated successfully', feedback: updated });
+    return success(res, { message: 'Feedback updated successfully', feedback: updated });
   } catch (err) {
     next(err);
   }
@@ -47,7 +48,7 @@ function deleteFeedback(req, res, next) {
   try {
     const { id } = req.params;
     feedbackService.deleteFeedback(id);
-    res.json({ success: true, message: 'Feedback deleted successfully', id });
+    return success(res, { message: 'Feedback deleted successfully', id });
   } catch (err) {
     next(err);
   }

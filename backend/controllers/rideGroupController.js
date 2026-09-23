@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { rideGroupService } = require('../services');
 const { ValidationError } = require('../errors');
+const { success, created, paginated } = require('../utils/apiResponse');
 
 const rideGroupSchema = z.object({
   creator_pseudonym: z.string().min(2),
@@ -15,9 +16,9 @@ const rideGroupSchema = z.object({
 function getRideGroups(req, res, next) {
   try {
     const result = rideGroupService.listRideGroups(req.query);
-    res.json({
-      success: true,
-      groups: result.groups,
+    return paginated(res, {
+      dataKey: 'groups',
+      data: result.groups,
       pagination: result.pagination
     });
   } catch (err) {
@@ -32,8 +33,8 @@ function createRideGroup(req, res, next) {
       return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
-    const created = rideGroupService.createRideGroup(parsed.data);
-    res.status(201).json({ success: true, group: created });
+    const newGroup = rideGroupService.createRideGroup(parsed.data);
+    return created(res, { group: newGroup });
   } catch (err) {
     next(err);
   }
@@ -43,7 +44,7 @@ function joinRideGroup(req, res, next) {
   try {
     const { id } = req.params;
     const updated = rideGroupService.joinRideGroup(id);
-    res.json({ success: true, message: 'Joined commute group successfully!', group: updated });
+    return success(res, { message: 'Joined commute group successfully!', group: updated });
   } catch (err) {
     next(err);
   }
@@ -53,7 +54,7 @@ function getRideGroup(req, res, next) {
   try {
     const { id } = req.params;
     const group = rideGroupService.getRideGroupById(id);
-    res.json({ success: true, group });
+    return success(res, { group });
   } catch (err) {
     next(err);
   }
@@ -63,7 +64,7 @@ function updateRideGroup(req, res, next) {
   try {
     const { id } = req.params;
     const updated = rideGroupService.updateRideGroup(id, req.body);
-    res.json({ success: true, group: updated });
+    return success(res, { group: updated });
   } catch (err) {
     next(err);
   }
@@ -73,7 +74,7 @@ function deleteRideGroup(req, res, next) {
   try {
     const { id } = req.params;
     rideGroupService.deleteRideGroup(id);
-    res.json({ success: true, message: 'Ride group deleted successfully', id });
+    return success(res, { message: 'Ride group deleted successfully', id });
   } catch (err) {
     next(err);
   }

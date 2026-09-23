@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { reportService } = require('../services');
 const { ValidationError } = require('../errors');
+const { success, created, paginated } = require('../utils/apiResponse');
 
 const reportSchema = z.object({
   pseudonym: z.string().min(2).max(30).optional().default('Student_Rider'),
@@ -16,10 +17,10 @@ const reportSchema = z.object({
 function getLiveReports(req, res, next) {
   try {
     const result = reportService.getLiveReports(req.query);
-    res.json({
-      success: true,
+    return paginated(res, {
+      dataKey: 'reports',
+      data: result.reports,
       count: result.count,
-      reports: result.reports,
       pagination: result.pagination
     });
   } catch (err) {
@@ -30,10 +31,7 @@ function getLiveReports(req, res, next) {
 function getAlerts(req, res, next) {
   try {
     const alerts = reportService.getAlerts();
-    res.json({
-      success: true,
-      alerts
-    });
+    return success(res, { alerts });
   } catch (err) {
     next(err);
   }
@@ -49,13 +47,11 @@ function createReport(io) {
 
       const createdReport = reportService.createReport(parsed.data);
 
-      // Broadcast to connected students via Socket.IO
       if (io) {
         io.emit('live_report_created', createdReport);
       }
 
-      res.status(201).json({
-        success: true,
+      return created(res, {
         message: 'Community report posted successfully',
         report: createdReport
       });
@@ -74,15 +70,14 @@ function confirmReport(io) {
       const result = reportService.confirmReport(id, userToken);
 
       if (result.alreadyVoted) {
-        return res.json({ success: true, message: 'Vote already recorded', alreadyVoted: true });
+        return success(res, { message: 'Vote already recorded', alreadyVoted: true });
       }
 
       if (io && result.updatedReport) {
         io.emit('live_report_updated', result.updatedReport);
       }
 
-      res.json({
-        success: true,
+      return success(res, {
         message: 'Confirmed that disruption is still happening',
         report: result.updatedReport
       });
@@ -101,7 +96,7 @@ function contradictReport(io) {
       const result = reportService.contradictReport(id, userToken);
 
       if (result.alreadyVoted) {
-        return res.json({ success: true, message: 'Vote already recorded', alreadyVoted: true });
+        return success(res, { message: 'Vote already recorded', alreadyVoted: true });
       }
 
       if (result.autoExpired) {
@@ -112,8 +107,7 @@ function contradictReport(io) {
         io.emit('live_report_updated', result.updatedReport);
       }
 
-      res.json({
-        success: true,
+      return success(res, {
         message: 'Recorded update that disruption cleared up',
         report: result.updatedReport
       });
@@ -127,7 +121,7 @@ function getReport(req, res, next) {
   try {
     const { id } = req.params;
     const report = reportService.getReportById(id);
-    res.json({ success: true, report });
+    return success(res, { report });
   } catch (err) {
     next(err);
   }
@@ -141,8 +135,7 @@ function updateReport(io) {
       if (io && typeof io.emit === 'function') {
         io.emit('live_report_updated', updated);
       }
-      res.json({
-        success: true,
+      return success(res, {
         message: 'Report updated successfully',
         report: updated
       });
@@ -165,8 +158,7 @@ function deleteReport(io) {
       if (io && typeof io.emit === 'function') {
         io.emit('live_report_deleted', { id });
       }
-      res.json({
-        success: true,
+      return success(res, {
         message: 'Report deleted successfully',
         id
       });
