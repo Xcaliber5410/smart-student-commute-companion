@@ -21,7 +21,15 @@ const updateFeedbackSchema = z.object({
   message: 'At least one field must be provided for update'
 });
 
+const feedbackFilterQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  recommendation_id: z.string().trim().max(100).optional(),
+  is_useful: z.enum(['true', 'false']).transform(val => val === 'true').optional()
+});
+
 module.exports = {
   submitFeedbackSchema,
-  updateFeedbackSchema
+  updateFeedbackSchema,
+  feedbackFilterQuerySchema
 };

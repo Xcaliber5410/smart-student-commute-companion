@@ -14,8 +14,12 @@ const rideGroupSchema = z.object({
 
 function getRideGroups(req, res, next) {
   try {
-    const groups = rideGroupService.listRideGroups(20);
-    res.json({ success: true, groups });
+    const result = rideGroupService.listRideGroups(req.query);
+    res.json({
+      success: true,
+      groups: result.groups,
+      pagination: result.pagination
+    });
   } catch (err) {
     next(err);
   }

@@ -36,7 +36,8 @@ const reportFilterQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   mode: z.enum(['train', 'metro', 'bus', 'auto', 'walk']).optional(),
   area: z.string().trim().max(100).optional(),
-  impact: z.enum(['low', 'medium', 'high']).optional()
+  impact: z.enum(['low', 'medium', 'high']).optional(),
+  status: z.enum(['active', 'expired', 'resolved', 'all']).optional()
 });
 
 module.exports = {

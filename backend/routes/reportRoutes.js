@@ -13,13 +13,14 @@ const {
   validate,
   createReportSchema,
   updateReportSchema,
+  reportFilterQuerySchema,
   idParamSchema
 } = require('../validators');
 
 function createReportRoutes(io) {
   const router = express.Router();
 
-  router.get('/live-reports', getLiveReports);
+  router.get('/live-reports', validate({ query: reportFilterQuerySchema }), getLiveReports);
   router.get('/live-reports/:id', validate({ params: idParamSchema }), getReport);
   router.get('/alerts', getAlerts);
   router.post('/live-reports', validate({ body: createReportSchema }), createReport(io));

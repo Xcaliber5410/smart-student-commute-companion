@@ -16,7 +16,8 @@ const {
 } = require('./reportValidators');
 const {
   submitFeedbackSchema,
-  updateFeedbackSchema
+  updateFeedbackSchema,
+  feedbackFilterQuerySchema
 } = require('./feedbackValidators');
 const { planCommuteSchema } = require('./planValidators');
 const { transitSearchQuerySchema } = require('./transitValidators');
@@ -37,6 +38,7 @@ module.exports = {
   // Feedback
   submitFeedbackSchema,
   updateFeedbackSchema,
+  feedbackFilterQuerySchema,
   // Commute Plan
   planCommuteSchema,
   // Transit

@@ -54,32 +54,29 @@ class FeedbackService {
   }
 
   /**
-   * Lists feedback entries, optionally filtered by recommendation_id.
+   * Lists feedback entries with pagination and filtering.
    *
-   * @param {string} [recommendationId]
-   * @returns {{ summary?: object, feedback: object[] }}
+   * @param {object|string} [options={}]
+   * @returns {{ summary?: object, feedback: object[], pagination: object }}
    */
-  listFeedback(recommendationId) {
-    if (recommendationId) {
-      const feedback = this.getFeedbackForRecommendation(recommendationId);
-      const summary = this.getFeedbackSummary(recommendationId);
-      return { summary, feedback };
-    }
-    const stmt = this.repo.database.prepare('SELECT * FROM feedback ORDER BY created_at DESC LIMIT 50');
-    const rows = stmt.all();
-    const feedback = rows.map(r => {
-      let tags = [];
-      try { tags = JSON.parse(r.tags); } catch (e) { tags = []; }
-      return {
-        id: r.id,
-        recommendation_id: r.recommendation_id,
-        is_useful: Boolean(r.is_useful),
-        tags,
-        comment: r.comment,
-        created_at: Number(r.created_at)
-      };
-    });
-    return { feedback };
+  listFeedback(options = {}) {
+    const opts = typeof options === 'string' ? { recommendation_id: options } : (options || {});
+    const result = this.repo.findWithPagination(opts);
+    const feedback = result.data.map(f => (f.toJSON ? f.toJSON() : f));
+    const summary = opts.recommendation_id ? this.getFeedbackSummary(opts.recommendation_id) : undefined;
+
+    return {
+      summary,
+      feedback,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNext: result.page < result.totalPages,
+        hasPrev: result.page > 1
+      }
+    };
   }
 
   /**

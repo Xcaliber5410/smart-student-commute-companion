@@ -9,12 +9,13 @@ const {
   validate,
   submitFeedbackSchema,
   updateFeedbackSchema,
+  feedbackFilterQuerySchema,
   idParamSchema
 } = require('../validators');
 
 function createFeedbackRoutes() {
   const router = express.Router();
-  router.get('/feedback', getFeedback);
+  router.get('/feedback', validate({ query: feedbackFilterQuerySchema }), getFeedback);
   router.post('/feedback', validate({ body: submitFeedbackSchema }), submitFeedback);
   router.patch(
     '/feedback/:id',

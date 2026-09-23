@@ -31,6 +31,62 @@ class RideGroupRepository {
   }
 
   /**
+   * Retrieves ride groups with database-level pagination and filtering.
+   *
+   * @param {object} [options={}]
+   * @returns {{ data: RideGroup[], total: number, page: number, limit: number, totalPages: number }}
+   */
+  findWithPagination(options = {}) {
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const conditions = [];
+    const params = [];
+
+    if (options.mode) {
+      conditions.push('LOWER(mode) = LOWER(?)');
+      params.push(options.mode);
+    }
+    if (options.origin) {
+      conditions.push('LOWER(origin_area) LIKE LOWER(?)');
+      params.push(`%${options.origin}%`);
+    }
+    if (options.destination) {
+      conditions.push('LOWER(destination_college) LIKE LOWER(?)');
+      params.push(`%${options.destination}%`);
+    }
+    if (options.status) {
+      if (options.status === 'open') {
+        conditions.push('current_members < max_members');
+      } else if (options.status === 'full') {
+        conditions.push('current_members >= max_members');
+      }
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countStmt = this.database.prepare(`SELECT COUNT(*) as count FROM ride_groups ${whereClause}`);
+    const { count: total } = countStmt.get(...params);
+
+    const queryStmt = this.database.prepare(`
+      SELECT * FROM ride_groups
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const rows = queryStmt.all(...params, limit, offset);
+
+    return {
+      data: rows.map(r => RideGroup.fromRow(r)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1
+    };
+  }
+
+  /**
    * Finds a ride group by its unique ID.
    *
    * @param {string} id

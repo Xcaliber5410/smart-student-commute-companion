@@ -34,6 +34,61 @@ class ReportRepository {
   }
 
   /**
+   * Retrieves disruption reports with database-level pagination and filtering.
+   *
+   * @param {object} [options={}]
+   * @returns {{ data: LiveReport[], total: number, page: number, limit: number, totalPages: number }}
+   */
+  findWithPagination(options = {}) {
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const conditions = [];
+    const params = [];
+
+    const status = options.status || 'active';
+    if (status !== 'all') {
+      conditions.push('status = ?');
+      params.push(status);
+    }
+
+    if (options.mode) {
+      conditions.push('LOWER(mode) = LOWER(?)');
+      params.push(options.mode);
+    }
+    if (options.area) {
+      conditions.push('LOWER(area) LIKE LOWER(?)');
+      params.push(`%${options.area}%`);
+    }
+    if (options.impact) {
+      conditions.push('impact = ?');
+      params.push(options.impact);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countStmt = this.database.prepare(`SELECT COUNT(*) as count FROM live_commute_reports ${whereClause}`);
+    const { count: total } = countStmt.get(...params);
+
+    const queryStmt = this.database.prepare(`
+      SELECT * FROM live_commute_reports
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const rows = queryStmt.all(...params, limit, offset);
+
+    return {
+      data: rows.map(r => LiveReport.fromRow(r)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1
+    };
+  }
+
+  /**
    * Finds a live report by its ID.
    *
    * @param {string} id

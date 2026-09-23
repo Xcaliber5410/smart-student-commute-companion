@@ -11,13 +11,14 @@ const {
   validate,
   createRideGroupSchema,
   updateRideGroupSchema,
+  rideGroupFilterQuerySchema,
   idParamSchema
 } = require('../validators');
 
 function createRideGroupRoutes() {
   const router = express.Router();
 
-  router.get('/ride-groups', getRideGroups);
+  router.get('/ride-groups', validate({ query: rideGroupFilterQuerySchema }), getRideGroups);
   router.get('/ride-groups/:id', validate({ params: idParamSchema }), getRideGroup);
   router.post('/ride-groups', validate({ body: createRideGroupSchema }), createRideGroup);
   router.patch(

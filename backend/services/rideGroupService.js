@@ -14,14 +14,25 @@ class RideGroupService {
   }
 
   /**
-   * Retrieves active/recent ride groups.
+   * Retrieves active/recent ride groups with pagination and filtering.
    *
-   * @param {number} [limit=20]
-   * @returns {object[]}
+   * @param {object|number} [options=20]
+   * @returns {{ groups: object[], pagination: object }}
    */
-  listRideGroups(limit = 20) {
-    const groups = this.repo.findRecent(limit);
-    return groups.map(g => (g.toRow ? g.toRow() : g));
+  listRideGroups(options = 20) {
+    const opts = typeof options === 'number' ? { limit: options } : (options || {});
+    const result = this.repo.findWithPagination(opts);
+    return {
+      groups: result.data.map(g => (g.toRow ? g.toRow() : g)),
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNext: result.page < result.totalPages,
+        hasPrev: result.page > 1
+      }
+    };
   }
 
   /**

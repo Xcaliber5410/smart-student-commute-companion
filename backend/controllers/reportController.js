@@ -15,11 +15,12 @@ const reportSchema = z.object({
 
 function getLiveReports(req, res, next) {
   try {
-    const reports = reportService.getLiveReports();
+    const result = reportService.getLiveReports(req.query);
     res.json({
       success: true,
-      count: reports.length,
-      reports
+      count: result.count,
+      reports: result.reports,
+      pagination: result.pagination
     });
   } catch (err) {
     next(err);

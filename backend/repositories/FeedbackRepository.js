@@ -56,6 +56,51 @@ class FeedbackRepository {
   }
 
   /**
+   * Retrieves feedback entries with database-level pagination and filtering.
+   *
+   * @param {object} [options={}]
+   * @returns {{ data: Feedback[], total: number, page: number, limit: number, totalPages: number }}
+   */
+  findWithPagination(options = {}) {
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const conditions = [];
+    const params = [];
+
+    if (options.recommendation_id) {
+      conditions.push('recommendation_id = ?');
+      params.push(options.recommendation_id);
+    }
+    if (options.is_useful !== undefined) {
+      conditions.push('is_useful = ?');
+      params.push(options.is_useful ? 1 : 0);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countStmt = this.database.prepare(`SELECT COUNT(*) as count FROM feedback ${whereClause}`);
+    const { count: total } = countStmt.get(...params);
+
+    const queryStmt = this.database.prepare(`
+      SELECT * FROM feedback
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const rows = queryStmt.all(...params, limit, offset);
+
+    return {
+      data: rows.map(r => Feedback.fromRow(r)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1
+    };
+  }
+
+  /**
    * Lists feedback entries for a specific route recommendation.
    *
    * @param {string} recommendationId

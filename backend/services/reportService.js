@@ -15,12 +15,37 @@ class ReportService {
   }
 
   /**
-   * Retrieves active, non-expired disruption reports with decay metrics.
+   * Retrieves active, non-expired disruption reports with decay metrics, pagination and filtering.
    *
-   * @returns {object[]}
+   * @param {object} [options={}]
+   * @returns {{ reports: object[], count: number, pagination: object }}
    */
-  getLiveReports() {
-    return getActiveReports();
+  getLiveReports(options = {}) {
+    const result = this.repo.findWithPagination(options);
+    const now = Date.now();
+    const reportsWithMetrics = result.data.map(report => {
+      const ageMinutes = Math.floor((now - report.created_at) / (1000 * 60));
+      const freshnessWeight = calculateFreshnessWeight(report.created_at, now);
+      return {
+        ...(report.toRow ? report.toRow() : report),
+        freshnessWeight,
+        ageMinutes,
+        ageFormatted: ageMinutes < 60 ? `${ageMinutes}m ago` : `${Math.floor(ageMinutes / 60)}h ago`
+      };
+    });
+
+    return {
+      reports: reportsWithMetrics,
+      count: result.total,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNext: result.page < result.totalPages,
+        hasPrev: result.page > 1
+      }
+    };
   }
 
   /**
@@ -43,7 +68,8 @@ class ReportService {
    * @returns {object[]}
    */
   getAlerts() {
-    const reports = this.getLiveReports();
+    const res = this.getLiveReports({ limit: 10, status: 'active' });
+    const reports = Array.isArray(res) ? res : (res.reports || []);
     return reports.map(r => ({
       id: r.id,
       title: `⚠ ${r.area} (${r.mode.toUpperCase()})`,
