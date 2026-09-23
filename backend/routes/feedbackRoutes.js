@@ -1,9 +1,11 @@
 const express = require('express');
-const { submitFeedback } = require('../controllers/feedbackController');
+const { submitFeedback, getFeedback } = require('../controllers/feedbackController');
+const { validate, submitFeedbackSchema } = require('../validators');
 
 function createFeedbackRoutes() {
   const router = express.Router();
-  router.post('/feedback', submitFeedback);
+  router.get('/feedback', getFeedback);
+  router.post('/feedback', validate({ body: submitFeedbackSchema }), submitFeedback);
   return router;
 }
 

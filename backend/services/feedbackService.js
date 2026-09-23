@@ -51,6 +51,35 @@ class FeedbackService {
     const list = this.repo.findByRecommendationId(recommendationId);
     return list.map(f => (f.toRow ? f.toRow() : f));
   }
+
+  /**
+   * Lists feedback entries, optionally filtered by recommendation_id.
+   *
+   * @param {string} [recommendationId]
+   * @returns {{ summary?: object, feedback: object[] }}
+   */
+  listFeedback(recommendationId) {
+    if (recommendationId) {
+      const feedback = this.getFeedbackForRecommendation(recommendationId);
+      const summary = this.getFeedbackSummary(recommendationId);
+      return { summary, feedback };
+    }
+    const stmt = this.repo.database.prepare('SELECT * FROM feedback ORDER BY created_at DESC LIMIT 50');
+    const rows = stmt.all();
+    const feedback = rows.map(r => {
+      let tags = [];
+      try { tags = JSON.parse(r.tags); } catch (e) { tags = []; }
+      return {
+        id: r.id,
+        recommendation_id: r.recommendation_id,
+        is_useful: Boolean(r.is_useful),
+        tags,
+        comment: r.comment,
+        created_at: Number(r.created_at)
+      };
+    });
+    return { feedback };
+  }
 }
 
 module.exports = {

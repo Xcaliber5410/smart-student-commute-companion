@@ -11,9 +11,10 @@
     "verify:routes": "node scripts/verify_routes.js",
     "verify:errors": "node scripts/verify_errors.js",
     "verify:validation": "node scripts/verify_validation.js",
+    "verify:api:read": "node scripts/verify_create_read.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
-    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run verify:validation && npm run test && npm run test:db",
+    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run verify:validation && npm run verify:api:read && npm run test && npm run test:db",
     "db:migrate": "node migrations/cli.js up",
     "db:rollback": "node migrations/cli.js down",
     "db:status": "node migrations/cli.js status"

@@ -24,7 +24,18 @@ function submitFeedback(req, res, next) {
   }
 }
 
+function getFeedback(req, res, next) {
+  try {
+    const { recommendation_id } = req.query;
+    const result = feedbackService.listFeedback(recommendation_id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   submitFeedback,
+  getFeedback,
   feedbackSchema
 };

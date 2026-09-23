@@ -45,8 +45,19 @@ function joinRideGroup(req, res, next) {
   }
 }
 
+function getRideGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+    const group = rideGroupService.getRideGroupById(id);
+    res.json({ success: true, group });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getRideGroups,
+  getRideGroup,
   createRideGroup,
   joinRideGroup,
   rideGroupSchema

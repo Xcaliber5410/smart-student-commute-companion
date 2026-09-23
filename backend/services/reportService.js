@@ -24,6 +24,20 @@ class ReportService {
   }
 
   /**
+   * Finds a single disruption report by ID.
+   *
+   * @param {string} id
+   * @returns {object}
+   */
+  getReportById(id) {
+    const report = this.repo.findById(id);
+    if (!report) {
+      throw new NotFoundError(`Disruption report with id '${id}' not found`);
+    }
+    return report.toRow ? report.toRow() : report;
+  }
+
+  /**
    * Formats active disruption reports into high-priority student transit alerts.
    *
    * @returns {object[]}

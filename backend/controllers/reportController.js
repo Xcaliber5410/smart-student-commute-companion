@@ -122,8 +122,19 @@ function contradictReport(io) {
   };
 }
 
+function getReport(req, res, next) {
+  try {
+    const { id } = req.params;
+    const report = reportService.getReportById(id);
+    res.json({ success: true, report });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getLiveReports,
+  getReport,
   getAlerts,
   createReport,
   confirmReport,

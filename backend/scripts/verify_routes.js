@@ -38,6 +38,7 @@ const expectedEndpoints = [
   { method: 'GET', path: '/health' },
   { method: 'POST', path: '/plan' },
   { method: 'GET', path: '/live-reports' },
+  { method: 'GET', path: '/live-reports/:id' },
   { method: 'GET', path: '/alerts' },
   { method: 'POST', path: '/live-reports' },
   { method: 'POST', path: '/reports' },
@@ -45,8 +46,10 @@ const expectedEndpoints = [
   { method: 'POST', path: '/live-reports/:id/contradict' },
   { method: 'GET', path: '/transit/search' },
   { method: 'GET', path: '/ride-groups' },
+  { method: 'GET', path: '/ride-groups/:id' },
   { method: 'POST', path: '/ride-groups' },
   { method: 'POST', path: '/ride-groups/:id/join' },
+  { method: 'GET', path: '/feedback' },
   { method: 'POST', path: '/feedback' },
   { method: 'POST', path: '/demo/reset' }
 ];
