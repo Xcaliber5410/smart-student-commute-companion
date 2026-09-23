@@ -1,6 +1,6 @@
 const { z } = require('zod');
-const { rideGroupRepository } = require('../repositories/RideGroupRepository');
-const { ValidationError, NotFoundError, BadRequestError } = require('../errors');
+const { rideGroupService } = require('../services');
+const { ValidationError } = require('../errors');
 
 const rideGroupSchema = z.object({
   creator_pseudonym: z.string().min(2),
@@ -14,8 +14,8 @@ const rideGroupSchema = z.object({
 
 function getRideGroups(req, res, next) {
   try {
-    const groups = rideGroupRepository.findRecent(20);
-    res.json({ success: true, groups: groups.map(g => g.toRow()) });
+    const groups = rideGroupService.listRideGroups(20);
+    res.json({ success: true, groups });
   } catch (err) {
     next(err);
   }
@@ -28,8 +28,8 @@ function createRideGroup(req, res, next) {
       return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
-    const created = rideGroupRepository.create(parsed.data);
-    res.status(201).json({ success: true, group: created.toRow() });
+    const created = rideGroupService.createRideGroup(parsed.data);
+    res.status(201).json({ success: true, group: created });
   } catch (err) {
     next(err);
   }
@@ -38,14 +38,8 @@ function createRideGroup(req, res, next) {
 function joinRideGroup(req, res, next) {
   try {
     const { id } = req.params;
-    const group = rideGroupRepository.findById(id);
-    if (!group) return next(new NotFoundError('Ride group not found'));
-    if (group.isFull()) {
-      return next(new BadRequestError('This group is already full', 'GROUP_FULL'));
-    }
-
-    const updated = rideGroupRepository.incrementMembers(id);
-    res.json({ success: true, message: 'Joined commute group successfully!', group: updated.toRow() });
+    const updated = rideGroupService.joinRideGroup(id);
+    res.json({ success: true, message: 'Joined commute group successfully!', group: updated });
   } catch (err) {
     next(err);
   }

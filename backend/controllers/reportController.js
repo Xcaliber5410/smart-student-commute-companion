@@ -1,7 +1,6 @@
 const { z } = require('zod');
-const { reportRepository } = require('../repositories');
-const { getActiveReports } = require('../services/disruptionService');
-const { ValidationError, NotFoundError } = require('../errors');
+const { reportService } = require('../services');
+const { ValidationError } = require('../errors');
 
 const reportSchema = z.object({
   pseudonym: z.string().min(2).max(30).optional().default('Student_Rider'),
@@ -16,7 +15,7 @@ const reportSchema = z.object({
 
 function getLiveReports(req, res, next) {
   try {
-    const reports = getActiveReports();
+    const reports = reportService.getLiveReports();
     res.json({
       success: true,
       count: reports.length,
@@ -29,17 +28,10 @@ function getLiveReports(req, res, next) {
 
 function getAlerts(req, res, next) {
   try {
-    const reports = getActiveReports();
+    const alerts = reportService.getAlerts();
     res.json({
       success: true,
-      alerts: reports.map(r => ({
-        id: r.id,
-        title: `⚠ ${r.area} (${r.mode.toUpperCase()})`,
-        message: r.message,
-        impact: r.impact,
-        age: r.ageFormatted,
-        confirmations: r.confirmation_count
-      }))
+      alerts
     });
   } catch (err) {
     next(err);
@@ -54,49 +46,7 @@ function createReport(io) {
         return next(new ValidationError('Validation failed', parsed.error.format()));
       }
 
-      const { pseudonym, area, route_name, route_id, mode, message, impact, durationObservedMinutes } = parsed.data;
-      const now = Date.now();
-      const expiresAt = now + (durationObservedMinutes || 60) * 60 * 1000;
-      const reportId = `rep-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-
-      const created = reportRepository.create({
-        id: reportId,
-        pseudonym,
-        area,
-        route_name,
-        route_id,
-        mode,
-        message,
-        impact,
-        status: 'active',
-        created_at: now,
-        expires_at: expiresAt,
-        confirmation_count: 1,
-        contradiction_count: 0
-      });
-
-      const reportRow = created ? created.toRow() : {
-        id: reportId,
-        pseudonym,
-        area,
-        route_name,
-        route_id,
-        mode,
-        message,
-        impact,
-        status: 'active',
-        created_at: now,
-        expires_at: expiresAt,
-        confirmation_count: 1,
-        contradiction_count: 0
-      };
-
-      const createdReport = {
-        ...reportRow,
-        freshnessWeight: 1.0,
-        ageMinutes: 0,
-        ageFormatted: 'Just now'
-      };
+      const createdReport = reportService.createReport(parsed.data);
 
       // Broadcast to connected students via Socket.IO
       if (io) {
@@ -120,27 +70,20 @@ function confirmReport(io) {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
 
-      const existingReport = reportRepository.findById(id);
-      if (!existingReport) {
-        return next(new NotFoundError(`Disruption report with id '${id}' not found`));
-      }
-
-      const result = reportRepository.addVote(id, userToken, 'confirm');
+      const result = reportService.confirmReport(id, userToken);
 
       if (result.alreadyVoted) {
         return res.json({ success: true, message: 'Vote already recorded', alreadyVoted: true });
       }
 
-      const updatedReport = result.updatedReport ? result.updatedReport.toRow() : null;
-
-      if (io && updatedReport) {
-        io.emit('live_report_updated', updatedReport);
+      if (io && result.updatedReport) {
+        io.emit('live_report_updated', result.updatedReport);
       }
 
       res.json({
         success: true,
         message: 'Confirmed that disruption is still happening',
-        report: updatedReport
+        report: result.updatedReport
       });
     } catch (err) {
       next(err);
@@ -154,31 +97,24 @@ function contradictReport(io) {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
 
-      const existingReport = reportRepository.findById(id);
-      if (!existingReport) {
-        return next(new NotFoundError(`Disruption report with id '${id}' not found`));
-      }
-
-      const result = reportRepository.addVote(id, userToken, 'contradict');
+      const result = reportService.contradictReport(id, userToken);
 
       if (result.alreadyVoted) {
         return res.json({ success: true, message: 'Vote already recorded', alreadyVoted: true });
       }
 
-      const updatedReport = result.updatedReport ? result.updatedReport.toRow() : null;
-
       if (result.autoExpired) {
         if (io) {
           io.emit('live_report_expired', { id });
         }
-      } else if (io && updatedReport) {
-        io.emit('live_report_updated', updatedReport);
+      } else if (io && result.updatedReport) {
+        io.emit('live_report_updated', result.updatedReport);
       }
 
       res.json({
         success: true,
         message: 'Recorded update that disruption cleared up',
-        report: updatedReport
+        report: result.updatedReport
       });
     } catch (err) {
       next(err);

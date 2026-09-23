@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { feedbackRepository } = require('../repositories');
+const { feedbackService } = require('../services');
 const { ValidationError } = require('../errors');
 
 const feedbackSchema = z.object({
@@ -16,16 +16,7 @@ function submitFeedback(req, res, next) {
       return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
-    const { recommendation_id, is_useful, tags, comment } = parsed.data;
-    const id = `fb-${Date.now()}`;
-    feedbackRepository.create({
-      id,
-      recommendation_id,
-      is_useful,
-      tags,
-      comment,
-      created_at: Date.now()
-    });
+    feedbackService.submitFeedback(parsed.data);
 
     res.status(201).json({ success: true, message: 'Thank you for your student feedback!' });
   } catch (err) {
