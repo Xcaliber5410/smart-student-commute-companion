@@ -56,7 +56,7 @@ export default function AppShell({
       <main
         id="main-content"
         tabIndex={-1}
-        className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 outline-none ${
+        className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-8 outline-none ${
           fullWidth ? 'max-w-none' : 'max-w-7xl'
         } ${contentClassName}`}
       >
