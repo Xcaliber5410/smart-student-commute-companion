@@ -7,6 +7,7 @@
 const { rideGroupService, RideGroupService } = require('./rideGroupService');
 const { reportService, ReportService } = require('./reportService');
 const { feedbackService, FeedbackService } = require('./feedbackService');
+const { authService, AuthService } = require('./authService');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -23,6 +24,8 @@ module.exports = {
   ReportService,
   feedbackService,
   FeedbackService,
+  authService,
+  AuthService,
 
   // Commute Planning & Spatial Services
   getActiveReports,

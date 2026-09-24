@@ -21,12 +21,15 @@ const {
 } = require('./feedbackValidators');
 const { planCommuteSchema } = require('./planValidators');
 const { transitSearchQuerySchema } = require('./transitValidators');
+const { registerSchema } = require('./authValidators');
 
 module.exports = {
   validate,
   // Common
   idParamSchema,
   paginationQuerySchema,
+  // Auth
+  registerSchema,
   // Ride Groups
   createRideGroupSchema,
   updateRideGroupSchema,

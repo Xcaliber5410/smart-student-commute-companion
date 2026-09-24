@@ -36,6 +36,7 @@ const endpoints = getRegisteredEndpoints(router);
 // 3. Expected endpoints list
 const expectedEndpoints = [
   { method: 'GET', path: '/health' },
+  { method: 'POST', path: '/auth/register' },
   { method: 'POST', path: '/plan' },
   { method: 'GET', path: '/live-reports' },
   { method: 'GET', path: '/live-reports/:id' },

@@ -7,6 +7,7 @@ const createTransitRoutes = require('./transitRoutes');
 const createRideGroupRoutes = require('./rideGroupRoutes');
 const createFeedbackRoutes = require('./feedbackRoutes');
 const createDemoRoutes = require('./demoRoutes');
+const createAuthRoutes = require('./authRoutes');
 
 /**
  * Centralized API Router Aggregator.
@@ -21,22 +22,25 @@ function createApiRouter(io) {
   // 1. Health check routes
   router.use(createHealthRoutes());
 
-  // 2. Multimodal Transit Planning routes
+  // 2. Authentication routes
+  router.use(createAuthRoutes());
+
+  // 3. Multimodal Transit Planning routes
   router.use(createPlanRoutes());
 
-  // 3. Disruption & Community Reports routes
+  // 4. Disruption & Community Reports routes
   router.use(createReportRoutes(io));
 
-  // 4. Transit Search routes
+  // 5. Transit Search routes
   router.use(createTransitRoutes());
 
-  // 5. Travel Together / Carpooling routes
+  // 6. Travel Together / Carpooling routes
   router.use(createRideGroupRoutes());
 
-  // 6. Student Feedback routes
+  // 7. Student Feedback routes
   router.use(createFeedbackRoutes());
 
-  // 7. Demo Reset routes
+  // 8. Demo Reset routes
   router.use(createDemoRoutes(io));
 
   return router;
