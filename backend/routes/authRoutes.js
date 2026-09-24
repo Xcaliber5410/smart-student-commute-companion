@@ -5,13 +5,14 @@
  */
 
 const express = require('express');
-const { register } = require('../controllers/authController');
-const { validate, registerSchema } = require('../validators');
+const { register, login } = require('../controllers/authController');
+const { validate, registerSchema, loginSchema } = require('../validators');
 
 function createAuthRoutes() {
   const router = express.Router();
 
   router.post('/auth/register', validate({ body: registerSchema }), register);
+  router.post('/auth/login', validate({ body: loginSchema }), login);
 
   return router;
 }

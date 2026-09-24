@@ -40,6 +40,18 @@ const registerSchema = z.object({
     .default('student')
 });
 
+const loginSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required' })
+    .email('Invalid email address')
+    .max(255)
+    .transform(val => val.trim().toLowerCase()),
+  password: z
+    .string({ required_error: 'Password is required' })
+    .min(1, 'Password is required')
+});
+
 module.exports = {
-  registerSchema
+  registerSchema,
+  loginSchema
 };

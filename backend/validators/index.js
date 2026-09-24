@@ -21,7 +21,7 @@ const {
 } = require('./feedbackValidators');
 const { planCommuteSchema } = require('./planValidators');
 const { transitSearchQuerySchema } = require('./transitValidators');
-const { registerSchema } = require('./authValidators');
+const { registerSchema, loginSchema } = require('./authValidators');
 
 module.exports = {
   validate,
@@ -30,6 +30,7 @@ module.exports = {
   paginationQuerySchema,
   // Auth
   registerSchema,
+  loginSchema,
   // Ride Groups
   createRideGroupSchema,
   updateRideGroupSchema,

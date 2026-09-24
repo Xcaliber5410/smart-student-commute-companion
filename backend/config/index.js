@@ -62,7 +62,12 @@ const envSchema = z.object({
 
   DATABASE_PATH: z
     .string()
+    .optional(),
+
+  JWT_SECRET: z
+    .string()
     .optional()
+    .default('smart-commute-companion-dev-jwt-secret-key-32bytes-secure!')
 });
 
 /**
@@ -148,6 +153,8 @@ const config = {
   allowedOrigins: uniqueAllowedOrigins,
   geminiApiKey: validatedConfig.GEMINI_API_KEY,
   requireGeminiKey: validatedConfig.REQUIRE_GEMINI_KEY,
+  jwtSecret: validatedConfig.JWT_SECRET || 'smart-commute-companion-dev-jwt-secret-key-32bytes-secure!',
+  jwtExpiresIn: 86400, // 24 hours in seconds
   database: {
     path: resolvedDbPath
   },
@@ -167,7 +174,8 @@ const config = {
       geminiApiKey: this.geminiApiKey
         ? `***${this.geminiApiKey.slice(-4)}`
         : '(not configured - deterministic fallback active)',
-      requireGeminiKey: this.requireGeminiKey
+      requireGeminiKey: this.requireGeminiKey,
+      jwtSecret: '[REDACTED]'
     };
   }
 };

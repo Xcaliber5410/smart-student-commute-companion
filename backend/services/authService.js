@@ -6,7 +6,11 @@
  */
 
 const { userRepository } = require('../repositories/UserRepository');
-const { ConflictError } = require('../errors');
+const { ConflictError, UnauthorizedError } = require('../errors');
+const { signToken } = require('../utils/token');
+const { verifyPassword } = require('../utils/password');
+
+const DUMMY_SALT_HASH = '00000000000000000000000000000000:00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 
 class AuthService {
   constructor(userRepo = userRepository) {
@@ -32,6 +36,44 @@ class AuthService {
 
     const user = this.userRepo.create(registrationData);
     return user.toSafeObject();
+  }
+
+  /**
+   * Authenticates user credentials and generates a secure signed token.
+   * Employs constant-time fake hashing to prevent timing-based user enumeration.
+   *
+   * @param {object} credentials
+   * @param {string} credentials.email
+   * @param {string} credentials.password
+   * @returns {{ user: object, token: string }}
+   * @throws {UnauthorizedError}
+   */
+  login(credentials) {
+    const user = this.userRepo.findByEmail(credentials.email);
+
+    if (!user) {
+      // Execute dummy password verification to maintain uniform timing
+      verifyPassword(credentials.password, DUMMY_SALT_HASH);
+      throw new UnauthorizedError('Invalid email or password');
+    }
+
+    const isMatch = user.verifyPassword(credentials.password);
+    if (!isMatch) {
+      throw new UnauthorizedError('Invalid email or password');
+    }
+
+    const token = signToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name,
+      college_name: user.college_name
+    });
+
+    return {
+      user: user.toSafeObject(),
+      token
+    };
   }
 }
 

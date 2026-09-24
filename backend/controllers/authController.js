@@ -5,7 +5,7 @@
  */
 
 const { authService } = require('../services');
-const { created } = require('../utils/apiResponse');
+const { created, success } = require('../utils/apiResponse');
 
 /**
  * Handles student registration.
@@ -26,6 +26,27 @@ function register(req, res, next) {
   }
 }
 
+/**
+ * Handles student authentication / login.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+function login(req, res, next) {
+  try {
+    const { user, token } = authService.login(req.body);
+    return success(res, {
+      message: 'Login successful',
+      token,
+      user
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
-  register
+  register,
+  login
 };
