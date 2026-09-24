@@ -9,6 +9,7 @@ const { ReportConfirmation, reportConfirmationSchema } = require('./ReportConfir
 const { RideGroup, rideGroupSchema } = require('./RideGroup');
 const { Feedback, feedbackSchema } = require('./Feedback');
 const { GeocodingCache, geocodingCacheSchema } = require('./GeocodingCache');
+const { User, userSchema } = require('./User');
 
 module.exports = {
   LiveReport,
@@ -20,5 +21,8 @@ module.exports = {
   Feedback,
   feedbackSchema,
   GeocodingCache,
-  geocodingCacheSchema
+  geocodingCacheSchema,
+  User,
+  userSchema
 };
+

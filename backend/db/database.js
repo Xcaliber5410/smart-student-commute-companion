@@ -76,7 +76,23 @@ function initDb() {
     );
   `);
 
-  // 6. GTFS Tables
+  // 6. Users Table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      college_name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'student',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+  `);
+
+  // 7. GTFS Tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS gtfs_agency (
       agency_id TEXT PRIMARY KEY,

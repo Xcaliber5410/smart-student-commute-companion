@@ -21,10 +21,12 @@ const { RideGroup } = require('../models/RideGroup');
 const { LiveReport } = require('../models/LiveReport');
 const { Feedback } = require('../models/Feedback');
 const { GeocodingCache } = require('../models/GeocodingCache');
+const { User } = require('../models/User');
 const { RideGroupRepository } = require('../repositories/RideGroupRepository');
 const { ReportRepository } = require('../repositories/ReportRepository');
 const { FeedbackRepository } = require('../repositories/FeedbackRepository');
 const { GeocodingRepository } = require('../repositories/GeocodingRepository');
+const { UserRepository } = require('../repositories/UserRepository');
 const { normalizeDatabaseError } = require('../db/dbErrors');
 const { ConflictError, ValidationError } = require('../errors');
 
@@ -119,7 +121,8 @@ async function main() {
         'live_report_confirmations',
         'ride_groups',
         'feedback',
-        'geocoding_cache'
+        'geocoding_cache',
+        'users'
       ];
 
       for (const reqTable of requiredTables) {
@@ -129,7 +132,7 @@ async function main() {
 
     runTest('Migration status reports clean state with no pending migrations', () => {
       const status = getMigrationStatus(testDb);
-      assert.equal(status.applied.length, 1);
+      assert.equal(status.applied.length, 2);
       assert.equal(status.pending.length, 0);
     });
 
@@ -167,6 +170,27 @@ async function main() {
       assert.equal(report.isExpired(now + 4000000), true);
     });
 
+    runTest('User domain model securely hashes passwords and validates invariants', () => {
+      const user = User.create({
+        email: 'Student.Test@DJSCE.ac.in',
+        password: 'SecurePassword123',
+        full_name: 'Aditya Verma',
+        college_name: 'DJ Sanghvi College of Engineering'
+      });
+
+      assert.equal(user.email, 'student.test@djsce.ac.in');
+      assert.equal(user.role, 'student');
+      assert(user.password_hash.includes(':'), 'Hash must contain salt separator');
+      assert(!user.password_hash.includes('SecurePassword123'), 'Plaintext password must never appear in hash');
+      assert.equal(user.verifyPassword('SecurePassword123'), true);
+      assert.equal(user.verifyPassword('WrongPassword'), false);
+
+      const safeObj = user.toSafeObject();
+      assert(!('password_hash' in safeObj), 'toSafeObject() must redact password_hash');
+      const json = JSON.parse(JSON.stringify(user));
+      assert(!('password_hash' in json), 'toJSON() must redact password_hash');
+    });
+
     // -------------------------------------------------------------
     // Test Section 4: Repository Data-Access Layer Integration
     // -------------------------------------------------------------
@@ -174,6 +198,7 @@ async function main() {
     const reportRepo = new ReportRepository(testDb);
     const feedbackRepo = new FeedbackRepository(testDb);
     const geocodingRepo = new GeocodingRepository(testDb);
+    const userRepo = new UserRepository(testDb);
 
     let createdGroupId;
 
@@ -287,6 +312,26 @@ async function main() {
       assert.equal(retrieved.lon, 72.8372);
     });
 
+    runTest('UserRepository persists and retrieves student user accounts', () => {
+      const createdUser = userRepo.create({
+        email: 'priya.sharma@vjti.ac.in',
+        password: 'ValidPassword123',
+        full_name: 'Priya Sharma',
+        college_name: 'VJTI Matunga'
+      });
+
+      assert(createdUser.id.startsWith('usr-'), 'User ID must start with usr-');
+      const byEmail = userRepo.findByEmail('PRIYA.SHARMA@VJTI.AC.IN');
+      assert(byEmail, 'Must find user case-insensitively');
+      assert.equal(byEmail.full_name, 'Priya Sharma');
+
+      const byId = userRepo.findById(createdUser.id);
+      assert(byId, 'Must find user by ID');
+      assert.equal(byId.college_name, 'VJTI Matunga');
+      assert.equal(byId.verifyPassword('ValidPassword123'), true);
+      assert.equal(userRepo.count() >= 1, true);
+    });
+
     // -------------------------------------------------------------
     // Test Section 5: Constraint Violations & Error Normalization
     // -------------------------------------------------------------
@@ -308,15 +353,32 @@ async function main() {
       assert(!caughtError.message.includes('ride_groups'), 'Sanitized error must not leak table name');
     });
 
+    runTest('Duplicate user email insertion is caught and normalized to ConflictError', () => {
+      let caughtError = null;
+      try {
+        testDb.prepare(`
+          INSERT INTO users (id, email, password_hash, full_name, college_name, role, created_at, updated_at)
+          VALUES ('usr-dup', 'priya.sharma@vjti.ac.in', 'hash123', 'Another User', 'VJTI', 'student', 123, 123)
+        `).run();
+      } catch (err) {
+        caughtError = normalizeDatabaseError(err);
+      }
+
+      assert(caughtError, 'Duplicate email insertion must throw an error');
+      assert(caughtError instanceof ConflictError, 'Error must normalize to ConflictError');
+      assert.equal(caughtError.statusCode, 409);
+      assert.equal(caughtError.code, 'DUPLICATE_RECORD');
+    });
+
     // -------------------------------------------------------------
     // Test Section 6: Schema Rollback & Re-migration
     // -------------------------------------------------------------
-    runTest('Migration runner safely rolls back initial schema migration', () => {
+    runTest('Migration runner safely rolls back latest schema migration', () => {
       const rollbackResult = rollbackMigration(testDb);
-      assert.equal(rollbackResult.rolledBack, '001_initial_schema');
+      assert.equal(rollbackResult.rolledBack, '002_create_users_table');
 
       const statusAfterRollback = getMigrationStatus(testDb);
-      assert.equal(statusAfterRollback.applied.length, 0);
+      assert.equal(statusAfterRollback.applied.length, 1);
       assert.equal(statusAfterRollback.pending.length, 1);
     });
 
@@ -325,7 +387,7 @@ async function main() {
       assert.equal(reapplyResult.applied.length, 1);
 
       const statusAfterReapply = getMigrationStatus(testDb);
-      assert.equal(statusAfterReapply.applied.length, 1);
+      assert.equal(statusAfterReapply.applied.length, 2);
       assert.equal(statusAfterReapply.pending.length, 0);
     });
 
