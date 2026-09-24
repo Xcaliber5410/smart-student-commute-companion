@@ -46,7 +46,24 @@ function login(req, res, next) {
   }
 }
 
+/**
+ * Retrieves the currently authenticated student profile.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+function getMe(req, res, next) {
+  try {
+    const user = authService.getProfile(req.user.id);
+    return success(res, { user });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   register,
-  login
+  login,
+  getMe
 };

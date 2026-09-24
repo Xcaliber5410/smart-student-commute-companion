@@ -6,7 +6,7 @@
  */
 
 const { userRepository } = require('../repositories/UserRepository');
-const { ConflictError, UnauthorizedError } = require('../errors');
+const { ConflictError, UnauthorizedError, NotFoundError } = require('../errors');
 const { signToken } = require('../utils/token');
 const { verifyPassword } = require('../utils/password');
 
@@ -74,6 +74,20 @@ class AuthService {
       user: user.toSafeObject(),
       token
     };
+  }
+
+  /**
+   * Retrieves user profile by user ID.
+   *
+   * @param {string} userId
+   * @returns {object}
+   */
+  getProfile(userId) {
+    const user = this.userRepo.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User profile not found');
+    }
+    return user.toSafeObject();
   }
 }
 
