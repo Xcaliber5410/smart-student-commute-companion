@@ -16,6 +16,7 @@ export { default as Spinner } from './Spinner';
 export { default as Alert } from './Alert';
 export { default as EmptyState } from './EmptyState';
 export { default as Card } from './Card';
+export { default as FormField } from './FormField';
 
 // Reusable Page States
 export { default as LoadingState } from './LoadingState';
