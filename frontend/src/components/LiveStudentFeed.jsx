@@ -16,6 +16,7 @@ import {
   Zap,
   Footprints
 } from 'lucide-react';
+import { EmptyState } from './ui';
 
 export default function LiveStudentFeed({ 
   reports = [], 
@@ -89,9 +90,19 @@ export default function LiveStudentFeed({
 
       {/* Reports Feed */}
       {reports.length === 0 ? (
-        <div className="text-center py-8 px-4 bg-slate-950/40 rounded-xl border border-dashed border-slate-800 text-slate-400 text-xs">
-          No active student disruption reports. All corridors operating smoothly!
-        </div>
+        <EmptyState
+          icon={<Radio className="w-6 h-6 text-slate-400" aria-hidden="true" />}
+          title="All corridors operating smoothly"
+          description="No active student disruption reports right now. When students post real-time updates, they will appear here automatically."
+          action={
+            <button
+              onClick={onOpenCreateReport}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            >
+              Post a Report
+            </button>
+          }
+        />
       ) : (
         <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
           {reports.map((rep) => {

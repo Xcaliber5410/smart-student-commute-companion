@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Plus, Clock, MapPin, GraduationCap, Check, ShieldCheck } from 'lucide-react';
+import { EmptyState } from './ui';
 
 export default function TravelTogether({ groups = [], onJoinGroup, onOpenCreateGroup }) {
   const [joiningId, setJoiningId] = useState(null);
@@ -49,9 +50,19 @@ export default function TravelTogether({ groups = [], onJoinGroup, onOpenCreateG
 
       {/* Groups List */}
       {groups.length === 0 ? (
-        <div className="text-center py-10 px-4 bg-slate-950/40 rounded-xl border border-dashed border-slate-800 text-slate-400 text-xs">
-          No commute groups currently active. Start one above for your college!
-        </div>
+        <EmptyState
+          icon={<Users className="w-6 h-6 text-indigo-400" aria-hidden="true" />}
+          title="No commute groups currently active"
+          description="Be the first to create a safe student auto-pool or transit travel buddy group for your college route!"
+          action={
+            <button
+              onClick={onOpenCreateGroup}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            >
+              Start a Commute Group
+            </button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {groups.map((grp) => {
