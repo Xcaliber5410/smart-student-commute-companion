@@ -62,15 +62,17 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Origin */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+          <label htmlFor="planner-origin" className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true"></span>
               Starting Area (Neighborhood / Station)
             </span>
           </label>
           <input
+            id="planner-origin"
             type="text"
             required
+            aria-required="true"
             value={formData.origin}
             onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
             placeholder="e.g. Andheri East, Borivali, Dadar..."
@@ -97,15 +99,17 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
 
         {/* Destination */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+          <label htmlFor="planner-destination" className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
             <span className="flex items-center gap-1.5">
-              <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
+              <GraduationCap className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" />
               College Destination
             </span>
           </label>
           <input
+            id="planner-destination"
             type="text"
             required
+            aria-required="true"
             value={formData.destination}
             onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
             placeholder="e.g. IIT Bombay, VJTI, NMIMS..."
@@ -182,14 +186,16 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
                   key={id}
                   type="button"
                   onClick={() => toggleMode(id)}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl text-center border transition-all ${
+                  aria-pressed={active}
+                  aria-label={`${label} — ${active ? 'enabled' : 'disabled'}`}
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl text-center border transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:ring-offset-slate-950 ${
                     active
                       ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 font-semibold shadow-sm'
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 mb-1 ${active ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <span className="text-[10px] leading-tight">{label}</span>
+                  <Icon className={`w-4 h-4 mb-1 ${active ? 'text-emerald-400' : 'text-slate-400'}`} aria-hidden="true" />
+                  <span className="text-[10px] leading-tight" aria-hidden="true">{label}</span>
                 </button>
               );
             })}
@@ -213,6 +219,10 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
               step="5"
               value={formData.walkingToleranceMinutes}
               onChange={(e) => setFormData({ ...formData, walkingToleranceMinutes: parseInt(e.target.value) })}
+              aria-label={`Maximum walking tolerance: ${formData.walkingToleranceMinutes} minutes`}
+              aria-valuemin={5}
+              aria-valuemax={30}
+              aria-valuenow={formData.walkingToleranceMinutes}
               className="w-full accent-emerald-500 bg-slate-950 rounded-lg cursor-pointer h-1.5"
             />
           </div>

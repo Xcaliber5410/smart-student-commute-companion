@@ -74,10 +74,17 @@ export default function Button({
       type={type}
       onClick={onClick}
       disabled={isDisabled}
+      aria-disabled={isDisabled}
+      aria-busy={loading || undefined}
       className={buttonStyles}
       {...rest}
     >
-      {loading && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
+      {loading && (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+          <span className="sr-only">Loading…</span>
+        </>
+      )}
       {!loading && icon && <span className="shrink-0" aria-hidden="true">{icon}</span>}
       {children}
     </button>

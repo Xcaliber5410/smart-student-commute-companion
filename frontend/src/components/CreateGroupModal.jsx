@@ -24,17 +24,23 @@ export default function CreateGroupModal({ isOpen, onClose, onSubmit, isSubmitti
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-group-title"
+        className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
+      >
         <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/60">
           <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-400" />
-            <h3 className="text-base font-bold text-white">Create Commute Coordination Group</h3>
+            <Users className="w-5 h-5 text-indigo-400" aria-hidden="true" />
+            <h3 id="create-group-title" className="text-base font-bold text-white">Create Commute Coordination Group</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 

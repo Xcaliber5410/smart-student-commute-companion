@@ -61,10 +61,11 @@ export default function ErrorState({
         <div className="flex items-center gap-3 mt-1">
           {onRetry && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onRetry}
               disabled={isRetrying}
+              aria-busy={isRetrying}
               className="border-rose-500/40 text-rose-300 hover:bg-rose-500/10 hover:border-rose-500"
             >
               <RotateCcw className={`w-3.5 h-3.5 mr-1.5 ${isRetrying ? 'animate-spin' : ''}`} aria-hidden="true" />
