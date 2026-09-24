@@ -125,19 +125,23 @@ npm --prefix backend run db:status
 All tests run against isolated in-memory/ephemeral test databases with **zero mutation of production data**:
 
 ```bash
-# Run isolated database integration test suite (15 tests: lifecycle, models, repos, transactions)
+# Run isolated authentication & authorization test suite (19 tests: scrypt, JWT, RBAC, ownership)
+npm --prefix backend run verify:auth
+
+# Run isolated database integration test suite (18 tests: lifecycle, models, repos, transactions)
 npm --prefix backend run test:db
 
 # Run backend foundation smoke tests
 npm --prefix backend test
 
-# Run all backend test suites sequentially (config, bootstrap, routes, errors, smoke, DB)
+# Run all backend test suites sequentially (config, bootstrap, routes, errors, validation, API, auth, DB)
 npm --prefix backend run test:all
 ```
 
 For detailed specifications, see:
-- [Database Setup & Operations Guide](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/backend/docs/database_setup.md)
-- [Database Integration Audit](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/backend/docs/database_audit.md)
+- [Authentication & Authorization Specification](backend/docs/authentication.md)
+- [Database Setup & Operations Guide](backend/docs/database_setup.md)
+- [Database Integration Audit](backend/docs/database_audit.md)
 - [Backend Architecture & Technical Specification](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/backend/docs/architecture.md)
 
 ---
