@@ -89,6 +89,34 @@ class AuthService {
     }
     return user.toSafeObject();
   }
+
+  /**
+   * Updates an existing user's profile.
+   *
+   * @param {string} userId
+   * @param {object} updates
+   * @returns {object}
+   */
+  updateProfile(userId, updates = {}) {
+    const existing = this.userRepo.findById(userId);
+    if (!existing) {
+      throw new NotFoundError('User profile not found');
+    }
+    const updated = this.userRepo.update(userId, updates);
+    return updated.toSafeObject();
+  }
+
+  /**
+   * Lists all registered user accounts (admin only).
+   *
+   * @returns {object[]}
+   */
+  listUsers() {
+    const stmt = this.userRepo.database.prepare('SELECT * FROM users ORDER BY created_at DESC');
+    const rows = stmt.all();
+    const { User } = require('../models/User');
+    return rows.map(r => User.fromRow(r).toSafeObject());
+  }
 }
 
 const authService = new AuthService();

@@ -62,8 +62,50 @@ function getMe(req, res, next) {
   }
 }
 
+/**
+ * Retrieves a user by identifier (ownership or admin enforced by middleware).
+ */
+function getUserById(req, res, next) {
+  try {
+    const user = authService.getProfile(req.params.id);
+    return success(res, { user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Updates a user's profile (ownership or admin enforced by middleware).
+ */
+function updateUserProfile(req, res, next) {
+  try {
+    const user = authService.updateProfile(req.params.id, req.body);
+    return success(res, {
+      message: 'Profile updated successfully',
+      user
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Lists all registered users (admin only).
+ */
+function listUsers(req, res, next) {
+  try {
+    const users = authService.listUsers();
+    return success(res, { users });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   register,
   login,
-  getMe
+  getMe,
+  getUserById,
+  updateUserProfile,
+  listUsers
 };
