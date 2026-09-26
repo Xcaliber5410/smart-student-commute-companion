@@ -87,28 +87,39 @@ class RideGroupService {
       }
     }
 
-    const updated = this.repo.incrementMembers(id);
-    return updated.toRow ? updated.toRow() : updated;
+    try {
+      const updated = this.repo.atomicJoin(id);
+      return updated.toRow ? updated.toRow() : updated;
+    } catch (err) {
+      if (err.code === 'GROUP_FULL') {
+        throw new BadRequestError('This group is already full', 'GROUP_FULL');
+      }
+      if (err.code === 'NOT_FOUND') {
+        throw new NotFoundError('Ride group not found');
+      }
+      throw err;
+    }
   }
 
   /**
-   * Removes a member from an existing ride group.
+   * Removes a member from an existing ride group atomically.
    *
    * @param {string} id
    * @returns {object}
    */
   leaveRideGroup(id) {
-    const group = this.repo.findById(id);
-    if (!group) {
-      throw new NotFoundError('Ride group not found');
+    try {
+      const updated = this.repo.atomicLeave(id);
+      return updated.toRow ? updated.toRow() : updated;
+    } catch (err) {
+      if (err.code === 'MINIMUM_MEMBERSHIP_REACHED') {
+        throw new BadRequestError('Cannot leave group as the only remaining member', 'MINIMUM_MEMBERSHIP_REACHED');
+      }
+      if (err.code === 'NOT_FOUND') {
+        throw new NotFoundError('Ride group not found');
+      }
+      throw err;
     }
-
-    if (group.current_members <= 1) {
-      throw new BadRequestError('Cannot leave group as the only remaining member', 'MINIMUM_MEMBERSHIP_REACHED');
-    }
-
-    const updated = this.repo.decrementMembers(id);
-    return updated.toRow ? updated.toRow() : updated;
   }
 
   /**

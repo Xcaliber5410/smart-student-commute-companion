@@ -159,6 +159,64 @@ class RideGroupRepository {
   }
 
   /**
+   * Atomically joins a ride group inside a transaction, verifying capacity before incrementing.
+   *
+   * @param {string} id
+   * @returns {RideGroup}
+   */
+  atomicJoin(id) {
+    let updated = null;
+    const runTx = this.database.transaction(() => {
+      const group = this.findById(id);
+      if (!group) {
+        const err = new Error('NOT_FOUND');
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+      if (group.current_members >= group.max_members) {
+        const err = new Error('GROUP_FULL');
+        err.code = 'GROUP_FULL';
+        throw err;
+      }
+      this.database.prepare(
+        'UPDATE ride_groups SET current_members = current_members + 1 WHERE id = ?'
+      ).run(id);
+      updated = this.findById(id);
+    });
+    runTx();
+    return updated;
+  }
+
+  /**
+   * Atomically leaves a ride group inside a transaction, verifying minimum membership.
+   *
+   * @param {string} id
+   * @returns {RideGroup}
+   */
+  atomicLeave(id) {
+    let updated = null;
+    const runTx = this.database.transaction(() => {
+      const group = this.findById(id);
+      if (!group) {
+        const err = new Error('NOT_FOUND');
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+      if (group.current_members <= 1) {
+        const err = new Error('MINIMUM_MEMBERSHIP_REACHED');
+        err.code = 'MINIMUM_MEMBERSHIP_REACHED';
+        throw err;
+      }
+      this.database.prepare(
+        'UPDATE ride_groups SET current_members = current_members - 1 WHERE id = ?'
+      ).run(id);
+      updated = this.findById(id);
+    });
+    runTx();
+    return updated;
+  }
+
+  /**
    * Updates an existing ride group.
    *
    * @param {string} id

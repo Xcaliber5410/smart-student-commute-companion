@@ -110,6 +110,27 @@ class FeedbackService {
 
     return this.repo.delete(id);
   }
+
+  /**
+   * Atomically submits a batch of feedback entries inside a transaction.
+   *
+   * @param {object[]} items
+   * @returns {object[]}
+   */
+  submitFeedbackBatch(items) {
+    const created = this.repo.createBatch(items);
+    return created.map(f => (f.toJSON ? f.toJSON() : (f.toRow ? f.toRow() : f)));
+  }
+
+  /**
+   * Atomically cleans up all feedback associated with a recommendation.
+   *
+   * @param {string} recommendationId
+   * @returns {number}
+   */
+  deleteFeedbackByRecommendation(recommendationId) {
+    return this.repo.deleteByRecommendationId(recommendationId);
+  }
 }
 
 module.exports = {

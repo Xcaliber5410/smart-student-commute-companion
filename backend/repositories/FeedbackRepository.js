@@ -167,6 +167,41 @@ class FeedbackRepository {
     const res = stmt.run(id);
     return res.changes > 0;
   }
+
+  /**
+   * Atomically creates multiple feedback entries inside a single transaction.
+   *
+   * @param {Array<object|Feedback>} items
+   * @returns {Feedback[]}
+   */
+  createBatch(items) {
+    if (!Array.isArray(items) || items.length === 0) return [];
+    const results = [];
+    const runTx = this.database.transaction(() => {
+      for (const item of items) {
+        results.push(this.create(item));
+      }
+    });
+    runTx();
+    return results;
+  }
+
+  /**
+   * Atomically deletes all feedback for a recommendation inside a transaction.
+   *
+   * @param {string} recommendationId
+   * @returns {number} Count of removed rows
+   */
+  deleteByRecommendationId(recommendationId) {
+    let changes = 0;
+    const runTx = this.database.transaction(() => {
+      const stmt = this.database.prepare('DELETE FROM feedback WHERE recommendation_id = ?');
+      const res = stmt.run(recommendationId);
+      changes = res.changes;
+    });
+    runTx();
+    return changes;
+  }
 }
 
 module.exports = {
