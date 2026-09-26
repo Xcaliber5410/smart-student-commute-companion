@@ -16,10 +16,11 @@
     "verify:api:pagination": "node scripts/verify_pagination.js",
     "verify:api:responses": "node scripts/verify_response_conventions.js",
     "verify:auth": "node scripts/verify_auth.js",
+    "verify:rules": "node scripts/verify_business_rules.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",
-    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run verify:validation && npm run verify:api:read && npm run verify:api:update-delete && npm run verify:api:pagination && npm run verify:api:responses && npm run verify:auth && npm run test && npm run test:db && npm run test:api",
+    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run verify:validation && npm run verify:api:read && npm run verify:api:update-delete && npm run verify:api:pagination && npm run verify:api:responses && npm run verify:auth && npm run verify:rules && npm run test && npm run test:db && npm run test:api",
     "db:migrate": "node migrations/cli.js up",
     "db:rollback": "node migrations/cli.js down",
     "db:status": "node migrations/cli.js status"

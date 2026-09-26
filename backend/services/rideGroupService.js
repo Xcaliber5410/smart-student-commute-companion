@@ -6,7 +6,7 @@
  */
 
 const { rideGroupRepository } = require('../repositories/RideGroupRepository');
-const { NotFoundError, BadRequestError } = require('../errors');
+const { NotFoundError, BadRequestError, ForbiddenError } = require('../errors');
 
 class RideGroupService {
   constructor(repo = rideGroupRepository) {
@@ -61,12 +61,13 @@ class RideGroupService {
   }
 
   /**
-   * Adds a student to an existing ride group, enforcing capacity limits.
+   * Adds a student to an existing ride group, enforcing capacity limits and membership rules.
    *
    * @param {string} id
+   * @param {string|object} [userTokenOrUser]
    * @returns {object}
    */
-  joinRideGroup(id) {
+  joinRideGroup(id, userTokenOrUser) {
     const group = this.repo.findById(id);
     if (!group) {
       throw new NotFoundError('Ride group not found');
@@ -74,6 +75,16 @@ class RideGroupService {
 
     if (group.isFull()) {
       throw new BadRequestError('This group is already full', 'GROUP_FULL');
+    }
+
+    if (userTokenOrUser) {
+      const identifier = typeof userTokenOrUser === 'string'
+        ? userTokenOrUser
+        : (userTokenOrUser.full_name || userTokenOrUser.email || userTokenOrUser.id);
+
+      if (identifier && (group.creator_pseudonym === identifier || group.creator_id === identifier)) {
+        throw new BadRequestError('Group creator is already a registered member of this group', 'CREATOR_ALREADY_MEMBER');
+      }
     }
 
     const updated = this.repo.incrementMembers(id);
@@ -118,16 +129,21 @@ class RideGroupService {
   }
 
   /**
-   * Updates an existing ride group.
+   * Updates an existing ride group, enforcing capacity limits and ownership constraints.
    *
    * @param {string} id
    * @param {object} updates
+   * @param {object} [currentUser]
    * @returns {object}
    */
-  updateRideGroup(id, updates) {
+  updateRideGroup(id, updates, currentUser) {
     const group = this.repo.findById(id);
     if (!group) {
       throw new NotFoundError(`Ride group with id '${id}' not found`);
+    }
+
+    if (currentUser && !this.assertOwnership(group, currentUser)) {
+      throw new ForbiddenError('You can only modify or delete ride groups that you created');
     }
 
     if (updates.max_members !== undefined && updates.max_members < group.current_members) {
@@ -142,15 +158,20 @@ class RideGroupService {
   }
 
   /**
-   * Deletes an existing ride group.
+   * Deletes an existing ride group, enforcing ownership constraints.
    *
    * @param {string} id
+   * @param {object} [currentUser]
    * @returns {boolean}
    */
-  deleteRideGroup(id) {
+  deleteRideGroup(id, currentUser) {
     const group = this.repo.findById(id);
     if (!group) {
       throw new NotFoundError(`Ride group with id '${id}' not found`);
+    }
+
+    if (currentUser && !this.assertOwnership(group, currentUser)) {
+      throw new ForbiddenError('You can only modify or delete ride groups that you created');
     }
 
     return this.repo.delete(id);

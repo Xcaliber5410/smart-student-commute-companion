@@ -7,7 +7,7 @@
 
 const { reportRepository } = require('../repositories/ReportRepository');
 const { getActiveReports, calculateFreshnessWeight } = require('./disruptionService');
-const { NotFoundError } = require('../errors');
+const { NotFoundError, BadRequestError, ForbiddenError } = require('../errors');
 
 class ReportService {
   constructor(repo = reportRepository) {
@@ -156,6 +156,10 @@ class ReportService {
       throw new NotFoundError(`Disruption report with id '${id}' not found`);
     }
 
+    if (existing.status !== 'active' || existing.isExpired()) {
+      throw new BadRequestError('Cannot vote on an inactive or expired disruption report', 'REPORT_INACTIVE');
+    }
+
     const result = this.repo.addVote(id, userToken, 'confirm');
     const updatedRow = result.updatedReport
       ? (result.updatedReport.toRow ? result.updatedReport.toRow() : result.updatedReport)
@@ -180,6 +184,10 @@ class ReportService {
       throw new NotFoundError(`Disruption report with id '${id}' not found`);
     }
 
+    if (existing.status !== 'active' || existing.isExpired()) {
+      throw new BadRequestError('Cannot vote on an inactive or expired disruption report', 'REPORT_INACTIVE');
+    }
+
     const result = this.repo.addVote(id, userToken, 'contradict');
     const updatedRow = result.updatedReport
       ? (result.updatedReport.toRow ? result.updatedReport.toRow() : result.updatedReport)
@@ -193,16 +201,28 @@ class ReportService {
   }
 
   /**
-   * Updates an existing disruption report.
+   * Updates an existing disruption report, validating business state and ownership.
    *
    * @param {string} id
    * @param {object} updates
+   * @param {object} [currentUser]
    * @returns {object}
    */
-  updateReport(id, updates) {
+  updateReport(id, updates, currentUser) {
     const existing = this.repo.findById(id);
     if (!existing) {
       throw new NotFoundError(`Disruption report with id '${id}' not found`);
+    }
+
+    if (existing.status === 'resolved' && updates.status !== 'active') {
+      throw new BadRequestError('Resolved disruption report cannot be modified without reactivating', 'REPORT_RESOLVED');
+    }
+
+    if (currentUser && currentUser.role !== 'admin') {
+      const creator = existing.pseudonym;
+      if (creator && creator !== currentUser.full_name && creator !== currentUser.email && creator !== currentUser.id) {
+        throw new ForbiddenError('You can only modify disruption reports that you created');
+      }
     }
 
     const updated = this.repo.update(id, updates);
@@ -210,15 +230,23 @@ class ReportService {
   }
 
   /**
-   * Deletes an existing disruption report and its vote records.
+   * Deletes an existing disruption report and its vote records, enforcing ownership.
    *
    * @param {string} id
+   * @param {object} [currentUser]
    * @returns {boolean}
    */
-  deleteReport(id) {
+  deleteReport(id, currentUser) {
     const existing = this.repo.findById(id);
     if (!existing) {
       throw new NotFoundError(`Disruption report with id '${id}' not found`);
+    }
+
+    if (currentUser && currentUser.role !== 'admin') {
+      const creator = existing.pseudonym;
+      if (creator && creator !== currentUser.full_name && creator !== currentUser.email && creator !== currentUser.id) {
+        throw new ForbiddenError('You can only delete disruption reports that you created');
+      }
     }
 
     return this.repo.delete(id);
