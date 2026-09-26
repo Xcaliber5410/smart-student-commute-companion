@@ -131,7 +131,7 @@ function updateReport(io) {
   const handler = (req, res, next) => {
     try {
       const { id } = req.params;
-      const updated = reportService.updateReport(id, req.body);
+      const updated = reportService.updateReport(id, req.body, req.user);
       if (io && typeof io.emit === 'function') {
         io.emit('live_report_updated', updated);
       }
@@ -154,7 +154,7 @@ function deleteReport(io) {
   const handler = (req, res, next) => {
     try {
       const { id } = req.params;
-      reportService.deleteReport(id);
+      reportService.deleteReport(id, req.user);
       if (io && typeof io.emit === 'function') {
         io.emit('live_report_deleted', { id });
       }

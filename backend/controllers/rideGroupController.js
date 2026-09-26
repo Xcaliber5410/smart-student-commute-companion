@@ -43,7 +43,8 @@ function createRideGroup(req, res, next) {
 function joinRideGroup(req, res, next) {
   try {
     const { id } = req.params;
-    const updated = rideGroupService.joinRideGroup(id);
+    const userOrToken = req.user || req.headers['x-user-token'];
+    const updated = rideGroupService.joinRideGroup(id, userOrToken);
     return success(res, { message: 'Joined commute group successfully!', group: updated });
   } catch (err) {
     next(err);
@@ -63,7 +64,7 @@ function getRideGroup(req, res, next) {
 function updateRideGroup(req, res, next) {
   try {
     const { id } = req.params;
-    const updated = rideGroupService.updateRideGroup(id, req.body);
+    const updated = rideGroupService.updateRideGroup(id, req.body, req.user);
     return success(res, { group: updated });
   } catch (err) {
     next(err);
@@ -73,7 +74,7 @@ function updateRideGroup(req, res, next) {
 function deleteRideGroup(req, res, next) {
   try {
     const { id } = req.params;
-    rideGroupService.deleteRideGroup(id);
+    rideGroupService.deleteRideGroup(id, req.user);
     return success(res, { message: 'Ride group deleted successfully', id });
   } catch (err) {
     next(err);
