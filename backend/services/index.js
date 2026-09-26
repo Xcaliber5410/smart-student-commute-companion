@@ -8,6 +8,8 @@ const { rideGroupService, RideGroupService } = require('./rideGroupService');
 const { reportService, ReportService } = require('./reportService');
 const { feedbackService, FeedbackService } = require('./feedbackService');
 const { authService, AuthService } = require('./authService');
+const { commutePlanService, CommutePlanService } = require('./commutePlanService');
+const { transitService, TransitService } = require('./transitService');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -17,7 +19,7 @@ const { fetchMumbaiWeather } = require('./weatherService');
 const { explainRoutePlan } = require('./aiPlannerService');
 
 module.exports = {
-  // Day 3 Reusable Entity Services
+  // Domain Services
   rideGroupService,
   RideGroupService,
   reportService,
@@ -26,6 +28,10 @@ module.exports = {
   FeedbackService,
   authService,
   AuthService,
+  commutePlanService,
+  CommutePlanService,
+  transitService,
+  TransitService,
 
   // Commute Planning & Spatial Services
   getActiveReports,
