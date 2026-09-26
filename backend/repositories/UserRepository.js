@@ -125,6 +125,17 @@ class UserRepository {
   }
 
   /**
+   * Retrieves all users ordered by creation date descending.
+   *
+   * @returns {User[]}
+   */
+  findAll() {
+    const stmt = this.database.prepare('SELECT * FROM users ORDER BY created_at DESC');
+    const rows = stmt.all();
+    return rows.map(r => User.fromRow(r));
+  }
+
+  /**
    * Total count of registered users.
    *
    * @returns {number}

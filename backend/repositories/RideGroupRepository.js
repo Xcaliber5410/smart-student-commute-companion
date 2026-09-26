@@ -145,6 +145,20 @@ class RideGroupRepository {
   }
 
   /**
+   * Decrements current member count for a ride group (cannot drop below 1).
+   *
+   * @param {string} id
+   * @returns {RideGroup|null}
+   */
+  decrementMembers(id) {
+    const stmt = this.database.prepare(
+      'UPDATE ride_groups SET current_members = MAX(1, current_members - 1) WHERE id = ?'
+    );
+    stmt.run(id);
+    return this.findById(id);
+  }
+
+  /**
    * Updates an existing ride group.
    *
    * @param {string} id

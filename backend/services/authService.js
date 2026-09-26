@@ -112,10 +112,8 @@ class AuthService {
    * @returns {object[]}
    */
   listUsers() {
-    const stmt = this.userRepo.database.prepare('SELECT * FROM users ORDER BY created_at DESC');
-    const rows = stmt.all();
-    const { User } = require('../models/User');
-    return rows.map(r => User.fromRow(r).toSafeObject());
+    const users = this.userRepo.findAll();
+    return users.map(u => u.toSafeObject());
   }
 }
 

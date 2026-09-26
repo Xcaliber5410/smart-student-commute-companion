@@ -81,6 +81,43 @@ class RideGroupService {
   }
 
   /**
+   * Removes a member from an existing ride group.
+   *
+   * @param {string} id
+   * @returns {object}
+   */
+  leaveRideGroup(id) {
+    const group = this.repo.findById(id);
+    if (!group) {
+      throw new NotFoundError('Ride group not found');
+    }
+
+    if (group.current_members <= 1) {
+      throw new BadRequestError('Cannot leave group as the only remaining member', 'MINIMUM_MEMBERSHIP_REACHED');
+    }
+
+    const updated = this.repo.decrementMembers(id);
+    return updated.toRow ? updated.toRow() : updated;
+  }
+
+  /**
+   * Asserts whether a user has permission to mutate a ride group.
+   *
+   * @param {object} group
+   * @param {object} [user]
+   * @returns {boolean}
+   */
+  assertOwnership(group, user) {
+    if (!user) return true;
+    if (user.role === 'admin') return true;
+    const creator = group.creator_pseudonym || group.creator_id;
+    if (creator && (creator === user.full_name || creator === user.id || creator === user.email)) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Updates an existing ride group.
    *
    * @param {string} id
