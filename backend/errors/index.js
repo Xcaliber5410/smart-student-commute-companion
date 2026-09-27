@@ -58,12 +58,56 @@ class ConflictError extends AppError {
   }
 }
 
+class ServiceUnavailableError extends AppError {
+  constructor(message = 'Service Unavailable', code = 'SERVICE_UNAVAILABLE') {
+    super(message, 503, code);
+  }
+}
+
+class DatabaseError extends AppError {
+  constructor(message = 'Database operation failed', code = 'DATABASE_ERROR', details = null) {
+    super(message, 500, code, details);
+  }
+}
+
+class BusinessRuleError extends BadRequestError {
+  constructor(message = 'Business rule violation', code = 'BUSINESS_RULE_VIOLATION', details = null) {
+    super(message, code, details);
+  }
+}
+
+class OwnershipError extends ForbiddenError {
+  constructor(message = 'Access forbidden: resource ownership required', code = 'FORBIDDEN_OWNERSHIP', details = null) {
+    super(message, code);
+    this.details = details;
+  }
+}
+
+class InvalidStateTransitionError extends BadRequestError {
+  constructor(message = 'Invalid state transition', code = 'INVALID_STATE_TRANSITION', details = null) {
+    super(message, code, details);
+  }
+}
+
+class ResourceNotFoundError extends NotFoundError {
+  constructor(resource = 'Resource', identifier = '', code = 'NOT_FOUND') {
+    const msg = identifier ? `${resource} with identifier '${identifier}' not found` : `${resource} not found`;
+    super(msg, code);
+  }
+}
+
 module.exports = {
   AppError,
   BadRequestError,
   ValidationError,
   NotFoundError,
+  ResourceNotFoundError,
   UnauthorizedError,
   ForbiddenError,
-  ConflictError
+  OwnershipError,
+  ConflictError,
+  BusinessRuleError,
+  InvalidStateTransitionError,
+  ServiceUnavailableError,
+  DatabaseError
 };

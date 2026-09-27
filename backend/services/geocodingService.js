@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { db } = require('../db/database');
+const { geocodingRepository } = require('../repositories');
 
 // Mumbai Landmark / College / Hub instant lookup table
 const MUMBAI_KNOWN_LOCATIONS = {
@@ -64,9 +64,13 @@ async function geocodeArea(query) {
 
   // 2. Check SQLite Cache
   try {
-    const cached = db.prepare('SELECT lat, lon, display_name FROM geocoding_cache WHERE query = ?').get(normalized);
+    const cached = geocodingRepository.findByQuery(normalized);
     if (cached) {
-      return cached;
+      return {
+        lat: cached.lat,
+        lon: cached.lon,
+        display_name: cached.display_name
+      };
     }
   } catch (err) {
     console.error('Geocoding cache read error:', err.message);
@@ -99,8 +103,13 @@ async function geocodeArea(query) {
 
       // Save to SQLite Cache
       try {
-        db.prepare('INSERT OR REPLACE INTO geocoding_cache (query, lat, lon, display_name, created_at) VALUES (?, ?, ?, ?, ?)')
-          .run(normalized, result.lat, result.lon, result.display_name, Date.now());
+        geocodingRepository.upsert({
+          query: normalized,
+          lat: result.lat,
+          lon: result.lon,
+          display_name: result.display_name,
+          created_at: Date.now()
+        });
       } catch (cacheErr) {
         console.error('Failed to save to geocoding cache:', cacheErr.message);
       }

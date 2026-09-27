@@ -46,15 +46,37 @@ backend/
 │   └── transitController.js
 ├── db/
 │   ├── commute.db           # SQLite database file (WAL mode)
-│   └── database.js          # SQLite connection, table DDL schemas, and demo seed data
+│   ├── connection.js        # Centralized SQLite connection singleton & lifecycle manager
+│   ├── database.js          # SQLite connection bridge, DDL schemas, and demo seed data
+│   └── dbErrors.js          # SQLite driver error normalization & SQL redaction
 ├── docs/
-│   └── architecture.md      # Backend architecture and technical specification
+│   ├── architecture.md      # Backend architecture and technical specification
+│   ├── database_audit.md    # Day 2 database integration audit and roadmap
+│   └── database_setup.md    # Database setup, migrations, models, and testing guide
 ├── errors/                  # Centralized operational error classes (AppError, ValidationError, etc.)
 │   └── index.js
 ├── middleware/              # Express middleware layer
 │   └── errorHandler.js      # Global error handler, 404 catch-all, diagnostic sanitization
-├── .env.example             # Documented backend environment variables and safe placeholders
+├── migrations/              # Database migration system
+│   ├── cli.js               # CLI migration commands (up, down, status)
+│   ├── migrationRunner.js   # Automated migration executor and tracking
+│   ├── README.md            # Migration authoring and operations guide
+│   └── scripts/
+│       └── 001_initial_schema.js # Initial schema migration (up/down)
+├── models/                  # Domain entity models with Zod validation
+│   ├── Feedback.js          # Student rating & feedback model
+│   ├── GeocodingCache.js    # Spatial geocode cache model
+│   ├── index.js             # Models export registry
+│   ├── LiveReport.js        # Real-time community disruption model
+│   ├── ReportConfirmation.js# Disruption vote model
+│   └── RideGroup.js         # Travel Together carpool group model
 ├── package.json             # Backend dependencies and scripts
+├── repositories/            # Data-access repository layer
+│   ├── FeedbackRepository.js
+│   ├── GeocodingRepository.js
+│   ├── index.js
+│   ├── ReportRepository.js
+│   └── RideGroupRepository.js
 ├── routes/                  # Centralized, decoupled route registration
 │   ├── api.js               # Backward-compatible bridge delegating to index.js
 │   ├── demoRoutes.js        # Demo reset endpoint
@@ -66,10 +88,12 @@ backend/
 │   ├── rideGroupRoutes.js   # Travel Together carpooling endpoints
 │   └── transitRoutes.js     # GTFS spatial/text search endpoint
 ├── scripts/
+│   ├── integration_db_test.js # Automated database integration test suite on isolated DB
 │   ├── smoke_test.js        # Automated isolated foundation smoke test suite
 │   ├── verify_all.js        # Automated end-to-end integration test script
 │   ├── verify_bootstrap.js  # Automated server bootstrap, lifecycle, and idempotency test suite
 │   ├── verify_config.js     # Automated configuration validation & secret redaction test suite
+│   ├── verify_db_errors.js  # Automated database validation and error normalization test suite
 │   ├── verify_errors.js     # Automated centralized error handling & production safety test suite
 │   └── verify_routes.js     # Automated route completeness, uniqueness & registry test suite
 ├── server.js                # Server entry point, listener lifecycle, graceful shutdown
@@ -392,13 +416,21 @@ The backend uses Node's native `assert` and `http` modules for fast, zero-depend
 # Run isolated foundation smoke test suite (dynamic port, no external keys required)
 npm --prefix backend test
 
+# Run database integration test suite on isolated test database
+npm --prefix backend run test:db
+
 # Run specific validation suites
 npm --prefix backend run verify:config     # Centralized config schema & secret masking
 npm --prefix backend run verify:bootstrap  # Application lifecycle, listener isolation, re-binding
 npm --prefix backend run verify:routes     # Endpoint completeness, handler uniqueness, route count
 npm --prefix backend run verify:errors     # Validation 400s, operational 404s, prod stack masking
 
-# Run all verification and smoke test suites sequentially
+# Run schema migrations
+npm --prefix backend run db:migrate        # Apply pending schema migrations
+npm --prefix backend run db:rollback       # Roll back most recent migration
+npm --prefix backend run db:status         # Show migration status
+
+# Run all verification, smoke, and database test suites sequentially
 npm --prefix backend run test:all
 
 # Run end-to-end integration tests (requires server running on port 5000)

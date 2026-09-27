@@ -1,4 +1,4 @@
-const { db } = require('../db/database');
+const { reportRepository } = require('../repositories');
 
 /**
  * Calculates freshness multiplier based on age in milliseconds
@@ -19,15 +19,10 @@ function calculateFreshnessWeight(createdAt) {
 
 function getActiveReports() {
   const now = Date.now();
-  // Fetch active reports not expired by time (within 120 mins)
-  const maxAge = now - (120 * 60 * 1000);
-  const reports = db.prepare(`
-    SELECT * FROM live_commute_reports
-    WHERE status = 'active' AND created_at >= ?
-    ORDER BY created_at DESC
-  `).all(maxAge);
+  const reports = reportRepository.findActive(now);
 
-  return reports.map(r => {
+  return reports.map(report => {
+    const r = report.toRow ? report.toRow() : report;
     const freshness = calculateFreshnessWeight(r.created_at);
     const ageMinutes = Math.max(1, Math.round((now - r.created_at) / (60 * 1000)));
     return {

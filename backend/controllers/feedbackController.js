@@ -1,6 +1,7 @@
 const { z } = require('zod');
-const { db } = require('../db/database');
+const { feedbackService } = require('../services');
 const { ValidationError } = require('../errors');
+const { success, created } = require('../utils/apiResponse');
 
 const feedbackSchema = z.object({
   recommendation_id: z.string().optional().default(''),
@@ -16,14 +17,38 @@ function submitFeedback(req, res, next) {
       return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
-    const { recommendation_id, is_useful, tags, comment } = parsed.data;
-    const id = `fb-${Date.now()}`;
-    db.prepare(`
-      INSERT INTO feedback (id, recommendation_id, is_useful, tags, comment, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, recommendation_id, is_useful ? 1 : 0, JSON.stringify(tags), comment, Date.now());
+    feedbackService.submitFeedback(parsed.data);
 
-    res.status(201).json({ success: true, message: 'Thank you for your student feedback!' });
+    return created(res, { message: 'Thank you for your student feedback!' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function getFeedback(req, res, next) {
+  try {
+    const result = feedbackService.listFeedback(req.query);
+    return success(res, { ...result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function updateFeedback(req, res, next) {
+  try {
+    const { id } = req.params;
+    const updated = feedbackService.updateFeedback(id, req.body);
+    return success(res, { message: 'Feedback updated successfully', feedback: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function deleteFeedback(req, res, next) {
+  try {
+    const { id } = req.params;
+    feedbackService.deleteFeedback(id);
+    return success(res, { message: 'Feedback deleted successfully', id });
   } catch (err) {
     next(err);
   }
@@ -31,5 +56,8 @@ function submitFeedback(req, res, next) {
 
 module.exports = {
   submitFeedback,
+  getFeedback,
+  updateFeedback,
+  deleteFeedback,
   feedbackSchema
 };

@@ -1,7 +1,7 @@
 const http = require('http');
 const { Server } = require('socket.io');
 const config = require('./config');
-const { db } = require('./db/database');
+const { db, closeConnection } = require('./db/database');
 const { createApp } = require('./app');
 
 // 1. Initialize HTTP Server
@@ -124,7 +124,7 @@ async function closeServer() {
       } catch (e) {}
 
       try {
-        if (db && typeof db.close === 'function') db.close();
+        closeConnection();
       } catch (e) {}
 
       resolve();

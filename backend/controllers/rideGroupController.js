@@ -1,6 +1,7 @@
 const { z } = require('zod');
-const { db } = require('../db/database');
-const { ValidationError, NotFoundError, BadRequestError } = require('../errors');
+const { rideGroupService } = require('../services');
+const { ValidationError } = require('../errors');
+const { success, created, paginated } = require('../utils/apiResponse');
 
 const rideGroupSchema = z.object({
   creator_pseudonym: z.string().min(2),
@@ -14,8 +15,12 @@ const rideGroupSchema = z.object({
 
 function getRideGroups(req, res, next) {
   try {
-    const groups = db.prepare('SELECT * FROM ride_groups ORDER BY created_at DESC LIMIT 20').all();
-    res.json({ success: true, groups });
+    const result = rideGroupService.listRideGroups(req.query);
+    return paginated(res, {
+      dataKey: 'groups',
+      data: result.groups,
+      pagination: result.pagination
+    });
   } catch (err) {
     next(err);
   }
@@ -28,17 +33,8 @@ function createRideGroup(req, res, next) {
       return next(new ValidationError('Validation failed', parsed.error.format()));
     }
 
-    const { creator_pseudonym, origin_area, destination_college, departure_time, mode, max_members, notes } = parsed.data;
-    const groupId = `grp-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
-
-    db.prepare(`
-      INSERT INTO ride_groups 
-      (id, creator_pseudonym, origin_area, destination_college, departure_time, mode, max_members, current_members, notes, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-    `).run(groupId, creator_pseudonym, origin_area, destination_college, departure_time, mode, max_members, notes, Date.now());
-
-    const created = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(groupId);
-    res.status(201).json({ success: true, group: created });
+    const newGroup = rideGroupService.createRideGroup(parsed.data);
+    return created(res, { group: newGroup });
   } catch (err) {
     next(err);
   }
@@ -47,15 +43,39 @@ function createRideGroup(req, res, next) {
 function joinRideGroup(req, res, next) {
   try {
     const { id } = req.params;
-    const group = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(id);
-    if (!group) return next(new NotFoundError('Ride group not found'));
-    if (group.current_members >= group.max_members) {
-      return next(new BadRequestError('This group is already full', 'GROUP_FULL'));
-    }
+    const userOrToken = req.user || req.headers['x-user-token'];
+    const updated = rideGroupService.joinRideGroup(id, userOrToken);
+    return success(res, { message: 'Joined commute group successfully!', group: updated });
+  } catch (err) {
+    next(err);
+  }
+}
 
-    db.prepare('UPDATE ride_groups SET current_members = current_members + 1 WHERE id = ?').run(id);
-    const updated = db.prepare('SELECT * FROM ride_groups WHERE id = ?').get(id);
-    res.json({ success: true, message: 'Joined commute group successfully!', group: updated });
+function getRideGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+    const group = rideGroupService.getRideGroupById(id);
+    return success(res, { group });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function updateRideGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+    const updated = rideGroupService.updateRideGroup(id, req.body, req.user);
+    return success(res, { group: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function deleteRideGroup(req, res, next) {
+  try {
+    const { id } = req.params;
+    rideGroupService.deleteRideGroup(id, req.user);
+    return success(res, { message: 'Ride group deleted successfully', id });
   } catch (err) {
     next(err);
   }
@@ -63,7 +83,10 @@ function joinRideGroup(req, res, next) {
 
 module.exports = {
   getRideGroups,
+  getRideGroup,
   createRideGroup,
+  updateRideGroup,
+  deleteRideGroup,
   joinRideGroup,
   rideGroupSchema
 };

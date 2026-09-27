@@ -1,0 +1,258 @@
+/**
+ * Report Repository
+ *
+ * Data-access operations for Live Commute Reports and Confirmation/Contradiction votes.
+ */
+
+const { getConnection } = require('../db/connection');
+const { LiveReport } = require('../models/LiveReport');
+const { ReportConfirmation } = require('../models/ReportConfirmation');
+
+class ReportRepository {
+  constructor(dbInstance) {
+    this.db = dbInstance;
+  }
+
+  get database() {
+    return this.db || getConnection();
+  }
+
+  /**
+   * Retrieves all non-expired active disruption reports.
+   *
+   * @param {number} [currentTime=Date.now()]
+   * @returns {LiveReport[]}
+   */
+  findActive(currentTime = Date.now()) {
+    const stmt = this.database.prepare(`
+      SELECT * FROM live_commute_reports 
+      WHERE status = 'active' AND expires_at > ? 
+      ORDER BY created_at DESC
+    `);
+    const rows = stmt.all(currentTime);
+    return rows.map(r => LiveReport.fromRow(r));
+  }
+
+  /**
+   * Retrieves disruption reports with database-level pagination and filtering.
+   *
+   * @param {object} [options={}]
+   * @returns {{ data: LiveReport[], total: number, page: number, limit: number, totalPages: number }}
+   */
+  findWithPagination(options = {}) {
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const conditions = [];
+    const params = [];
+
+    const status = options.status || 'active';
+    if (status !== 'all') {
+      conditions.push('status = ?');
+      params.push(status);
+    }
+
+    if (options.mode) {
+      conditions.push('LOWER(mode) = LOWER(?)');
+      params.push(options.mode);
+    }
+    if (options.area) {
+      conditions.push('LOWER(area) LIKE LOWER(?)');
+      params.push(`%${options.area}%`);
+    }
+    if (options.impact) {
+      conditions.push('impact = ?');
+      params.push(options.impact);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countStmt = this.database.prepare(`SELECT COUNT(*) as count FROM live_commute_reports ${whereClause}`);
+    const { count: total } = countStmt.get(...params);
+
+    const queryStmt = this.database.prepare(`
+      SELECT * FROM live_commute_reports
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const rows = queryStmt.all(...params, limit, offset);
+
+    return {
+      data: rows.map(r => LiveReport.fromRow(r)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1
+    };
+  }
+
+  /**
+   * Finds a live report by its ID.
+   *
+   * @param {string} id
+   * @returns {LiveReport|null}
+   */
+  findById(id) {
+    const stmt = this.database.prepare('SELECT * FROM live_commute_reports WHERE id = ?');
+    const row = stmt.get(id);
+    return row ? LiveReport.fromRow(row) : null;
+  }
+
+  /**
+   * Persists a new live report.
+   *
+   * @param {object|LiveReport} data
+   * @returns {LiveReport}
+   */
+  create(data) {
+    const report = data instanceof LiveReport ? data : LiveReport.create(data);
+    const row = report.toRow();
+
+    const stmt = this.database.prepare(`
+      INSERT INTO live_commute_reports 
+      (id, pseudonym, area, route_name, route_id, mode, message, impact, status, created_at, expires_at, confirmation_count, contradiction_count)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      row.id,
+      row.pseudonym,
+      row.area,
+      row.route_name,
+      row.route_id,
+      row.mode,
+      row.message,
+      row.impact,
+      row.status,
+      row.created_at,
+      row.expires_at,
+      row.confirmation_count,
+      row.contradiction_count
+    );
+
+    return this.findById(row.id);
+  }
+
+  /**
+   * Finds an existing vote by report ID and user token.
+   *
+   * @param {string} reportId
+   * @param {string} userToken
+   * @returns {ReportConfirmation|null}
+   */
+  findVote(reportId, userToken) {
+    const stmt = this.database.prepare(
+      'SELECT * FROM live_report_confirmations WHERE report_id = ? AND user_token = ?'
+    );
+    const row = stmt.get(reportId, userToken);
+    return row ? ReportConfirmation.fromRow(row) : null;
+  }
+
+  /**
+   * Records a confirmation or contradiction vote on a report inside a transaction.
+   * Auto-expires report if contradictions significantly outweigh confirmations.
+   *
+   * @param {string} reportId
+   * @param {string} userToken
+   * @param {'confirm'|'contradict'} action
+   * @returns {{ updatedReport: LiveReport, alreadyVoted: boolean, autoExpired: boolean }}
+   */
+  addVote(reportId, userToken, action) {
+    const existing = this.findVote(reportId, userToken);
+    if (existing) {
+      const currentReport = this.findById(reportId);
+      return { updatedReport: currentReport, alreadyVoted: true, autoExpired: false };
+    }
+
+    let autoExpired = false;
+
+    const executeTransaction = this.database.transaction(() => {
+      // 1. Record confirmation vote
+      const voteStmt = this.database.prepare(`
+        INSERT INTO live_report_confirmations (report_id, user_token, action, created_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      voteStmt.run(reportId, userToken, action, Date.now());
+
+      // 2. Increment appropriate counter
+      if (action === 'confirm') {
+        this.database.prepare(
+          'UPDATE live_commute_reports SET confirmation_count = confirmation_count + 1 WHERE id = ?'
+        ).run(reportId);
+      } else {
+        this.database.prepare(
+          'UPDATE live_commute_reports SET contradiction_count = contradiction_count + 1 WHERE id = ?'
+        ).run(reportId);
+      }
+
+      // 3. Check auto-expiry condition
+      const checkReport = this.findById(reportId);
+      if (checkReport && checkReport.contradiction_count >= checkReport.confirmation_count + 3) {
+        this.database.prepare(
+          "UPDATE live_commute_reports SET status = 'expired' WHERE id = ?"
+        ).run(reportId);
+        autoExpired = true;
+      }
+    });
+
+    executeTransaction();
+
+    return {
+      updatedReport: this.findById(reportId),
+      alreadyVoted: false,
+      autoExpired
+    };
+  }
+
+  /**
+   * Updates an existing live report.
+   *
+   * @param {string} id
+   * @param {object} updates
+   * @returns {LiveReport|null}
+   */
+  update(id, updates) {
+    const existing = this.findById(id);
+    if (!existing) return null;
+
+    const status = updates.status !== undefined ? updates.status : existing.status;
+    const message = updates.message !== undefined ? updates.message : existing.message;
+    const impact = updates.impact !== undefined ? updates.impact : existing.impact;
+
+    const stmt = this.database.prepare(`
+      UPDATE live_commute_reports
+      SET status = ?, message = ?, impact = ?
+      WHERE id = ?
+    `);
+    stmt.run(status, message, impact, id);
+    return this.findById(id);
+  }
+
+  /**
+   * Deletes a live report and associated confirmations.
+   *
+   * @param {string} id
+   * @returns {boolean}
+   */
+  delete(id) {
+    const deleteConfirmations = this.database.prepare('DELETE FROM live_report_confirmations WHERE report_id = ?');
+    const deleteReport = this.database.prepare('DELETE FROM live_commute_reports WHERE id = ?');
+
+    let changes = 0;
+    const executeTx = this.database.transaction(() => {
+      deleteConfirmations.run(id);
+      const res = deleteReport.run(id);
+      changes = res.changes;
+    });
+
+    executeTx();
+    return changes > 0;
+  }
+}
+
+module.exports = {
+  ReportRepository,
+  reportRepository: new ReportRepository()
+};

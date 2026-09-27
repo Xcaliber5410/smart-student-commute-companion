@@ -1,7 +1,7 @@
 const { z } = require('zod');
-const { db } = require('../db/database');
-const { getActiveReports } = require('../services/disruptionService');
-const { ValidationError, NotFoundError } = require('../errors');
+const { reportService } = require('../services');
+const { ValidationError } = require('../errors');
+const { success, created, paginated } = require('../utils/apiResponse');
 
 const reportSchema = z.object({
   pseudonym: z.string().min(2).max(30).optional().default('Student_Rider'),
@@ -16,11 +16,12 @@ const reportSchema = z.object({
 
 function getLiveReports(req, res, next) {
   try {
-    const reports = getActiveReports();
-    res.json({
-      success: true,
-      count: reports.length,
-      reports
+    const result = reportService.getLiveReports(req.query);
+    return paginated(res, {
+      dataKey: 'reports',
+      data: result.reports,
+      count: result.count,
+      pagination: result.pagination
     });
   } catch (err) {
     next(err);
@@ -29,18 +30,8 @@ function getLiveReports(req, res, next) {
 
 function getAlerts(req, res, next) {
   try {
-    const reports = getActiveReports();
-    res.json({
-      success: true,
-      alerts: reports.map(r => ({
-        id: r.id,
-        title: `⚠ ${r.area} (${r.mode.toUpperCase()})`,
-        message: r.message,
-        impact: r.impact,
-        age: r.ageFormatted,
-        confirmations: r.confirmation_count
-      }))
-    });
+    const alerts = reportService.getAlerts();
+    return success(res, { alerts });
   } catch (err) {
     next(err);
   }
@@ -54,45 +45,13 @@ function createReport(io) {
         return next(new ValidationError('Validation failed', parsed.error.format()));
       }
 
-      const { pseudonym, area, route_name, route_id, mode, message, impact, durationObservedMinutes } = parsed.data;
-      const now = Date.now();
-      const expiresAt = now + (durationObservedMinutes || 60) * 60 * 1000;
-      const reportId = `rep-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const createdReport = reportService.createReport(parsed.data);
 
-      const stmt = db.prepare(`
-        INSERT INTO live_commute_reports 
-        (id, pseudonym, area, route_name, route_id, mode, message, impact, status, created_at, expires_at, confirmation_count, contradiction_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, 1, 0)
-      `);
-
-      stmt.run(reportId, pseudonym, area, route_name, route_id, mode, message, impact, now, expiresAt);
-
-      const createdReport = {
-        id: reportId,
-        pseudonym,
-        area,
-        route_name,
-        route_id,
-        mode,
-        message,
-        impact,
-        status: 'active',
-        created_at: now,
-        expires_at: expiresAt,
-        confirmation_count: 1,
-        contradiction_count: 0,
-        freshnessWeight: 1.0,
-        ageMinutes: 0,
-        ageFormatted: 'Just now'
-      };
-
-      // Broadcast to connected students via Socket.IO
       if (io) {
         io.emit('live_report_created', createdReport);
       }
 
-      res.status(201).json({
-        success: true,
+      return created(res, {
         message: 'Community report posted successfully',
         report: createdReport
       });
@@ -108,29 +67,19 @@ function confirmReport(io) {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
 
-      // Record confirmation vote if not already voted
-      const checkStmt = db.prepare('SELECT * FROM live_report_confirmations WHERE report_id = ? AND user_token = ?');
-      const existing = checkStmt.get(id, userToken);
+      const result = reportService.confirmReport(id, userToken);
 
-      if (existing) {
-        return res.json({ success: true, message: 'Vote already recorded', alreadyVoted: true });
+      if (result.alreadyVoted) {
+        return success(res, { message: 'Vote already recorded', alreadyVoted: true });
       }
 
-      db.prepare('INSERT INTO live_report_confirmations (report_id, user_token, action, created_at) VALUES (?, ?, ?, ?)')
-        .run(id, userToken, 'confirm', Date.now());
-
-      db.prepare('UPDATE live_commute_reports SET confirmation_count = confirmation_count + 1 WHERE id = ?').run(id);
-
-      const updatedReport = db.prepare('SELECT * FROM live_commute_reports WHERE id = ?').get(id);
-
-      if (io) {
-        io.emit('live_report_updated', updatedReport);
+      if (io && result.updatedReport) {
+        io.emit('live_report_updated', result.updatedReport);
       }
 
-      res.json({
-        success: true,
+      return success(res, {
         message: 'Confirmed that disruption is still happening',
-        report: updatedReport
+        report: result.updatedReport
       });
     } catch (err) {
       next(err);
@@ -144,34 +93,23 @@ function contradictReport(io) {
       const { id } = req.params;
       const userToken = req.headers['x-user-token'] || req.ip || 'anon-user';
 
-      const checkStmt = db.prepare('SELECT * FROM live_report_confirmations WHERE report_id = ? AND user_token = ?');
-      const existing = checkStmt.get(id, userToken);
+      const result = reportService.contradictReport(id, userToken);
 
-      if (existing) {
-        return res.json({ success: true, message: 'Vote already recorded', alreadyVoted: true });
+      if (result.alreadyVoted) {
+        return success(res, { message: 'Vote already recorded', alreadyVoted: true });
       }
 
-      db.prepare('INSERT INTO live_report_confirmations (report_id, user_token, action, created_at) VALUES (?, ?, ?, ?)')
-        .run(id, userToken, 'contradict', Date.now());
-
-      db.prepare('UPDATE live_commute_reports SET contradiction_count = contradiction_count + 1 WHERE id = ?').run(id);
-
-      const updatedReport = db.prepare('SELECT * FROM live_commute_reports WHERE id = ?').get(id);
-
-      // If contradictions significantly outnumber confirmations, auto-expire
-      if (updatedReport.contradiction_count >= updatedReport.confirmation_count + 3) {
-        db.prepare("UPDATE live_commute_reports SET status = 'expired' WHERE id = ?").run(id);
+      if (result.autoExpired) {
         if (io) {
           io.emit('live_report_expired', { id });
         }
-      } else if (io) {
-        io.emit('live_report_updated', updatedReport);
+      } else if (io && result.updatedReport) {
+        io.emit('live_report_updated', result.updatedReport);
       }
 
-      res.json({
-        success: true,
+      return success(res, {
         message: 'Recorded update that disruption cleared up',
-        report: updatedReport
+        report: result.updatedReport
       });
     } catch (err) {
       next(err);
@@ -179,11 +117,70 @@ function contradictReport(io) {
   };
 }
 
+function getReport(req, res, next) {
+  try {
+    const { id } = req.params;
+    const report = reportService.getReportById(id);
+    return success(res, { report });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function updateReport(io) {
+  const handler = (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const updated = reportService.updateReport(id, req.body, req.user);
+      if (io && typeof io.emit === 'function') {
+        io.emit('live_report_updated', updated);
+      }
+      return success(res, {
+        message: 'Report updated successfully',
+        report: updated
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  if (io && io.headers && typeof io.headers === 'object') {
+    return handler(io, arguments[1], arguments[2]);
+  }
+  return handler;
+}
+
+function deleteReport(io) {
+  const handler = (req, res, next) => {
+    try {
+      const { id } = req.params;
+      reportService.deleteReport(id, req.user);
+      if (io && typeof io.emit === 'function') {
+        io.emit('live_report_deleted', { id });
+      }
+      return success(res, {
+        message: 'Report deleted successfully',
+        id
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  if (io && io.headers && typeof io.headers === 'object') {
+    return handler(io, arguments[1], arguments[2]);
+  }
+  return handler;
+}
+
 module.exports = {
   getLiveReports,
+  getReport,
   getAlerts,
   createReport,
   confirmReport,
   contradictReport,
+  updateReport,
+  deleteReport,
   reportSchema
 };
