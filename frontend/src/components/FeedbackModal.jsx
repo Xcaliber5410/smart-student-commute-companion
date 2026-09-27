@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, ThumbsUp, ThumbsDown, Send, CheckCircle2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Send, CheckCircle2 } from 'lucide-react';
+import { Modal } from './ui';
 
 const FEEDBACK_TAGS = [
   'Route accurate',
@@ -49,18 +50,12 @@ export default function FeedbackModal({ isOpen, onClose, onSubmit, recommendatio
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/60">
-          <h3 className="text-base font-bold text-white">Rate Commute Recommendation</h3>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Rate Commute Recommendation"
+      size="md"
+    >
         {submitted ? (
           <div className="p-8 text-center space-y-2">
             <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto animate-bounce" />
@@ -161,7 +156,6 @@ export default function FeedbackModal({ isOpen, onClose, onSubmit, recommendatio
             </div>
           </form>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

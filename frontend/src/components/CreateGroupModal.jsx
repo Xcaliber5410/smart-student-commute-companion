@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Users, ShieldCheck, Plus } from 'lucide-react';
+import { Users, ShieldCheck, Plus } from 'lucide-react';
+import { Modal } from './ui';
 
 export default function CreateGroupModal({ isOpen, onClose, onSubmit, isSubmitting }) {
   const [formData, setFormData] = useState({
@@ -23,27 +24,13 @@ export default function CreateGroupModal({ isOpen, onClose, onSubmit, isSubmitti
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-group-title"
-        className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
-      >
-        <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/60">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-400" aria-hidden="true" />
-            <h3 id="create-group-title" className="text-base font-bold text-white">Create Commute Coordination Group</h3>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
-        </div>
-
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Create Commute Coordination Group"
+      icon={<Users className="w-5 h-5 text-indigo-400" />}
+      size="lg"
+    >
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="bg-indigo-950/20 border border-indigo-500/30 rounded-xl p-3 text-xs text-indigo-300 flex items-start gap-2">
             <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
@@ -178,7 +165,6 @@ export default function CreateGroupModal({ isOpen, onClose, onSubmit, isSubmitti
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

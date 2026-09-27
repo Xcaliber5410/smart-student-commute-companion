@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Send, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { Input, Select, Textarea, Button } from './ui';
+import { Send, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Input, Select, Textarea, Modal } from './ui';
 import { validateForm, validateRequired, validateText, createSubmitGuard } from '../utils/validation';
 
 export default function CreateReportModal({ isOpen, onClose, onSubmit, isSubmitting }) {
@@ -63,30 +63,13 @@ export default function CreateReportModal({ isOpen, onClose, onSubmit, isSubmitt
   };
 
   return (
-    <div 
-      className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="report-modal-title"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Post a Student Commute Report"
+      icon={<AlertTriangle className="w-5 h-5 text-amber-400" />}
+      size="lg"
     >
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/60">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-400" aria-hidden="true" />
-            <h3 id="report-modal-title" className="text-base font-bold text-white">
-              Post a Student Commute Report
-            </h3>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
-          >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
-        </div>
-
         {/* Form */}
         <form onSubmit={handleSubmit} noValidate className="p-5 space-y-4">
           <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3 text-xs text-emerald-300 flex items-start gap-2">
@@ -189,7 +172,6 @@ export default function CreateReportModal({ isOpen, onClose, onSubmit, isSubmitt
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

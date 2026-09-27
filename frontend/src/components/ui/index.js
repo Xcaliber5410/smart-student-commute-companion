@@ -32,3 +32,7 @@ export { default as MetaRow, MetaList } from './MetaRow';
 // Reusable Search / Filter / Sort Controls
 export { default as SearchInput } from './SearchInput';
 export { default as FilterBar, FilterChip } from './FilterBar';
+
+// Reusable Dialog & Confirmation Patterns
+export { default as Modal } from './Modal';
+export { default as ConfirmDialog } from './ConfirmDialog';

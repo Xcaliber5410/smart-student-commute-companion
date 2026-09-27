@@ -11,6 +11,7 @@ import {
   X 
 } from 'lucide-react';
 import { ENABLE_DEMO_RESET } from '../config/index.js';
+import { ConfirmDialog } from './ui';
 
 /**
  * Valid application routes
@@ -49,8 +50,19 @@ export default function Navbar({
   reportsCount = 0 
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const menuButtonRef = useRef(null);
   const mobileNavRef = useRef(null);
+
+  const handleRequestReset = () => {
+    setIsConfirmingReset(true);
+  };
+
+  const handleConfirmReset = () => {
+    setIsConfirmingReset(false);
+    setMobileMenuOpen(false);
+    onResetDemo?.();
+  };
 
   // Close mobile menu on Escape key press
   useEffect(() => {
@@ -189,7 +201,7 @@ export default function Navbar({
             {/* Reset Demo State Button */}
             {ENABLE_DEMO_RESET && (
               <button
-                onClick={onResetDemo}
+                onClick={handleRequestReset}
                 disabled={isResetting}
                 title="Reset demo data to baseline state"
                 aria-label="Reset demo environment"
@@ -276,10 +288,7 @@ export default function Navbar({
             {ENABLE_DEMO_RESET && (
               <div className="pt-2 border-t border-slate-800/80">
                 <button
-                  onClick={() => {
-                    onResetDemo?.();
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={handleRequestReset}
                   disabled={isResetting}
                   className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-800 disabled:opacity-50"
                 >
@@ -330,6 +339,18 @@ export default function Navbar({
           );
         })}
       </nav>
+
+      {/* Destructive-action confirmation (UI only; action fires on confirm) */}
+      <ConfirmDialog
+        isOpen={isConfirmingReset}
+        onCancel={() => setIsConfirmingReset(false)}
+        onConfirm={handleConfirmReset}
+        title="Reset demo environment?"
+        message="This will restore all live reports, commute groups, and demo data to the baseline state. This action cannot be undone."
+        confirmLabel="Reset Demo"
+        destructive
+        isPending={isResetting}
+      />
     </>
   );
 }
