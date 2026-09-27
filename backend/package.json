@@ -21,6 +21,7 @@
     "verify:service-errors": "node scripts/verify_service_errors.js",
     "verify:student-models": "node scripts/verify_student_domain_models.js",
     "verify:student-context": "node scripts/verify_student_context_service.js",
+    "verify:student-workflows": "node scripts/verify_student_workflows.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",

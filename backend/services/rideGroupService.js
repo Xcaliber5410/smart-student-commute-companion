@@ -6,11 +6,13 @@
  */
 
 const { rideGroupRepository } = require('../repositories/RideGroupRepository');
+const { rideGroupMemberRepository } = require('../repositories/RideGroupMemberRepository');
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../errors');
 
 class RideGroupService {
-  constructor(repo = rideGroupRepository) {
+  constructor(repo = rideGroupRepository, memberRepo = rideGroupMemberRepository) {
     this.repo = repo;
+    this.memberRepo = memberRepo;
   }
 
   /**
@@ -53,11 +55,18 @@ class RideGroupService {
    * Creates a new student ride group.
    *
    * @param {object} groupData
+   * @param {object} [currentUser]
    * @returns {object}
    */
-  createRideGroup(groupData) {
+  createRideGroup(groupData, currentUser) {
     const created = this.repo.create(groupData);
-    return created.toRow ? created.toRow() : created;
+    const row = created.toRow ? created.toRow() : created;
+
+    if (currentUser && currentUser.id) {
+      this.memberRepo.addMember(row.id, currentUser.id, 'creator');
+    }
+
+    return row;
   }
 
   /**
@@ -85,10 +94,19 @@ class RideGroupService {
       if (identifier && (group.creator_pseudonym === identifier || group.creator_id === identifier)) {
         throw new BadRequestError('Group creator is already a registered member of this group', 'CREATOR_ALREADY_MEMBER');
       }
+
+      if (typeof userTokenOrUser === 'object' && userTokenOrUser.id) {
+        if (this.memberRepo.isMember(id, userTokenOrUser.id)) {
+          throw new BadRequestError('Student is already a registered member of this group', 'ALREADY_MEMBER');
+        }
+      }
     }
 
     try {
       const updated = this.repo.atomicJoin(id);
+      if (userTokenOrUser && typeof userTokenOrUser === 'object' && userTokenOrUser.id) {
+        this.memberRepo.addMember(id, userTokenOrUser.id, 'member');
+      }
       return updated.toRow ? updated.toRow() : updated;
     } catch (err) {
       if (err.code === 'GROUP_FULL') {
@@ -105,11 +123,15 @@ class RideGroupService {
    * Removes a member from an existing ride group atomically.
    *
    * @param {string} id
+   * @param {string|object} [userTokenOrUser]
    * @returns {object}
    */
-  leaveRideGroup(id) {
+  leaveRideGroup(id, userTokenOrUser) {
     try {
       const updated = this.repo.atomicLeave(id);
+      if (userTokenOrUser && typeof userTokenOrUser === 'object' && userTokenOrUser.id) {
+        this.memberRepo.removeMember(id, userTokenOrUser.id);
+      }
       return updated.toRow ? updated.toRow() : updated;
     } catch (err) {
       if (err.code === 'MINIMUM_MEMBERSHIP_REACHED') {
@@ -120,6 +142,20 @@ class RideGroupService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Retrieves all ride groups joined or created by a student.
+   *
+   * @param {string} userId
+   * @param {object} requestingUser
+   * @returns {object[]}
+   */
+  getStudentRideGroups(userId, requestingUser) {
+    if (requestingUser.role !== 'admin' && requestingUser.id !== userId) {
+      throw new ForbiddenError('You can only view your own ride groups');
+    }
+    return this.memberRepo.findGroupsByUserId(userId);
   }
 
   /**
