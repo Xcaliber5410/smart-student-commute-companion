@@ -8,17 +8,21 @@ import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
 import { PlannerPage, TravelTogetherPage, LiveAlertsPage } from './pages';
 import { 
-  planCommute, 
-  fetchLiveReports, 
-  postLiveReport, 
-  confirmReport, 
-  contradictReport, 
-  fetchRideGroups, 
-  postRideGroup, 
-  joinRideGroup, 
-  submitFeedback, 
-  resetDemoState 
-} from './services/api';
+  requestPlan, 
+  sendFeedback
+} from './services/planner';
+import { 
+  listReports, 
+  createReport, 
+  voteStillHappening, 
+  voteCleared 
+} from './services/liveReports';
+import { 
+  listGroups, 
+  createGroup, 
+  joinGroup 
+} from './services/rideGroups';
+import { resetDemoState } from './services/api';
 import { getSocket } from './services/socket';
 import useAsyncResource from './hooks/useAsyncResource';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -32,19 +36,13 @@ export default function App() {
 
   // Live Reports — async resource (loading/refreshing/error with stale-response guards)
   const reportsResource = useAsyncResource(
-    async () => {
-      const res = await fetchLiveReports();
-      return res.success ? res.reports : [];
-    },
+    () => listReports(),
     { errorMessage: 'Unable to load live student updates. Please check your connection and try again.' }
   );
 
   // Ride Groups — async resource
   const groupsResource = useAsyncResource(
-    async () => {
-      const res = await fetchRideGroups();
-      return res.success ? res.groups : [];
-    },
+    () => listGroups(),
     { errorMessage: 'Unable to load commute groups. Please check your connection and try again.' }
   );
 
@@ -140,7 +138,7 @@ export default function App() {
     planInFlightRef.current = true;
     setIsLoading(true);
     try {
-      const data = await planCommute(formData);
+      const data = await requestPlan(formData);
       if (data.success) {
         setPlanResult(data);
         const bestRoute = data.recommendation?.route;
@@ -166,7 +164,7 @@ export default function App() {
     if (isSubmittingReport) return; // prevent duplicate submissions
     setIsSubmittingReport(true);
     try {
-      await postLiveReport(reportData);
+      await createReport(reportData);
       setIsReportModalOpen(false);
       showToast('Live commute report broadcast to all students!');
     } catch (err) {
@@ -178,7 +176,7 @@ export default function App() {
 
   const handleConfirmReport = async (id) => {
     try {
-      await confirmReport(id);
+      await voteStillHappening(id);
       showToast('Thank you! Marked report as still active.');
     } catch (err) {
       showToast(err.message, 'error');
@@ -187,7 +185,7 @@ export default function App() {
 
   const handleContradictReport = async (id) => {
     try {
-      await contradictReport(id);
+      await voteCleared(id);
       showToast('Thank you! Noted that disruption has cleared.');
     } catch (err) {
       showToast(err.message, 'error');
@@ -199,7 +197,7 @@ export default function App() {
     if (isSubmittingGroup) return; // prevent duplicate submissions
     setIsSubmittingGroup(true);
     try {
-      await postRideGroup(groupData);
+      await createGroup(groupData);
       setIsGroupModalOpen(false);
       await groupsResource.load();
       showToast('Commute coordination group created!');
@@ -212,7 +210,7 @@ export default function App() {
 
   const handleJoinGroup = async (groupId) => {
     try {
-      await joinRideGroup(groupId);
+      await joinGroup(groupId);
       await groupsResource.load();
       showToast('Successfully joined commute group!');
     } catch (err) {
@@ -222,7 +220,7 @@ export default function App() {
 
   // Feedback Action
   const handleFeedbackSubmit = async (feedbackData) => {
-    await submitFeedback(feedbackData);
+    await sendFeedback(feedbackData);
     showToast('Feedback recorded. Thank you!');
   };
 

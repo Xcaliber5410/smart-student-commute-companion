@@ -519,6 +519,57 @@ if (fileExists('scripts/generate-icons.js')) {
 }
 
 // ============================================================
+section('12. DAY 3 FEATURES');
+
+// Feature pages
+[
+  'src/pages/PlannerPage.jsx',
+  'src/pages/TravelTogetherPage.jsx',
+  'src/pages/LiveAlertsPage.jsx'
+].forEach(file => {
+  if (fileExists(file)) pass(`Feature page exists: ${file}`);
+  else fail(`Feature page missing: ${file}`);
+});
+
+// Reusable data display components
+['Badge.jsx', 'DataCard.jsx', 'MetaRow.jsx'].forEach(file => {
+  if (fileExists(`src/components/ui/${file}`)) pass(`Data display component exists: ${file}`);
+  else fail(`Data display component missing: ${file}`);
+});
+
+// Search / filter / sort controls
+['SearchInput.jsx', 'FilterBar.jsx'].forEach(file => {
+  if (fileExists(`src/components/ui/${file}`)) pass(`Filter control exists: ${file}`);
+  else fail(`Filter control missing: ${file}`);
+});
+if (fileExists('src/utils/listControls.js')) pass('List control helpers exist (filter/sort utils)');
+else fail('List control helpers missing (src/utils/listControls.js)');
+
+// Dialog & confirmation patterns
+['Modal.jsx', 'ConfirmDialog.jsx'].forEach(file => {
+  if (fileExists(`src/components/ui/${file}`)) pass(`Dialog component exists: ${file}`);
+  else fail(`Dialog component missing: ${file}`);
+});
+
+// Interaction state hook
+if (fileExists('src/hooks/useAsyncResource.js')) pass('Async resource state hook exists');
+else fail('Async resource state hook missing (src/hooks/useAsyncResource.js)');
+
+// Feature API services
+['planner.js', 'liveReports.js', 'rideGroups.js'].forEach(file => {
+  if (fileExists(`src/services/${file}`)) pass(`Feature service exists: ${file}`);
+  else fail(`Feature service missing: ${file}`);
+});
+
+// Barrel exports include Day 3 components
+const uiBarrel = readFile('src/components/ui/index.js');
+if (uiBarrel && uiBarrel.includes('Badge') && uiBarrel.includes('Modal') && uiBarrel.includes('SearchInput')) {
+  pass('UI barrel exports Day 3 components');
+} else {
+  fail('UI barrel missing Day 3 component exports');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 

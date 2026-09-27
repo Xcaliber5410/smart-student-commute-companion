@@ -155,9 +155,33 @@ export async function planCommute(planData) {
   });
 }
 
-/** Fetch all active live disruption reports */
-export async function fetchLiveReports() {
-  return request('/live-reports');
+/**
+ * Build a URL query string from defined params (skips empty/undefined/'all').
+ * Only used against real backend query contracts — never fabricates keys.
+ *
+ * @param {Object} params - Key/value query parameters
+ * @returns {string} '' or '?a=1&b=2'
+ */
+function buildQuery(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '' || value === 'all') return;
+    search.append(key, String(value));
+  });
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
+/**
+ * Fetch active live disruption reports
+ *
+ * Supports the real backend filter contract (reportFilterQuerySchema):
+ * page, limit, mode, area, impact, status.
+ *
+ * @param {Object} [filters] - Optional server-side filters
+ */
+export async function fetchLiveReports(filters = {}) {
+  return request(`/live-reports${buildQuery(filters)}`);
 }
 
 /**
@@ -193,9 +217,16 @@ export async function contradictReport(reportId) {
   });
 }
 
-/** Fetch all active ride coordination groups */
-export async function fetchRideGroups() {
-  return request('/ride-groups');
+/**
+ * Fetch active ride coordination groups
+ *
+ * Supports the real backend filter contract (rideGroupFilterQuerySchema):
+ * page, limit, mode, origin, destination, status.
+ *
+ * @param {Object} [filters] - Optional server-side filters
+ */
+export async function fetchRideGroups(filters = {}) {
+  return request(`/ride-groups${buildQuery(filters)}`);
 }
 
 /**
