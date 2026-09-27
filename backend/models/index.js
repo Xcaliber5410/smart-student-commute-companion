@@ -10,6 +10,10 @@ const { RideGroup, rideGroupSchema } = require('./RideGroup');
 const { Feedback, feedbackSchema } = require('./Feedback');
 const { GeocodingCache, geocodingCacheSchema } = require('./GeocodingCache');
 const { User, userSchema } = require('./User');
+const { StudentProfile, studentProfileSchema } = require('./StudentProfile');
+const { StudentSchedule, studentScheduleSchema } = require('./StudentSchedule');
+const { SavedRoute, savedRouteSchema } = require('./SavedRoute');
+const { RideGroupMember, rideGroupMemberSchema } = require('./RideGroupMember');
 
 module.exports = {
   LiveReport,
@@ -23,6 +27,13 @@ module.exports = {
   GeocodingCache,
   geocodingCacheSchema,
   User,
-  userSchema
+  userSchema,
+  StudentProfile,
+  studentProfileSchema,
+  StudentSchedule,
+  studentScheduleSchema,
+  SavedRoute,
+  savedRouteSchema,
+  RideGroupMember,
+  rideGroupMemberSchema
 };
-

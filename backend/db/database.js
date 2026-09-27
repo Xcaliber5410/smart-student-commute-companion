@@ -92,7 +92,64 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
   `);
 
-  // 7. GTFS Tables
+  // 7. Student Domain Relationships (Day 6)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS student_profiles (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      home_area TEXT,
+      default_college TEXT,
+      preferred_modes TEXT DEFAULT '["train","metro","bus","auto","walk"]',
+      walking_tolerance_minutes INTEGER DEFAULT 20,
+      max_budget_rupees INTEGER DEFAULT 100,
+      default_arrival_time TEXT DEFAULT '09:00',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_student_profiles_user_id ON student_profiles(user_id);
+
+    CREATE TABLE IF NOT EXISTS student_schedules (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      origin TEXT NOT NULL,
+      destination TEXT NOT NULL,
+      target_arrival_time TEXT NOT NULL,
+      days_of_week TEXT NOT NULL DEFAULT '["Mon","Tue","Wed","Thu","Fri"]',
+      reminder_enabled INTEGER NOT NULL DEFAULT 1,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_student_schedules_user_id ON student_schedules(user_id);
+    CREATE INDEX IF NOT EXISTS idx_student_schedules_active ON student_schedules(user_id, active);
+
+    CREATE TABLE IF NOT EXISTS saved_routes (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      origin TEXT NOT NULL,
+      destination TEXT NOT NULL,
+      preferred_mode TEXT DEFAULT 'balanced',
+      max_budget INTEGER DEFAULT 100,
+      summary TEXT,
+      tags TEXT DEFAULT '[]',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_saved_routes_user_id ON saved_routes(user_id);
+
+    CREATE TABLE IF NOT EXISTS ride_group_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id TEXT NOT NULL REFERENCES ride_groups(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'member',
+      joined_at INTEGER NOT NULL,
+      UNIQUE(group_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_rg_members_group_id ON ride_group_members(group_id);
+    CREATE INDEX IF NOT EXISTS idx_rg_members_user_id ON ride_group_members(user_id);
+  `);
+
+  // 8. GTFS Tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS gtfs_agency (
       agency_id TEXT PRIMARY KEY,
