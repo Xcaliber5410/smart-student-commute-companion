@@ -16,7 +16,7 @@ import {
   Zap,
   Footprints
 } from 'lucide-react';
-import { EmptyState } from './ui';
+import { EmptyState, Badge, DataCard } from './ui';
 
 export default function LiveStudentFeed({ 
   reports = [], 
@@ -42,11 +42,11 @@ export default function LiveStudentFeed({
 
   const getModeBadge = (mode) => {
     switch (mode) {
-      case 'train': return <span className="flex items-center gap-1 text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded text-[10px] font-semibold"><Train className="w-3 h-3" /> Train</span>;
-      case 'metro': return <span className="flex items-center gap-1 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded text-[10px] font-semibold"><Zap className="w-3 h-3" /> Metro</span>;
-      case 'bus': return <span className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px] font-semibold"><Bus className="w-3 h-3" /> BEST Bus</span>;
-      case 'auto': return <span className="flex items-center gap-1 text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded text-[10px] font-semibold"><Car className="w-3 h-3" /> Auto / Taxi</span>;
-      default: return <span className="flex items-center gap-1 text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded text-[10px] font-semibold"><Footprints className="w-3 h-3" /> Walk</span>;
+      case 'train': return <Badge variant="rose" size="xs" icon={<Train className="w-3 h-3" />}>Train</Badge>;
+      case 'metro': return <Badge variant="amber" size="xs" icon={<Zap className="w-3 h-3" />}>Metro</Badge>;
+      case 'bus': return <Badge variant="emerald" size="xs" icon={<Bus className="w-3 h-3" />}>BEST Bus</Badge>;
+      case 'auto': return <Badge variant="sky" size="xs" icon={<Car className="w-3 h-3" />}>Auto / Taxi</Badge>;
+      default: return <Badge variant="teal" size="xs" icon={<Footprints className="w-3 h-3" />}>Walk</Badge>;
     }
   };
 
@@ -110,70 +110,51 @@ export default function LiveStudentFeed({
             const isContradicting = votingId === `${rep.id}-contradict`;
 
             return (
-              <div 
+              <DataCard
                 key={rep.id}
-                className="bg-slate-950/90 border border-slate-800/90 rounded-xl p-3.5 space-y-2.5 transition-all hover:border-slate-700 relative overflow-hidden"
-              >
-                {/* Left accent color based on impact */}
-                <div 
-                  className={`absolute top-0 left-0 bottom-0 w-1 ${
-                    rep.impact === 'high' ? 'bg-rose-500' : (rep.impact === 'medium' ? 'bg-amber-500' : 'bg-emerald-500')
-                  }`}
-                />
+                accent={
+                  rep.impact === 'high' ? 'bg-rose-500' : (rep.impact === 'medium' ? 'bg-amber-500' : 'bg-emerald-500')
+                }
+                header={
+                  <>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="amber" size="xs" icon={<AlertTriangle className="w-2.5 h-2.5" />}>
+                        Community reported
+                      </Badge>
+                      {getModeBadge(rep.mode)}
+                    </div>
 
-                {/* Top Row: Community Badge & Freshness */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pl-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                      <AlertTriangle className="w-2.5 h-2.5" />
-                      ⚠ Community reported
-                    </span>
-                    {getModeBadge(rep.mode)}
-                  </div>
-
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-400" />
-                      {rep.ageFormatted}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      (w: {rep.freshnessWeight?.toFixed(2) || '1.0'})
-                    </span>
-                  </div>
-                </div>
-
-                {/* Location & Title */}
-                <div className="pl-2">
-                  <div className="text-sm font-bold text-white flex items-center justify-between">
-                    <span>{rep.area}</span>
-                    <span className="text-[11px] font-normal text-slate-400">
-                      by <span className="text-indigo-300">{rep.pseudonym}</span>
-                    </span>
-                  </div>
-                  {rep.route_name && (
-                    <div className="text-[11px] text-slate-400 font-medium">{rep.route_name}</div>
-                  )}
-                </div>
-
-                {/* Message Body */}
-                <p className="text-xs text-slate-200 pl-2 leading-relaxed bg-slate-900/40 p-2 rounded-lg border border-slate-850">
-                  "{rep.message}"
-                </p>
-
-                {/* Bottom Verification & Voting Buttons */}
-                <div className="flex items-center justify-between pt-1 pl-2 border-t border-slate-850 text-xs">
-                  <div className="flex items-center gap-2 text-slate-400 text-[11px]">
-                    <span className="font-semibold text-emerald-400">
-                      {rep.confirmation_count} confirmed
-                    </span>
-                    {rep.contradiction_count > 0 && (
-                      <span className="text-slate-400">
-                        • {rep.contradiction_count} resolved
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-400" aria-hidden="true" />
+                        {rep.ageFormatted}
                       </span>
-                    )}
-                  </div>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        (w: {rep.freshnessWeight?.toFixed(2) || '1.0'})
+                      </span>
+                    </div>
+                  </>
+                }
+                title={rep.area}
+                subtitle={
+                  <span className="text-[11px] font-normal text-slate-400">
+                    by <span className="text-indigo-300">{rep.pseudonym}</span>
+                  </span>
+                }
+                footer={
+                  <>
+                    <div className="flex items-center gap-2 text-slate-400 text-[11px]">
+                      <span className="font-semibold text-emerald-400">
+                        {rep.confirmation_count} confirmed
+                      </span>
+                      {rep.contradiction_count > 0 && (
+                        <span className="text-slate-400">
+                          • {rep.contradiction_count} resolved
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5">
                     {/* Still happening */}
                     <button
                       onClick={() => handleVote(rep.id, 'confirm')}
@@ -195,9 +176,17 @@ export default function LiveStudentFeed({
                       <X className="w-3 h-3 text-rose-400" />
                       <span>No longer happening</span>
                     </button>
-                  </div>
-                </div>
-              </div>
+                    </div>
+                  </>
+                }
+              >
+                {rep.route_name && (
+                  <div className="text-[11px] text-slate-400 font-medium mb-1.5">{rep.route_name}</div>
+                )}
+                <p className="text-xs text-slate-200 leading-relaxed bg-slate-900/40 p-2 rounded-lg border border-slate-850">
+                  "{rep.message}"
+                </p>
+              </DataCard>
             );
           })}
         </div>

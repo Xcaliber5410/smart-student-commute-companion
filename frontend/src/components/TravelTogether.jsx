@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Plus, Clock, MapPin, GraduationCap, Check, ShieldCheck } from 'lucide-react';
-import { EmptyState } from './ui';
+import { EmptyState, Badge, DataCard, MetaRow, MetaList } from './ui';
 
 export default function TravelTogether({ groups = [], onJoinGroup, onOpenCreateGroup }) {
   const [joiningId, setJoiningId] = useState(null);
@@ -70,70 +70,79 @@ export default function TravelTogether({ groups = [], onJoinGroup, onOpenCreateG
             const isJoining = joiningId === grp.id;
 
             return (
-              <div 
+              <DataCard
                 key={grp.id}
-                className="bg-slate-950/90 border border-slate-800/90 rounded-xl p-4 flex flex-col justify-between space-y-3 hover:border-slate-700 transition-all"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                header={
+                  <>
+                    <Badge variant="indigo" size="xs">
                       {grp.mode}
-                    </span>
+                    </Badge>
                     <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/20">
-                      <Clock className="w-3 h-3" />
+                      <Clock className="w-3 h-3" aria-hidden="true" />
                       {grp.departure_time}
                     </span>
-                  </div>
-
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="font-semibold text-white truncate">{grp.origin_area}</span>
+                  </>
+                }
+                title={
+                  <span className="font-semibold text-white">{grp.origin_area}</span>
+                }
+                footer={
+                  <>
+                    <div className="text-slate-400 text-[11px]">
+                      Host: <strong className="text-slate-200">{grp.creator_pseudonym}</strong>
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                      <GraduationCap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      <span className="font-semibold text-indigo-300 truncate">{grp.destination_college}</span>
+
+                    <div className="flex items-center gap-3">
+                      <span className={`text-[11px] font-semibold ${isFull ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        {grp.current_members} / {grp.max_members} joined
+                      </span>
+
+                      <button
+                        onClick={() => handleJoin(grp.id)}
+                        disabled={isFull || isJoining}
+                        aria-label={isFull ? 'Group is full' : `Join group from ${grp.origin_area}`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                          isFull
+                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                            : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 active:scale-95 shadow-sm'
+                        }`}
+                      >
+                        {isFull ? (
+                          <span>Full</span>
+                        ) : (
+                          <>
+                            <Check className="w-3 h-3 stroke-[3]" aria-hidden="true" />
+                            <span>{isJoining ? 'Joining...' : 'Join'}</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                  </div>
+                  </>
+                }
+              >
+                <MetaList>
+                  <MetaRow
+                    icon={<MapPin className="w-3.5 h-3.5 text-emerald-400" />}
+                    label="Origin"
+                    valueClassName="text-white font-semibold"
+                  >
+                    {grp.origin_area}
+                  </MetaRow>
+                  <MetaRow
+                    icon={<GraduationCap className="w-3.5 h-3.5 text-indigo-400" />}
+                    label="Destination"
+                    valueClassName="text-indigo-300 font-semibold"
+                  >
+                    {grp.destination_college}
+                  </MetaRow>
+                </MetaList>
 
-                  {grp.notes && (
-                    <p className="text-[11px] text-slate-400 italic bg-slate-900/50 p-2 rounded-lg border border-slate-850 mt-2.5">
-                      "{grp.notes}"
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-850 text-xs">
-                  <div className="text-slate-400 text-[11px]">
-                    Host: <strong className="text-slate-200">{grp.creator_pseudonym}</strong>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className={`text-[11px] font-semibold ${isFull ? 'text-amber-400' : 'text-emerald-400'}`}>
-                      {grp.current_members} / {grp.max_members} joined
-                    </span>
-
-                    <button
-                      onClick={() => handleJoin(grp.id)}
-                      disabled={isFull || isJoining}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-                        isFull
-                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                          : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 active:scale-95 shadow-sm'
-                      }`}
-                    >
-                      {isFull ? (
-                        <span>Full</span>
-                      ) : (
-                        <>
-                          <Check className="w-3 h-3 stroke-[3]" />
-                          <span>{isJoining ? 'Joining...' : 'Join'}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
+                {grp.notes && (
+                  <p className="text-[11px] text-slate-400 italic bg-slate-900/50 p-2 rounded-lg border border-slate-850 mt-2.5">
+                    "{grp.notes}"
+                  </p>
+                )}
+              </DataCard>
             );
           })}
         </div>
