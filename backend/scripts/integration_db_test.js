@@ -122,7 +122,11 @@ async function main() {
         'ride_groups',
         'feedback',
         'geocoding_cache',
-        'users'
+        'users',
+        'student_profiles',
+        'student_schedules',
+        'saved_routes',
+        'ride_group_members'
       ];
 
       for (const reqTable of requiredTables) {
@@ -132,7 +136,7 @@ async function main() {
 
     runTest('Migration status reports clean state with no pending migrations', () => {
       const status = getMigrationStatus(testDb);
-      assert.equal(status.applied.length, 2);
+      assert.equal(status.applied.length, 3);
       assert.equal(status.pending.length, 0);
     });
 
@@ -375,10 +379,10 @@ async function main() {
     // -------------------------------------------------------------
     runTest('Migration runner safely rolls back latest schema migration', () => {
       const rollbackResult = rollbackMigration(testDb);
-      assert.equal(rollbackResult.rolledBack, '002_create_users_table');
+      assert.equal(rollbackResult.rolledBack, '003_student_domain_relationships');
 
       const statusAfterRollback = getMigrationStatus(testDb);
-      assert.equal(statusAfterRollback.applied.length, 1);
+      assert.equal(statusAfterRollback.applied.length, 2);
       assert.equal(statusAfterRollback.pending.length, 1);
     });
 
@@ -387,7 +391,7 @@ async function main() {
       assert.equal(reapplyResult.applied.length, 1);
 
       const statusAfterReapply = getMigrationStatus(testDb);
-      assert.equal(statusAfterReapply.applied.length, 2);
+      assert.equal(statusAfterReapply.applied.length, 3);
       assert.equal(statusAfterReapply.pending.length, 0);
     });
 

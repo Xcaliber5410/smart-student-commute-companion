@@ -29,7 +29,8 @@
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",
     "test:services": "node scripts/integration_services_test.js",
-    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run verify:validation && npm run verify:api:read && npm run verify:api:update-delete && npm run verify:api:pagination && npm run verify:api:responses && npm run verify:auth && npm run verify:rules && npm run verify:transactions && npm run verify:service-errors && npm run test && npm run test:db && npm run test:api && npm run test:services",
+    "test:student": "node scripts/integration_student_test.js",
+    "test:all": "npm run verify:config && npm run verify:bootstrap && npm run verify:routes && npm run verify:errors && npm run verify:validation && npm run verify:api:read && npm run verify:api:update-delete && npm run verify:api:pagination && npm run verify:api:responses && npm run verify:auth && npm run verify:rules && npm run verify:transactions && npm run verify:service-errors && npm run verify:student-models && npm run verify:student-context && npm run verify:student-workflows && npm run verify:student-filters && npm run verify:student-dashboard && npm run verify:student-perf && npm run test && npm run test:db && npm run test:api && npm run test:services && npm run test:student",
     "db:migrate": "node migrations/cli.js up",
     "db:rollback": "node migrations/cli.js down",
     "db:status": "node migrations/cli.js status"
