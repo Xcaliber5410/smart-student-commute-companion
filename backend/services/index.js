@@ -10,6 +10,7 @@ const { feedbackService, FeedbackService } = require('./feedbackService');
 const { authService, AuthService } = require('./authService');
 const { commutePlanService, CommutePlanService } = require('./commutePlanService');
 const { transitService, TransitService } = require('./transitService');
+const { studentContextService, StudentContextService } = require('./studentContextService');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -32,6 +33,8 @@ module.exports = {
   CommutePlanService,
   transitService,
   TransitService,
+  studentContextService,
+  StudentContextService,
 
   // Commute Planning & Spatial Services
   getActiveReports,
