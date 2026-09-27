@@ -39,6 +39,55 @@ class StudentScheduleRepository {
     return rows.map(r => StudentSchedule.fromRow(r));
   }
 
+  findWithPaginationAndFilters(userId, options = {}) {
+    if (!userId || typeof userId !== 'string') {
+      return { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
+    }
+
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const conditions = ['user_id = ?'];
+    const params = [userId];
+
+    if (options.active !== undefined && options.active !== '') {
+      conditions.push('active = ?');
+      params.push(options.active === true || options.active === 'true' || options.active === 1 || options.active === '1' ? 1 : 0);
+    }
+    const dayFilter = options.day || options.day_of_week;
+    if (dayFilter) {
+      conditions.push('LOWER(days_of_week) LIKE LOWER(?)');
+      params.push(`%${dayFilter}%`);
+    }
+    if (options.search) {
+      conditions.push('(LOWER(title) LIKE LOWER(?) OR LOWER(origin) LIKE LOWER(?) OR LOWER(destination) LIKE LOWER(?))');
+      const term = `%${options.search}%`;
+      params.push(term, term, term);
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+    const countStmt = this.database.prepare(`SELECT COUNT(*) as count FROM student_schedules ${whereClause}`);
+    const { count: total } = countStmt.get(...params);
+
+    const queryStmt = this.database.prepare(`
+      SELECT * FROM student_schedules
+      ${whereClause}
+      ORDER BY target_arrival_time ASC
+      LIMIT ? OFFSET ?
+    `);
+    const rows = queryStmt.all(...params, limit, offset);
+
+    return {
+      data: rows.map(r => StudentSchedule.fromRow(r)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1
+    };
+  }
+
   create(data) {
     const schedule = data instanceof StudentSchedule ? data : StudentSchedule.create(data);
     const row = schedule.toRow();

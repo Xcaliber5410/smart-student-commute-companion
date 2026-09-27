@@ -22,6 +22,16 @@ const {
 const { planCommuteSchema } = require('./planValidators');
 const { transitSearchQuerySchema } = require('./transitValidators');
 const { registerSchema, loginSchema } = require('./authValidators');
+const {
+  studentProfileUpdateSchema,
+  createScheduleSchema,
+  updateScheduleSchema,
+  scheduleFilterSchema,
+  createSavedRouteSchema,
+  updateSavedRouteSchema,
+  savedRouteFilterSchema,
+  studentGroupFilterSchema
+} = require('./studentValidators');
 
 module.exports = {
   validate,
@@ -31,6 +41,15 @@ module.exports = {
   // Auth
   registerSchema,
   loginSchema,
+  // Student Context & Workflows
+  studentProfileUpdateSchema,
+  createScheduleSchema,
+  updateScheduleSchema,
+  scheduleFilterSchema,
+  createSavedRouteSchema,
+  updateSavedRouteSchema,
+  savedRouteFilterSchema,
+  studentGroupFilterSchema,
   // Ride Groups
   createRideGroupSchema,
   updateRideGroupSchema,

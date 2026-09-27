@@ -14,8 +14,8 @@ const studentScheduleSchema = z.object({
   destination: z.string().min(2).max(150),
   target_arrival_time: z.string().min(2).max(20),
   days_of_week: z.array(z.string()).default(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']),
-  reminder_enabled: z.boolean().default(true),
-  active: z.boolean().default(true),
+  reminder_enabled: z.union([z.boolean(), z.number().transform(n => n === 1)]).default(true),
+  active: z.union([z.boolean(), z.number().transform(n => n === 1)]).default(true),
   created_at: z.number().int().positive().default(() => Date.now()),
   updated_at: z.number().int().positive().default(() => Date.now())
 });

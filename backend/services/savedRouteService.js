@@ -55,6 +55,25 @@ class SavedRouteService {
     return routes.map(r => r.toJSON());
   }
 
+  listStudentSavedRoutes(userId, requestingUser, options = {}) {
+    if (requestingUser.role !== 'admin' && requestingUser.id !== userId) {
+      throw new ForbiddenError('You can only view your own saved routes');
+    }
+
+    const result = this.routeRepo.findWithPaginationAndFilters(userId, options);
+    return {
+      routes: result.data.map(r => r.toJSON()),
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNext: result.page < result.totalPages,
+        hasPrev: result.page > 1
+      }
+    };
+  }
+
   getSavedRouteById(routeId, requestingUser) {
     const route = this.routeRepo.findById(routeId);
     if (!route) {

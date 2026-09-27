@@ -39,6 +39,58 @@ class SavedRouteRepository {
     return rows.map(r => SavedRoute.fromRow(r));
   }
 
+  findWithPaginationAndFilters(userId, options = {}) {
+    if (!userId || typeof userId !== 'string') {
+      return { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
+    }
+
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const conditions = ['user_id = ?'];
+    const params = [userId];
+
+    if (options.preferred_mode) {
+      conditions.push('LOWER(preferred_mode) = LOWER(?)');
+      params.push(options.preferred_mode);
+    }
+    if (options.max_budget) {
+      conditions.push('max_budget <= ?');
+      params.push(Number(options.max_budget));
+    }
+    if (options.search) {
+      conditions.push('(LOWER(name) LIKE LOWER(?) OR LOWER(origin) LIKE LOWER(?) OR LOWER(destination) LIKE LOWER(?))');
+      const term = `%${options.search}%`;
+      params.push(term, term, term);
+    }
+    if (options.tag) {
+      conditions.push('LOWER(tags) LIKE LOWER(?)');
+      params.push(`%${options.tag}%`);
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+    const countStmt = this.database.prepare(`SELECT COUNT(*) as count FROM saved_routes ${whereClause}`);
+    const { count: total } = countStmt.get(...params);
+
+    const queryStmt = this.database.prepare(`
+      SELECT * FROM saved_routes
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const rows = queryStmt.all(...params, limit, offset);
+
+    return {
+      data: rows.map(r => SavedRoute.fromRow(r)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1
+    };
+  }
+
   create(data) {
     const route = data instanceof SavedRoute ? data : SavedRoute.create(data);
     const row = route.toRow();

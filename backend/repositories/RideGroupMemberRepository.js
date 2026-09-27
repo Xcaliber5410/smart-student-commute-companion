@@ -65,6 +65,67 @@ class RideGroupMemberRepository {
     }));
   }
 
+  findGroupsForStudentWithFilters(userId, options = {}) {
+    if (!userId || typeof userId !== 'string') {
+      return { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
+    }
+
+    const page = Math.max(1, Number(options.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const conditions = ['m.user_id = ?'];
+    const params = [userId];
+
+    if (options.role) {
+      conditions.push('LOWER(m.role) = LOWER(?)');
+      params.push(options.role);
+    }
+    if (options.mode) {
+      conditions.push('LOWER(g.mode) = LOWER(?)');
+      params.push(options.mode);
+    }
+    if (options.search) {
+      conditions.push('(LOWER(g.origin_area) LIKE LOWER(?) OR LOWER(g.destination_college) LIKE LOWER(?))');
+      const term = `%${options.search}%`;
+      params.push(term, term);
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+    const countStmt = this.database.prepare(`
+      SELECT COUNT(*) as count
+      FROM ride_groups g
+      JOIN ride_group_members m ON g.id = m.group_id
+      ${whereClause}
+    `);
+    const { count: total } = countStmt.get(...params);
+
+    const queryStmt = this.database.prepare(`
+      SELECT g.*, m.role as member_role, m.joined_at as member_joined_at
+      FROM ride_groups g
+      JOIN ride_group_members m ON g.id = m.group_id
+      ${whereClause}
+      ORDER BY g.created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const rows = queryStmt.all(...params, limit, offset);
+
+    return {
+      data: rows.map(r => ({
+        group: RideGroup.fromRow(r).toRow(),
+        membership: {
+          role: r.member_role,
+          joined_at: Number(r.member_joined_at)
+        }
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1
+    };
+  }
+
   findMembersByGroupId(groupId) {
     const stmt = this.database.prepare(`
       SELECT m.id, m.group_id, m.user_id, m.role, m.joined_at, u.full_name, u.college_name

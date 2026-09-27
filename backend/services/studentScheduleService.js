@@ -55,6 +55,25 @@ class StudentScheduleService {
     return schedules.map(s => s.toJSON());
   }
 
+  listStudentSchedules(userId, requestingUser, options = {}) {
+    if (requestingUser.role !== 'admin' && requestingUser.id !== userId) {
+      throw new ForbiddenError('You can only view your own schedules');
+    }
+
+    const result = this.scheduleRepo.findWithPaginationAndFilters(userId, options);
+    return {
+      schedules: result.data.map(s => s.toJSON()),
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNext: result.page < result.totalPages,
+        hasPrev: result.page > 1
+      }
+    };
+  }
+
   getScheduleById(scheduleId, requestingUser) {
     const schedule = this.scheduleRepo.findById(scheduleId);
     if (!schedule) {

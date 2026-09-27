@@ -158,6 +158,25 @@ class RideGroupService {
     return this.memberRepo.findGroupsByUserId(userId);
   }
 
+  listStudentGroups(userId, requestingUser, options = {}) {
+    if (requestingUser.role !== 'admin' && requestingUser.id !== userId) {
+      throw new ForbiddenError('You can only view your own ride groups');
+    }
+
+    const result = this.memberRepo.findGroupsForStudentWithFilters(userId, options);
+    return {
+      groups: result.data,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNext: result.page < result.totalPages,
+        hasPrev: result.page > 1
+      }
+    };
+  }
+
   /**
    * Asserts whether a user has permission to mutate a ride group.
    *
