@@ -28,3 +28,7 @@ export { default as Skeleton, CardSkeleton } from './Skeleton';
 export { default as Badge } from './Badge';
 export { default as DataCard } from './DataCard';
 export { default as MetaRow, MetaList } from './MetaRow';
+
+// Reusable Search / Filter / Sort Controls
+export { default as SearchInput } from './SearchInput';
+export { default as FilterBar, FilterChip } from './FilterBar';
