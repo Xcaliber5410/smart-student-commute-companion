@@ -82,6 +82,24 @@ class LiveReport {
   isExpired(currentTime = Date.now()) {
     return this.status === 'expired' || currentTime >= this.expires_at;
   }
+
+  toJSON() {
+    return {
+      id: this.id,
+      pseudonym: this.pseudonym,
+      area: this.area,
+      route_name: this.route_name,
+      route_id: this.route_id,
+      mode: this.mode,
+      message: this.message,
+      impact: this.impact,
+      status: this.status,
+      created_at: this.created_at,
+      expires_at: this.expires_at,
+      confirmation_count: this.confirmation_count,
+      contradiction_count: this.contradiction_count
+    };
+  }
 }
 
 module.exports = {
