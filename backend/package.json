@@ -24,6 +24,7 @@
     "verify:student-workflows": "node scripts/verify_student_workflows.js",
     "verify:student-filters": "node scripts/verify_student_filters.js",
     "verify:student-dashboard": "node scripts/verify_student_dashboard.js",
+    "verify:student-perf": "node scripts/verify_student_perf.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",

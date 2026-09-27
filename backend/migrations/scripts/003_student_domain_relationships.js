@@ -68,6 +68,15 @@ module.exports = {
       CREATE INDEX IF NOT EXISTS idx_saved_routes_user_id
         ON saved_routes(user_id);
 
+      CREATE INDEX IF NOT EXISTS idx_saved_routes_user_mode
+        ON saved_routes(user_id, preferred_mode);
+
+      CREATE INDEX IF NOT EXISTS idx_saved_routes_user_created
+        ON saved_routes(user_id, created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_student_schedules_user_active_time
+        ON student_schedules(user_id, active, target_arrival_time);
+
       -- 4. Ride Group Members (Student-to-Group Coordination)
       CREATE TABLE IF NOT EXISTS ride_group_members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,6 +92,9 @@ module.exports = {
 
       CREATE INDEX IF NOT EXISTS idx_rg_members_user_id
         ON ride_group_members(user_id);
+
+      CREATE INDEX IF NOT EXISTS idx_rg_members_user_role
+        ON ride_group_members(user_id, role);
     `);
   },
 

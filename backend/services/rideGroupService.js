@@ -102,11 +102,9 @@ class RideGroupService {
       }
     }
 
+    const userId = (userTokenOrUser && typeof userTokenOrUser === 'object') ? userTokenOrUser.id : null;
     try {
-      const updated = this.repo.atomicJoin(id);
-      if (userTokenOrUser && typeof userTokenOrUser === 'object' && userTokenOrUser.id) {
-        this.memberRepo.addMember(id, userTokenOrUser.id, 'member');
-      }
+      const updated = this.repo.atomicJoin(id, userId, 'member');
       return updated.toRow ? updated.toRow() : updated;
     } catch (err) {
       if (err.code === 'GROUP_FULL') {
@@ -127,11 +125,9 @@ class RideGroupService {
    * @returns {object}
    */
   leaveRideGroup(id, userTokenOrUser) {
+    const userId = (userTokenOrUser && typeof userTokenOrUser === 'object') ? userTokenOrUser.id : null;
     try {
-      const updated = this.repo.atomicLeave(id);
-      if (userTokenOrUser && typeof userTokenOrUser === 'object' && userTokenOrUser.id) {
-        this.memberRepo.removeMember(id, userTokenOrUser.id);
-      }
+      const updated = this.repo.atomicLeave(id, userId);
       return updated.toRow ? updated.toRow() : updated;
     } catch (err) {
       if (err.code === 'MINIMUM_MEMBERSHIP_REACHED') {

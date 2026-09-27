@@ -162,9 +162,11 @@ class RideGroupRepository {
    * Atomically joins a ride group inside a transaction, verifying capacity before incrementing.
    *
    * @param {string} id
+   * @param {string} [userId]
+   * @param {string} [role='member']
    * @returns {RideGroup}
    */
-  atomicJoin(id) {
+  atomicJoin(id, userId = null, role = 'member') {
     let updated = null;
     const runTx = this.database.transaction(() => {
       const group = this.findById(id);
@@ -181,6 +183,14 @@ class RideGroupRepository {
       this.database.prepare(
         'UPDATE ride_groups SET current_members = current_members + 1 WHERE id = ?'
       ).run(id);
+
+      if (userId) {
+        this.database.prepare(`
+          INSERT OR IGNORE INTO ride_group_members (group_id, user_id, role, joined_at)
+          VALUES (?, ?, ?, ?)
+        `).run(id, userId, role, Date.now());
+      }
+
       updated = this.findById(id);
     });
     runTx();
@@ -191,9 +201,10 @@ class RideGroupRepository {
    * Atomically leaves a ride group inside a transaction, verifying minimum membership.
    *
    * @param {string} id
+   * @param {string} [userId]
    * @returns {RideGroup}
    */
-  atomicLeave(id) {
+  atomicLeave(id, userId = null) {
     let updated = null;
     const runTx = this.database.transaction(() => {
       const group = this.findById(id);
@@ -210,6 +221,13 @@ class RideGroupRepository {
       this.database.prepare(
         'UPDATE ride_groups SET current_members = current_members - 1 WHERE id = ?'
       ).run(id);
+
+      if (userId) {
+        this.database.prepare(
+          'DELETE FROM ride_group_members WHERE group_id = ? AND user_id = ?'
+        ).run(id, userId);
+      }
+
       updated = this.findById(id);
     });
     runTx();
