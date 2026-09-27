@@ -497,7 +497,8 @@ const docs = [
   'PWA_SETUP.md',
   'PWA_TESTING.md',
   'PWA_SUMMARY.md',
-  'DAY_01_FOUNDATION_SUMMARY.md'
+  'DAY_01_FOUNDATION_SUMMARY.md',
+  'DAY_03_SUMMARY.md'
 ];
 
 docs.forEach(doc => {
