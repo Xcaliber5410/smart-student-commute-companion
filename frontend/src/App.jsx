@@ -2,14 +2,11 @@ import React, { useState, useEffect } from 'react';
 import MainLayout from './layouts/MainLayout';
 import Toast from './components/Toast';
 import NotFound from './components/NotFound';
-import PlannerForm from './components/PlannerForm';
-import RouteResults from './components/RouteResults';
 import MapView from './components/MapView';
-import LiveStudentFeed from './components/LiveStudentFeed';
-import TravelTogether from './components/TravelTogether';
 import CreateReportModal from './components/CreateReportModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
+import { PlannerPage, TravelTogetherPage, LiveAlertsPage } from './pages';
 import { 
   planCommute, 
   fetchLiveReports, 
@@ -29,6 +26,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('planner');
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [initialLoadError, setInitialLoadError] = useState(null);
   const [isResetting, setIsResetting] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -116,12 +115,22 @@ export default function App() {
   }, []);
 
   const loadInitialData = async () => {
+    setIsInitialLoading(true);
+    setInitialLoadError(null);
     try {
       const reportsRes = await fetchLiveReports();
       if (reportsRes.success) setReports(reportsRes.reports);
-      await loadRideGroups();
+      const groupsLoaded = await loadRideGroups();
+      if (!groupsLoaded) {
+        setInitialLoadError('Some live updates could not be loaded. Please try again.');
+      }
     } catch (err) {
-      console.warn('Initial data load:', err.message);
+      // User-friendly error surfaced through the page ErrorState (no technical details)
+      setInitialLoadError(
+        'Unable to load live student updates. Please check your connection and try again.'
+      );
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
@@ -129,8 +138,10 @@ export default function App() {
     try {
       const groupsRes = await fetchRideGroups();
       if (groupsRes.success) setGroups(groupsRes.groups);
+      return groupsRes.success;
     } catch (err) {
       console.warn('Ride groups load:', err.message);
+      return false;
     }
   };
 
@@ -236,59 +247,57 @@ export default function App() {
     }
   };
 
-  // Render helper for active tab content
+  // Render helper for active feature page
   const renderTabContent = () => {
     switch (activeTab) {
       case 'planner':
         return (
-          <>
-            <PlannerForm
-              formData={formData}
-              setFormData={setFormData}
-              onPlan={() => handlePlan(false)}
-              isLoading={isLoading}
-            />
-
-            <RouteResults
-              planResult={planResult}
-              selectedRouteId={selectedRouteId}
-              setSelectedRouteId={setSelectedRouteId}
-              onOpenFeedback={(recId) => {
-                setFeedbackRecId(recId);
-                setIsFeedbackModalOpen(true);
-              }}
-            />
-
-            {/* Quick Live Stream Section embedded below planner */}
-            <div className="pt-2">
-              <LiveStudentFeed
-                reports={reports}
-                onConfirm={handleConfirmReport}
-                onContradict={handleContradictReport}
-                onOpenCreateReport={() => setIsReportModalOpen(true)}
-                isConnected={isConnected}
-              />
-            </div>
-          </>
-        );
-
-      case 'together':
-        return (
-          <TravelTogether
-            groups={groups}
-            onJoinGroup={handleJoinGroup}
-            onOpenCreateGroup={() => setIsGroupModalOpen(true)}
-          />
-        );
-
-      case 'feed':
-        return (
-          <LiveStudentFeed
+          <PlannerPage
+            formData={formData}
+            setFormData={setFormData}
+            onPlan={() => handlePlan(false)}
+            isPlanning={isLoading}
+            planResult={planResult}
+            selectedRouteId={selectedRouteId}
+            setSelectedRouteId={setSelectedRouteId}
+            onOpenFeedback={(recId) => {
+              setFeedbackRecId(recId);
+              setIsFeedbackModalOpen(true);
+            }}
             reports={reports}
             onConfirm={handleConfirmReport}
             onContradict={handleContradictReport}
             onOpenCreateReport={() => setIsReportModalOpen(true)}
             isConnected={isConnected}
+            isLoadingInitial={isInitialLoading}
+            loadError={initialLoadError}
+            onRetryLoad={loadInitialData}
+          />
+        );
+
+      case 'together':
+        return (
+          <TravelTogetherPage
+            groups={groups}
+            onJoinGroup={handleJoinGroup}
+            onOpenCreateGroup={() => setIsGroupModalOpen(true)}
+            isLoading={isInitialLoading}
+            loadError={initialLoadError}
+            onRetryLoad={loadInitialData}
+          />
+        );
+
+      case 'feed':
+        return (
+          <LiveAlertsPage
+            reports={reports}
+            onConfirm={handleConfirmReport}
+            onContradict={handleContradictReport}
+            onOpenCreateReport={() => setIsReportModalOpen(true)}
+            isConnected={isConnected}
+            isLoading={isInitialLoading}
+            loadError={initialLoadError}
+            onRetryLoad={loadInitialData}
           />
         );
 
