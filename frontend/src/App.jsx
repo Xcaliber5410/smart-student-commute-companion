@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MainLayout from './layouts/MainLayout';
 import Toast from './components/Toast';
 import NotFound from './components/NotFound';
@@ -20,16 +20,36 @@ import {
   resetDemoState 
 } from './services/api';
 import { getSocket } from './services/socket';
+import useAsyncResource from './hooks/useAsyncResource';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner');
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [initialLoadError, setInitialLoadError] = useState(null);
   const [isResetting, setIsResetting] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // Live Reports — async resource (loading/refreshing/error with stale-response guards)
+  const reportsResource = useAsyncResource(
+    async () => {
+      const res = await fetchLiveReports();
+      return res.success ? res.reports : [];
+    },
+    { errorMessage: 'Unable to load live student updates. Please check your connection and try again.' }
+  );
+
+  // Ride Groups — async resource
+  const groupsResource = useAsyncResource(
+    async () => {
+      const res = await fetchRideGroups();
+      return res.success ? res.groups : [];
+    },
+    { errorMessage: 'Unable to load commute groups. Please check your connection and try again.' }
+  );
+
+  const reports = reportsResource.data || [];
+  const groups = groupsResource.data || [];
 
   // Planner Form State
   const [formData, setFormData] = useState({
@@ -46,13 +66,11 @@ export default function App() {
   const [planResult, setPlanResult] = useState(null);
   const [selectedRouteId, setSelectedRouteId] = useState(null);
 
-  // Live Reports State
-  const [reports, setReports] = useState([]);
+  // Live Reports modal state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
-  // Travel Together State
-  const [groups, setGroups] = useState([]);
+  // Travel Together modal state
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isSubmittingGroup, setIsSubmittingGroup] = useState(false);
 
@@ -67,8 +85,9 @@ export default function App() {
 
   // Initial Data & Socket Setup
   useEffect(() => {
-    // 1. Fetch initial reports and ride groups
-    loadInitialData();
+    // 1. Fetch initial reports and ride groups (each resource guards against stale responses)
+    reportsResource.load();
+    groupsResource.load();
 
     // 2. Setup Socket.IO
     const socket = getSocket();
@@ -83,21 +102,21 @@ export default function App() {
     });
 
     socket.on('live_report_created', (newReport) => {
-      setReports((prev) => [newReport, ...prev.filter(r => r.id !== newReport.id)]);
+      reportsResource.setData((prev) => [newReport, ...(prev || []).filter(r => r.id !== newReport.id)]);
       showToast(`⚠ Live Report from ${newReport.area}: ${newReport.message.substring(0, 50)}...`, 'warning');
     });
 
     socket.on('live_report_updated', (updatedReport) => {
-      setReports((prev) => prev.map(r => r.id === updatedReport.id ? { ...r, ...updatedReport } : r));
+      reportsResource.setData((prev) => (prev || []).map(r => r.id === updatedReport.id ? { ...r, ...updatedReport } : r));
     });
 
     socket.on('live_report_expired', ({ id }) => {
-      setReports((prev) => prev.filter(r => r.id !== id));
+      reportsResource.setData((prev) => (prev || []).filter(r => r.id !== id));
     });
 
     socket.on('demo_reset', ({ freshReports }) => {
-      if (freshReports) setReports(freshReports);
-      loadRideGroups();
+      if (freshReports) reportsResource.setData(freshReports);
+      groupsResource.load();
       showToast('Demo environment reset successfully', 'info');
     });
 
@@ -114,39 +133,11 @@ export default function App() {
     };
   }, []);
 
-  const loadInitialData = async () => {
-    setIsInitialLoading(true);
-    setInitialLoadError(null);
-    try {
-      const reportsRes = await fetchLiveReports();
-      if (reportsRes.success) setReports(reportsRes.reports);
-      const groupsLoaded = await loadRideGroups();
-      if (!groupsLoaded) {
-        setInitialLoadError('Some live updates could not be loaded. Please try again.');
-      }
-    } catch (err) {
-      // User-friendly error surfaced through the page ErrorState (no technical details)
-      setInitialLoadError(
-        'Unable to load live student updates. Please check your connection and try again.'
-      );
-    } finally {
-      setIsInitialLoading(false);
-    }
-  };
-
-  const loadRideGroups = async () => {
-    try {
-      const groupsRes = await fetchRideGroups();
-      if (groupsRes.success) setGroups(groupsRes.groups);
-      return groupsRes.success;
-    } catch (err) {
-      console.warn('Ride groups load:', err.message);
-      return false;
-    }
-  };
-
-  // Execute Commute Planning
+  // Execute Commute Planning (ref-guarded against duplicate rapid submissions)
+  const planInFlightRef = useRef(false);
   const handlePlan = async (isInitial = false) => {
+    if (planInFlightRef.current) return; // ignore duplicate submissions
+    planInFlightRef.current = true;
     setIsLoading(true);
     try {
       const data = await planCommute(formData);
@@ -165,12 +156,14 @@ export default function App() {
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
+      planInFlightRef.current = false;
       setIsLoading(false);
     }
   };
 
   // Live Report Actions
   const handleCreateReport = async (reportData) => {
+    if (isSubmittingReport) return; // prevent duplicate submissions
     setIsSubmittingReport(true);
     try {
       await postLiveReport(reportData);
@@ -203,11 +196,12 @@ export default function App() {
 
   // Travel Together Actions
   const handleCreateGroup = async (groupData) => {
+    if (isSubmittingGroup) return; // prevent duplicate submissions
     setIsSubmittingGroup(true);
     try {
       await postRideGroup(groupData);
       setIsGroupModalOpen(false);
-      await loadRideGroups();
+      await groupsResource.load();
       showToast('Commute coordination group created!');
     } catch (err) {
       showToast(err.message, 'error');
@@ -219,7 +213,7 @@ export default function App() {
   const handleJoinGroup = async (groupId) => {
     try {
       await joinRideGroup(groupId);
-      await loadRideGroups();
+      await groupsResource.load();
       showToast('Successfully joined commute group!');
     } catch (err) {
       showToast(err.message, 'error');
@@ -232,17 +226,21 @@ export default function App() {
     showToast('Feedback recorded. Thank you!');
   };
 
-  // Demo Reset
+  // Demo Reset (ref-guarded against duplicate submissions)
+  const resetInFlightRef = useRef(false);
   const handleResetDemo = async () => {
+    if (resetInFlightRef.current) return;
+    resetInFlightRef.current = true;
     setIsResetting(true);
     try {
       await resetDemoState();
-      await loadInitialData();
+      await Promise.all([reportsResource.load(), groupsResource.load()]);
       await handlePlan(false);
       showToast('Hackathon demo reset to baseline state!');
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
+      resetInFlightRef.current = false;
       setIsResetting(false);
     }
   };
@@ -269,9 +267,11 @@ export default function App() {
             onContradict={handleContradictReport}
             onOpenCreateReport={() => setIsReportModalOpen(true)}
             isConnected={isConnected}
-            isLoadingInitial={isInitialLoading}
-            loadError={initialLoadError}
-            onRetryLoad={loadInitialData}
+            isLoadingInitial={reportsResource.isLoading}
+            loadError={reportsResource.loadError}
+            onRetryLoad={reportsResource.load}
+            isRefreshing={reportsResource.isRefreshing}
+            onRefresh={reportsResource.load}
           />
         );
 
@@ -281,9 +281,11 @@ export default function App() {
             groups={groups}
             onJoinGroup={handleJoinGroup}
             onOpenCreateGroup={() => setIsGroupModalOpen(true)}
-            isLoading={isInitialLoading}
-            loadError={initialLoadError}
-            onRetryLoad={loadInitialData}
+            isLoading={groupsResource.isLoading}
+            loadError={groupsResource.loadError}
+            onRetryLoad={groupsResource.load}
+            isRefreshing={groupsResource.isRefreshing}
+            onRefresh={groupsResource.load}
           />
         );
 
@@ -295,9 +297,11 @@ export default function App() {
             onContradict={handleContradictReport}
             onOpenCreateReport={() => setIsReportModalOpen(true)}
             isConnected={isConnected}
-            isLoading={isInitialLoading}
-            loadError={initialLoadError}
-            onRetryLoad={loadInitialData}
+            isLoading={reportsResource.isLoading}
+            loadError={reportsResource.loadError}
+            onRetryLoad={reportsResource.load}
+            isRefreshing={reportsResource.isRefreshing}
+            onRefresh={reportsResource.load}
           />
         );
 

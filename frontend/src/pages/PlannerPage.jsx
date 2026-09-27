@@ -1,4 +1,5 @@
 import React from 'react';
+import { RefreshCw } from 'lucide-react';
 import PlannerForm from '../components/PlannerForm';
 import RouteResults from '../components/RouteResults';
 import LiveStudentFeed from '../components/LiveStudentFeed';
@@ -51,17 +52,33 @@ export default function PlannerPage({
   isLoadingInitial = false,
   loadError = null,
   onRetryLoad,
+  isRefreshing = false,
+  onRefresh,
 }) {
   return (
     <div className="space-y-5">
       {/* Page heading — establishes the h1 for this view */}
-      <header className="pb-1">
-        <h1 className="text-xl font-extrabold text-white tracking-tight">
-          Plan Your Commute
-        </h1>
-        <p className="text-sm text-slate-400">
-          Multimodal AI transit recommendations across Mumbai campuses
-        </p>
+      <header className="pb-1 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-extrabold text-white tracking-tight">
+            Plan Your Commute
+          </h1>
+          <p className="text-sm text-slate-400">
+            Multimodal AI transit recommendations across Mumbai campuses
+          </p>
+        </div>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={isLoadingInitial || isRefreshing}
+            aria-busy={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+        )}
       </header>
 
       <PlannerForm

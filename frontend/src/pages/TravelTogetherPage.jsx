@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search as SearchIcon } from 'lucide-react';
+import { Search as SearchIcon, RefreshCw } from 'lucide-react';
 import TravelTogether from '../components/TravelTogether';
 import { LoadingState, ErrorState, EmptyState, SearchInput, FilterBar, Select } from '../components/ui';
 import { applyListControls, buildActiveFilters } from '../utils/listControls';
@@ -23,6 +23,7 @@ export default function TravelTogetherPage({
   loadError = null,
   onRetryLoad,
   isRefreshing = false,
+  onRefresh,
 }) {
   const [query, setQuery] = useState('');
   const [availability, setAvailability] = useState('all');
@@ -66,13 +67,27 @@ export default function TravelTogetherPage({
 
   return (
     <div className="space-y-5">
-      <header className="pb-1">
-        <h1 className="text-xl font-extrabold text-white tracking-tight">
-          Travel Together
-        </h1>
-        <p className="text-sm text-slate-400">
-          Safe student grouping for auto-pooling and local train buddies
-        </p>
+      <header className="pb-1 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-extrabold text-white tracking-tight">
+            Travel Together
+          </h1>
+          <p className="text-sm text-slate-400">
+            Safe student grouping for auto-pooling and local train buddies
+          </p>
+        </div>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={isLoading || isRefreshing}
+            aria-busy={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+        )}
       </header>
 
       {/* Search / filter / sort controls */}
