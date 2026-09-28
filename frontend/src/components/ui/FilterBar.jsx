@@ -10,14 +10,14 @@ import { X, SlidersHorizontal } from 'lucide-react';
  */
 export function FilterChip({ label, onRemove }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap">
+    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold px-2 py-1 whitespace-nowrap">
       {label}
       {onRemove && (
         <button
           type="button"
           onClick={onRemove}
           aria-label={`Remove filter: ${label}`}
-          className="p-0.5 rounded hover:bg-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          className="p-1.5 -my-1 -mr-1 rounded hover:bg-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           <X className="w-3 h-3" aria-hidden="true" />
         </button>
@@ -79,7 +79,7 @@ export default function FilterBar({
             <button
               type="button"
               onClick={onClearAll}
-              className="text-[11px] font-semibold text-slate-400 hover:text-white underline underline-offset-2 px-1 py-0.5 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+              className="text-[11px] font-semibold text-slate-400 hover:text-white underline underline-offset-2 px-2 py-1.5 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
             >
               Clear all
             </button>

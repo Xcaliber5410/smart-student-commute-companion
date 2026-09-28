@@ -104,7 +104,7 @@ export default function TransitSearchForm({
                 key={recent}
                 type="button"
                 onClick={() => onSelectRecent?.(recent)}
-                className="text-[11px] px-2 py-0.5 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/50 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                className="text-[11px] px-2.5 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/50 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
                 aria-label={`Search again for ${recent}`}
               >
                 {recent}
@@ -113,7 +113,7 @@ export default function TransitSearchForm({
             <button
               type="button"
               onClick={onClearRecent}
-              className="text-[11px] text-slate-400 hover:text-white underline underline-offset-2 px-1 py-0.5 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+              className="text-[11px] text-slate-400 hover:text-white underline underline-offset-2 px-2 py-1.5 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
             >
               Clear
             </button>

@@ -27,9 +27,13 @@ export default function Toast({ message, type = 'success' }) {
   const Icon = type === 'error' ? AlertCircle : type === 'info' ? Info : CheckCircle2;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[3000] max-w-sm animate-fade-in">
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-20 sm:bottom-6 right-4 left-4 sm:left-auto sm:right-6 z-[3000] max-w-sm animate-fade-in"
+    >
       <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md text-xs font-semibold ${styles[type] || styles.success}`}>
-        <Icon className="w-4 h-4 shrink-0" />
+        <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
         <span>{message}</span>
       </div>
     </div>

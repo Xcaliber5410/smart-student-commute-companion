@@ -145,7 +145,7 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
                   setFormData({ ...formData, origin: area });
                   clearError('origin');
                 }}
-                className={`text-[11px] px-2 py-0.5 rounded-md transition-all ${
+                className={`text-[11px] px-2.5 py-1.5 rounded-md transition-all ${
                   formData.origin === area
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-medium'
                     : 'bg-slate-800/80 hover:bg-slate-750 text-slate-400 hover:text-slate-200 border border-slate-700/50'
@@ -199,7 +199,7 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
                   setFormData({ ...formData, destination: col.value });
                   clearError('destination');
                 }}
-                className={`text-[11px] px-2 py-0.5 rounded-md transition-all ${
+                className={`text-[11px] px-2.5 py-1.5 rounded-md transition-all ${
                   formData.destination === col.value
                     ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-medium'
                     : 'bg-slate-800/80 hover:bg-slate-750 text-slate-400 hover:text-slate-200 border border-slate-700/50'
@@ -214,11 +214,15 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
         {/* Arrival Time and Preference Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
+            <label
+              htmlFor="planner-arrival-time"
+              className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1.5"
+            >
               <Clock className="w-3.5 h-3.5 text-amber-400" />
               Desired Arrival Time
             </label>
             <input
+              id="planner-arrival-time"
               type="time"
               value={formData.desiredArrivalTime}
               onChange={(e) => setFormData({ ...formData, desiredArrivalTime: e.target.value })}
@@ -227,11 +231,15 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
+            <label
+              htmlFor="planner-preference"
+              className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1.5"
+            >
               <Sliders className="w-3.5 h-3.5 text-sky-400" />
               Route Priority
             </label>
             <select
+              id="planner-preference"
               value={formData.preference}
               onChange={(e) => setFormData({ ...formData, preference: e.target.value })}
               className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
@@ -306,10 +314,10 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
 
           <div>
             <div className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1">
-              <span className="flex items-center gap-1.5">
+              <label htmlFor="planner-budget" className="flex items-center gap-1.5 cursor-pointer">
                 <IndianRupee className="w-3.5 h-3.5 text-amber-400" />
                 Max Budget
-              </span>
+              </label>
               <div className="flex items-center gap-1">
                 <span className="text-amber-400 text-xs font-mono">₹</span>
                 <input
@@ -335,6 +343,7 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
               min="10"
               max="600"
               step="10"
+              aria-label={`Maximum budget: ₹${formData.maxBudgetRupees}`}
               value={Math.min(600, formData.maxBudgetRupees || 10)}
               onChange={(e) => setFormData({ ...formData, maxBudgetRupees: parseInt(e.target.value, 10) })}
               className="w-full accent-amber-500 bg-slate-950 rounded-lg cursor-pointer h-1.5"
@@ -351,7 +360,7 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
                   key={preset}
                   type="button"
                   onClick={() => setFormData({ ...formData, maxBudgetRupees: preset })}
-                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                  className={`text-[10px] px-2 py-1.5 rounded border transition-colors ${
                     formData.maxBudgetRupees === preset
                       ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 font-bold'
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
