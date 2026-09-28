@@ -151,9 +151,47 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_rg_members_user_id ON ride_group_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_rg_members_user_role ON ride_group_members(user_id, role);
     CREATE INDEX IF NOT EXISTS idx_student_schedules_user_active_time ON student_schedules(user_id, active, target_arrival_time);
+
+    -- 8. Notifications & Reminders (Day 7)
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL DEFAULT 'reminder',
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'medium',
+      read INTEGER NOT NULL DEFAULT 0,
+      read_at INTEGER,
+      related_resource_type TEXT,
+      related_resource_id TEXT,
+      payload TEXT DEFAULT '{}',
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS reminders (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      message TEXT,
+      scheduled_time INTEGER NOT NULL,
+      reminder_type TEXT NOT NULL DEFAULT 'commute',
+      status TEXT NOT NULL DEFAULT 'scheduled',
+      related_resource_type TEXT,
+      related_resource_id TEXT,
+      triggered_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
+    CREATE INDEX IF NOT EXISTS idx_reminders_user_status ON reminders(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_reminders_scheduled_status ON reminders(status, scheduled_time ASC);
   `);
 
-  // 8. GTFS Tables
+  // 9. GTFS Tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS gtfs_agency (
       agency_id TEXT PRIMARY KEY,
