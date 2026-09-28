@@ -17,6 +17,9 @@ export default function TransitSearchForm({
   onQueryChange,
   onSubmit,
   isSearching = false,
+  recentSearches = [],
+  onSelectRecent,
+  onClearRecent,
 }) {
   const canSubmit = query.trim().length > 0 && !isSearching;
 
@@ -64,6 +67,33 @@ export default function TransitSearchForm({
             {isSearching ? 'Searching...' : 'Search Network'}
           </Button>
         </div>
+
+        {/* Recent searches — one click re-runs a previous query */}
+        {recentSearches.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-3">
+            <span className="text-[11px] font-semibold text-slate-400">
+              Recent:
+            </span>
+            {recentSearches.map((recent) => (
+              <button
+                key={recent}
+                type="button"
+                onClick={() => onSelectRecent?.(recent)}
+                className="text-[11px] px-2 py-0.5 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/50 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                aria-label={`Search again for ${recent}`}
+              >
+                {recent}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={onClearRecent}
+              className="text-[11px] text-slate-400 hover:text-white underline underline-offset-2 px-1 py-0.5 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+            >
+              Clear
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );

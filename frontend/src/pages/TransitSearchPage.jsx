@@ -23,6 +23,11 @@ export default function TransitSearchPage({
   error = null,
   onRetry,
   onRefresh,
+  recentSearches = [],
+  onSelectRecent,
+  onClearRecent,
+  onUseAsOrigin,
+  onUseAsDestination,
 }) {
   const stops = result?.stops || [];
   const routes = result?.routes || [];
@@ -62,6 +67,9 @@ export default function TransitSearchPage({
           onQueryChange={onQueryChange}
           onSubmit={onSearch}
           isSearching={status === 'loading'}
+          recentSearches={recentSearches}
+          onSelectRecent={onSelectRecent}
+          onClearRecent={onClearRecent}
         />
       </section>
 
@@ -113,7 +121,12 @@ export default function TransitSearchPage({
               />
             </div>
 
-            <TransitResults stops={stops} routes={routes} />
+            <TransitResults
+              stops={stops}
+              routes={routes}
+              onUseAsOrigin={onUseAsOrigin}
+              onUseAsDestination={onUseAsDestination}
+            />
           </>
         )}
       </section>

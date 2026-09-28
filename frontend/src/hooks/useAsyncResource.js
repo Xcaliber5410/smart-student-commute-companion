@@ -54,6 +54,10 @@ export default function useAsyncResource(loadFn, { errorMessage } = {}) {
     statusRef.current = status;
   }, [status]);
   useEffect(() => {
+    // Re-arm on (re)mount: React StrictMode runs mount → cleanup → mount in
+    // development, so the flag must be reset on every effect run — otherwise
+    // every response would be treated as stale and state would stay "loading".
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };

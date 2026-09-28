@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { MapPin, Signpost, Train, TramFront, Bus, Ship, Navigation } from 'lucide-react';
-import { Badge, DataCard, EmptyState, MetaList, MetaRow, Tabs, TabPanel } from './ui';
+import { MapPin, Signpost, Train, TramFront, Bus, Ship, Navigation, ChevronDown, GraduationCap } from 'lucide-react';
+import { Badge, Button, DataCard, EmptyState, MetaList, MetaRow, Select, Tabs, TabPanel } from './ui';
+import { sortItems } from '../utils/listControls';
+import { readTransitSortPreference, writeTransitSortPreference } from '../utils/uiPreferences';
 
 /**
  * GTFS route_type → human label + decorative icon + Badge variant.
@@ -29,23 +31,65 @@ function formatDistance(meters) {
  * Renders the matched GTFS stops and routes inside an accessible tab
  * (segmented control) using the shared data-display primitives
  * (Tabs / DataCard / Badge / MetaRow).
- * Presentation only — the search itself is owned by the application layer;
- * the selected tab is local view state for this component.
  *
- * @param {Object} props
- * @param {Array} [props.stops=[]] - Matched GTFS stops
- * @param {Array} [props.routes=[]] - Matched GTFS routes/lines
+ * Interactions owned here (local view state):
+ * - active result tab
+ * - per-tab sorting (persisted as a local UI preference)
+ * - expanded/collapsed stop detail sections
+ * - "set as start / destination" hand-off actions (callbacks via props)
  */
-export default function TransitResults({ stops = [], routes = [] }) {
+export default function TransitResults({
+  stops = [],
+  routes = [],
+  onUseAsOrigin,
+  onUseAsDestination,
+}) {
   const [activeTab, setActiveTab] = useState('stops');
+  const [expandedStopId, setExpandedStopId] = useState(null);
+  const [sort, setSort] = useState(() => readTransitSortPreference());
+
+  const hasDistances = stops.some((s) => typeof s.distanceMeters === 'number');
+
+  const sortedStops = sortItems(
+    stops,
+    sort.stops === 'distance' ? 'distanceMeters' : 'stop_name',
+    'asc'
+  );
+  const sortedRoutes = sortItems(
+    routes,
+    null,
+    'asc',
+    (r) => r.route_long_name || r.route_short_name || r.route_id || ''
+  );
+
+  const handleSortChange = (tabId, value) => {
+    const next = { ...sort, [tabId]: value };
+    setSort(next);
+    writeTransitSortPreference(next);
+  };
+
+  const toggleStopDetails = (stopId) => {
+    setExpandedStopId((prev) => (prev === stopId ? null : stopId));
+  };
 
   const tabs = [
     { id: 'stops', label: 'Stops & Stations', icon: MapPin, count: stops.length },
     { id: 'routes', label: 'Routes & Lines', icon: Train, count: routes.length },
   ];
 
+  const sortOptions =
+    activeTab === 'stops'
+      ? [
+          { value: 'name', label: 'Sort: Name (A-Z)' },
+          ...(hasDistances ? [{ value: 'distance', label: 'Sort: Nearest first' }] : []),
+        ]
+      : [
+          { value: 'name', label: 'Sort: Name (A-Z)' },
+          { value: 'type', label: 'Sort: Type of service' },
+        ];
+
   const renderStops = () =>
-    stops.length === 0 ? (
+    sortedStops.length === 0 ? (
       <EmptyState
         icon={<MapPin className="w-6 h-6 text-emerald-400" aria-hidden="true" />}
         title="No stops matched this search"
@@ -64,11 +108,15 @@ export default function TransitResults({ stops = [], routes = [] }) {
       />
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        {stops.map((stop) => {
+        {sortedStops.map((stop) => {
+          const stopId = stop.stop_id || stop.stop_name;
           const distance = formatDistance(stop.distanceMeters);
+          const isExpanded = expandedStopId === stopId;
+          const detailsId = `stop-details-${stopId}`;
+
           return (
             <DataCard
-              key={stop.stop_id || stop.stop_name}
+              key={stopId}
               accent="bg-emerald-500"
               header={
                 <>
@@ -84,9 +132,24 @@ export default function TransitResults({ stops = [], routes = [] }) {
               }
               title={<span className="font-semibold text-white">{stop.stop_name}</span>}
               footer={
-                <span className="text-slate-400 text-[11px] font-mono">
-                  {stop.stop_id}
-                </span>
+                <>
+                  <span className="text-slate-400 text-[11px] font-mono">
+                    {stop.stop_id}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleStopDetails(stopId)}
+                    aria-expanded={isExpanded}
+                    aria-controls={detailsId}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-emerald-300 px-1.5 py-0.5 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                  >
+                    <span>{isExpanded ? 'Hide details' : 'Details'}</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </>
               }
             >
               <MetaList>
@@ -97,6 +160,40 @@ export default function TransitResults({ stops = [], routes = [] }) {
                   {Number(stop.stop_lat).toFixed(4)}, {Number(stop.stop_lon).toFixed(4)}
                 </MetaRow>
               </MetaList>
+
+              {(onUseAsOrigin || onUseAsDestination) && (
+                <div
+                  id={detailsId}
+                  hidden={!isExpanded}
+                  className="mt-2.5 pt-2.5 border-t border-slate-800/70 space-y-2"
+                >
+                  <p className="text-[11px] text-slate-400">
+                    Use this stop as the starting point or destination of a planned commute.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {onUseAsOrigin && (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon={<Navigation className="w-3.5 h-3.5" aria-hidden="true" />}
+                        onClick={() => onUseAsOrigin(stop.stop_name)}
+                      >
+                        Set as start
+                      </Button>
+                    )}
+                    {onUseAsDestination && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon={<GraduationCap className="w-3.5 h-3.5" aria-hidden="true" />}
+                        onClick={() => onUseAsDestination(stop.stop_name)}
+                      >
+                        Set as destination
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
             </DataCard>
           );
         })}
@@ -104,7 +201,7 @@ export default function TransitResults({ stops = [], routes = [] }) {
     );
 
   const renderRoutes = () =>
-    routes.length === 0 ? (
+    sortedRoutes.length === 0 ? (
       <EmptyState
         icon={<Train className="w-6 h-6 text-indigo-400" aria-hidden="true" />}
         title="No lines matched this search"
@@ -123,7 +220,7 @@ export default function TransitResults({ stops = [], routes = [] }) {
       />
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        {routes.map((route) => {
+        {sortedRoutes.map((route) => {
           const type = routeTypeOf(route.route_type);
           const TypeIcon = type.icon;
           return (
@@ -172,13 +269,24 @@ export default function TransitResults({ stops = [], routes = [] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Tabs
-          idPrefix="transit-results"
-          ariaLabel="Transit result type"
-          tabs={tabs}
-          activeTab={activeTab}
-          onChange={setActiveTab}
-        />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Tabs
+            idPrefix="transit-results"
+            ariaLabel="Transit result type"
+            tabs={tabs}
+            activeTab={activeTab}
+            onChange={setActiveTab}
+          />
+          <Select
+            id={`transit-sort-${activeTab}`}
+            aria-label={`Sort ${activeTab === 'stops' ? 'stops' : 'routes'}`}
+            value={sort[activeTab]}
+            onChange={(e) => handleSortChange(activeTab, e.target.value)}
+            options={sortOptions}
+            containerClassName="min-w-[150px]"
+            className="py-1.5 text-xs"
+          />
+        </div>
         <span className="text-[11px] font-mono text-slate-400" aria-live="polite">
           {stops.length + routes.length} total matches
         </span>

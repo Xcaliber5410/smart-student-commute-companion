@@ -23,6 +23,7 @@ import {
   joinGroup 
 } from './services/rideGroups';
 import { searchTransit } from './services/transit';
+import { readRecentSearches, rememberSearch, clearRecentSearches } from './utils/uiPreferences';
 import { resetDemoState } from './services/api';
 import { getSocket } from './services/socket';
 import useAsyncResource from './hooks/useAsyncResource';
@@ -57,8 +58,9 @@ export default function App() {
   const reports = reportsResource.data || [];
   const groups = groupsResource.data || [];
 
-  // Transit Search query state
+  // Transit Search query state (draft is preserved while navigating between screens)
   const [transitQuery, setTransitQuery] = useState('');
+  const [recentSearches, setRecentSearches] = useState(() => readRecentSearches());
 
   // Planner Form State
   const [formData, setFormData] = useState({
@@ -233,8 +235,33 @@ export default function App() {
   const handleTransitSearch = (rawQuery) => {
     const q = (rawQuery || '').trim();
     if (!q) return; // empty queries never reach the API
+    setRecentSearches(rememberSearch(q));
     transitParamsRef.current = { q };
     transitResource.load();
+  };
+
+  // Re-run a remembered search from the recent-search chips
+  const handleSelectRecentSearch = (q) => {
+    setTransitQuery(q);
+    handleTransitSearch(q);
+  };
+
+  const handleClearRecentSearches = () => {
+    setRecentSearches(clearRecentSearches());
+    showToast('Recent searches cleared.', 'info');
+  };
+
+  // Hand a searched stop over to the planner (cross-screen hand-off)
+  const handleUseAsOrigin = (place) => {
+    setFormData((prev) => ({ ...prev, origin: place }));
+    setActiveTab('planner');
+    showToast(`Starting point set to "${place}". Press Plan Route to recalculate.`);
+  };
+
+  const handleUseAsDestination = (place) => {
+    setFormData((prev) => ({ ...prev, destination: place }));
+    setActiveTab('planner');
+    showToast(`Destination set to "${place}". Press Plan Route to recalculate.`);
   };
 
   // Retry the last transit search (keeps the original query parameters)
@@ -339,6 +366,11 @@ export default function App() {
             error={transitResource.error}
             onRetry={handleTransitRetry}
             onRefresh={() => transitResource.load()}
+            recentSearches={recentSearches}
+            onSelectRecent={handleSelectRecentSearch}
+            onClearRecent={handleClearRecentSearches}
+            onUseAsOrigin={handleUseAsOrigin}
+            onUseAsDestination={handleUseAsDestination}
           />
         );
 
