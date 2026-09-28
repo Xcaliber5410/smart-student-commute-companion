@@ -7,6 +7,7 @@ import {
   WifiOff, 
   Users, 
   AlertTriangle, 
+  TrainFront,
   Menu, 
   X 
 } from 'lucide-react';
@@ -23,6 +24,13 @@ const NAV_ITEMS = [
     shortLabel: 'Planner',
     icon: Compass,
     description: 'Multimodal AI transit recommendations'
+  },
+  {
+    id: 'transit',
+    label: 'Transit Search',
+    shortLabel: 'Search',
+    icon: TrainFront,
+    description: 'Official Mumbai GTFS stations & lines lookup'
   },
   {
     id: 'together',

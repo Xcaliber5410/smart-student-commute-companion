@@ -251,6 +251,17 @@ export async function joinRideGroup(groupId) {
 }
 
 /**
+ * Search the GTFS transit network (stops + routes)
+ * Supports the real backend query contract (transitSearchQuerySchema):
+ * q (free text) — or lat/lon for a nearby search.
+ *
+ * @param {Object} [params] - { q, lat, lon }
+ */
+export async function searchTransitNetwork(params = {}) {
+  return request(`/transit/search${buildQuery(params)}`);
+}
+
+/**
  * Submit route quality feedback
  * @param {Object} feedbackData - Feedback payload
  */

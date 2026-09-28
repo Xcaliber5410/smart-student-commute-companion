@@ -6,7 +6,7 @@ import MapView from './components/MapView';
 import CreateReportModal from './components/CreateReportModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
-import { PlannerPage, TravelTogetherPage, LiveAlertsPage } from './pages';
+import { PlannerPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage } from './pages';
 import { 
   requestPlan, 
   sendFeedback
@@ -22,6 +22,7 @@ import {
   createGroup, 
   joinGroup 
 } from './services/rideGroups';
+import { searchTransit } from './services/transit';
 import { resetDemoState } from './services/api';
 import { getSocket } from './services/socket';
 import useAsyncResource from './hooks/useAsyncResource';
@@ -46,8 +47,18 @@ export default function App() {
     { errorMessage: 'Unable to load commute groups. Please check your connection and try again.' }
   );
 
+  // Transit Search — on-demand resource (request params are supplied per search)
+  const transitParamsRef = useRef({});
+  const transitResource = useAsyncResource(
+    () => searchTransit(transitParamsRef.current),
+    { errorMessage: 'Unable to search the transit network. Please check your connection and try again.' }
+  );
+
   const reports = reportsResource.data || [];
   const groups = groupsResource.data || [];
+
+  // Transit Search query state
+  const [transitQuery, setTransitQuery] = useState('');
 
   // Planner Form State
   const [formData, setFormData] = useState({
@@ -218,6 +229,20 @@ export default function App() {
     }
   };
 
+  // Transit Search Action
+  const handleTransitSearch = (rawQuery) => {
+    const q = (rawQuery || '').trim();
+    if (!q) return; // empty queries never reach the API
+    transitParamsRef.current = { q };
+    transitResource.load();
+  };
+
+  // Retry the last transit search (keeps the original query parameters)
+  const handleTransitRetry = () => {
+    if (!transitParamsRef.current.q) return;
+    transitResource.load();
+  };
+
   // Feedback Action
   const handleFeedbackSubmit = async (feedbackData) => {
     await sendFeedback(feedbackData);
@@ -300,6 +325,20 @@ export default function App() {
             onRetryLoad={reportsResource.load}
             isRefreshing={reportsResource.isRefreshing}
             onRefresh={reportsResource.load}
+          />
+        );
+
+      case 'transit':
+        return (
+          <TransitSearchPage
+            query={transitQuery}
+            onQueryChange={setTransitQuery}
+            onSearch={handleTransitSearch}
+            status={transitResource.status}
+            result={transitResource.data}
+            error={transitResource.error}
+            onRetry={handleTransitRetry}
+            onRefresh={() => transitResource.load()}
           />
         );
 
