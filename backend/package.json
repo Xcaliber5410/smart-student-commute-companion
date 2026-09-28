@@ -26,6 +26,7 @@
     "verify:student-dashboard": "node scripts/verify_student_dashboard.js",
     "verify:student-perf": "node scripts/verify_student_perf.js",
     "verify:notification-models": "node scripts/verify_notification_models.js",
+    "verify:notification-service": "node scripts/verify_notification_service.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",
