@@ -29,6 +29,7 @@
     "verify:notification-service": "node scripts/verify_notification_service.js",
     "verify:reminder-service": "node scripts/verify_reminder_service.js",
     "verify:reminder-scheduler": "node scripts/verify_reminder_scheduler.js",
+    "verify:notification-api": "node scripts/verify_notification_api.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",

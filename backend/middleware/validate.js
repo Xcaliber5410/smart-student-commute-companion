@@ -16,27 +16,34 @@ const { ValidationError } = require('../errors');
  * @param {import('zod').ZodType} [schemas.query] - Schema for req.query
  * @returns {import('express').RequestHandler}
  */
-function validate(schemas = {}) {
+function validate(schemas = {}, targetSegment = null) {
+  let effectiveSchemas = schemas;
+  if (targetSegment && typeof targetSegment === 'string') {
+    effectiveSchemas = { [targetSegment]: schemas };
+  } else if (schemas && schemas._def && !schemas.body && !schemas.query && !schemas.params) {
+    effectiveSchemas = { body: schemas };
+  }
+
   return (req, res, next) => {
     try {
-      if (schemas.params) {
-        const result = schemas.params.safeParse(req.params);
+      if (effectiveSchemas.params) {
+        const result = effectiveSchemas.params.safeParse(req.params);
         if (!result.success) {
           return next(new ValidationError('Invalid route parameters', result.error.format()));
         }
         req.params = result.data;
       }
 
-      if (schemas.query) {
-        const result = schemas.query.safeParse(req.query);
+      if (effectiveSchemas.query) {
+        const result = effectiveSchemas.query.safeParse(req.query);
         if (!result.success) {
           return next(new ValidationError('Invalid query parameters', result.error.format()));
         }
         req.query = result.data;
       }
 
-      if (schemas.body) {
-        const result = schemas.body.safeParse(req.body);
+      if (effectiveSchemas.body) {
+        const result = effectiveSchemas.body.safeParse(req.body);
         if (!result.success) {
           return next(new ValidationError('Validation failed', result.error.format()));
         }

@@ -27,9 +27,9 @@ class NotificationService {
       throw new ForbiddenError('Authentication required to access notification resources');
     }
 
-    const targetUserId = typeof target === 'string' ? target : target.user_id;
+    const targetUserId = typeof target === 'string' ? target : (target ? target.user_id : null);
 
-    if (requestingUser.role === 'admin' || requestingUser.id === targetUserId) {
+    if (requestingUser.role === 'admin' || (targetUserId && requestingUser.id === targetUserId)) {
       return true;
     }
 
