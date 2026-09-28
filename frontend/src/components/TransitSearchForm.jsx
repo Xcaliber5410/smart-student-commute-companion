@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, TrainFront } from 'lucide-react';
 import { Button, Input } from './ui';
+import { validateText } from '../utils/validation';
 
 /**
  * TransitSearchForm - Search controls for the Transit Search feature
@@ -21,11 +22,32 @@ export default function TransitSearchForm({
   onSelectRecent,
   onClearRecent,
 }) {
+  const [queryError, setQueryError] = useState(null);
+
   const canSubmit = query.trim().length > 0 && !isSearching;
+
+  const handleChange = (value) => {
+    onQueryChange(value);
+    if (queryError) setQueryError(null); // clear as the user types
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (isSearching) return;
+
+    // Client-side validation — mirrors the backend contract (1–100 chars)
+    const trimmed = query.trim();
+    const error =
+      trimmed.length === 0
+        ? 'Enter a station, stop, or line name to search.'
+        : validateText(trimmed, { minLength: 2, maxLength: 100, label: 'Search query' });
+    if (error) {
+      setQueryError(error);
+      document.getElementById('transit-search-query')?.focus();
+      return;
+    }
+
+    setQueryError(null);
     onSubmit(query);
   };
 
@@ -48,13 +70,16 @@ export default function TransitSearchForm({
             id="transit-search-query"
             label="Station, stop, or line"
             type="search"
+            required
             value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             placeholder="e.g. Dadar, Andheri, Western Line, Metro 1..."
             hint="Searches official Mumbai GTFS data — suburban rail, metro, and BEST routes."
+            error={queryError || undefined}
             icon={<Search className="w-4 h-4" aria-hidden="true" />}
             containerClassName="flex-1 min-w-0"
             autoComplete="off"
+            maxLength={100}
           />
           <Button
             type="submit"

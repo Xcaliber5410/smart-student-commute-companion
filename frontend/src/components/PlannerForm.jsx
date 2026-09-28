@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Navigation, 
   GraduationCap, 
@@ -15,6 +15,20 @@ import {
   Scale, 
   Coins 
 } from 'lucide-react';
+import {
+  validateForm,
+  validateRequired,
+  validateText,
+  validateNumber,
+  focusFirstInvalid,
+} from '../utils/validation';
+
+/** Field → DOM id map so the first invalid control receives focus. */
+const FIELD_IDS = {
+  origin: 'planner-origin',
+  destination: 'planner-destination',
+  maxBudgetRupees: 'planner-budget',
+};
 
 const COLLEGE_PRESETS = [
   { label: 'IIT Bombay (Powai)', value: 'IIT Bombay Powai' },
@@ -31,6 +45,12 @@ const ORIGIN_PRESETS = [
 ];
 
 export default function PlannerForm({ formData, setFormData, onPlan, isLoading }) {
+  const [errors, setErrors] = useState({});
+
+  const clearError = (field) => {
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: null } : prev));
+  };
+
   const toggleMode = (mode) => {
     const current = [...formData.preferredModes];
     if (current.includes(mode)) {
@@ -44,6 +64,29 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Client-side validation before dispatching a plan request
+    const { isValid, errors: validationErrors } = validateForm(formData, {
+      origin: [
+        (v) => validateRequired(v, 'Starting area'),
+        (v) => validateText(v, { minLength: 2, maxLength: 100, label: 'Starting area' }),
+      ],
+      destination: [
+        (v) => validateRequired(v, 'College destination'),
+        (v) => validateText(v, { minLength: 2, maxLength: 100, label: 'College destination' }),
+      ],
+      maxBudgetRupees: [
+        (v) => validateNumber(v, { min: 5, max: 1500, label: 'Max budget' }),
+      ],
+    });
+
+    if (!isValid) {
+      setErrors(validationErrors);
+      focusFirstInvalid(validationErrors, FIELD_IDS);
+      return;
+    }
+
+    setErrors({});
     onPlan();
   };
 
@@ -59,7 +102,7 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
         </span>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
         {/* Origin */}
         <div>
           <label htmlFor="planner-origin" className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
@@ -73,18 +116,35 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
             type="text"
             required
             aria-required="true"
+            aria-invalid={errors.origin ? 'true' : 'false'}
+            aria-describedby={errors.origin ? 'planner-origin-error' : undefined}
             value={formData.origin}
-            onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
+            onChange={(e) => {
+              setFormData({ ...formData, origin: e.target.value });
+              clearError('origin');
+            }}
             placeholder="e.g. Andheri East, Borivali, Dadar..."
-            className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+            className={`w-full bg-slate-950 border rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
+              errors.origin
+                ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/50'
+                : 'border-slate-700/80 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500'
+            }`}
           />
+          {errors.origin && (
+            <p id="planner-origin-error" className="mt-1.5 text-xs text-rose-400" role="alert">
+              {errors.origin}
+            </p>
+          )}
           {/* Quick origin suggestions */}
           <div className="flex flex-wrap gap-1.5 mt-2">
             {ORIGIN_PRESETS.slice(0, 5).map((area) => (
               <button
                 key={area}
                 type="button"
-                onClick={() => setFormData({ ...formData, origin: area })}
+                onClick={() => {
+                  setFormData({ ...formData, origin: area });
+                  clearError('origin');
+                }}
                 className={`text-[11px] px-2 py-0.5 rounded-md transition-all ${
                   formData.origin === area
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-medium'
@@ -110,18 +170,35 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
             type="text"
             required
             aria-required="true"
+            aria-invalid={errors.destination ? 'true' : 'false'}
+            aria-describedby={errors.destination ? 'planner-destination-error' : undefined}
             value={formData.destination}
-            onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
+            onChange={(e) => {
+              setFormData({ ...formData, destination: e.target.value });
+              clearError('destination');
+            }}
             placeholder="e.g. IIT Bombay, VJTI, NMIMS..."
-            className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+            className={`w-full bg-slate-950 border rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
+              errors.destination
+                ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/50'
+                : 'border-slate-700/80 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500'
+            }`}
           />
+          {errors.destination && (
+            <p id="planner-destination-error" className="mt-1.5 text-xs text-rose-400" role="alert">
+              {errors.destination}
+            </p>
+          )}
           {/* Quick College presets */}
           <div className="flex flex-wrap gap-1.5 mt-2">
             {COLLEGE_PRESETS.map((col) => (
               <button
                 key={col.value}
                 type="button"
-                onClick={() => setFormData({ ...formData, destination: col.value })}
+                onClick={() => {
+                  setFormData({ ...formData, destination: col.value });
+                  clearError('destination');
+                }}
                 className={`text-[11px] px-2 py-0.5 rounded-md transition-all ${
                   formData.destination === col.value
                     ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-medium'
@@ -236,14 +313,18 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
               <div className="flex items-center gap-1">
                 <span className="text-amber-400 text-xs font-mono">₹</span>
                 <input
+                  id="planner-budget"
                   type="number"
                   min="5"
                   max="1500"
                   step="5"
+                  aria-invalid={errors.maxBudgetRupees ? 'true' : 'false'}
+                  aria-describedby={errors.maxBudgetRupees ? 'planner-budget-error' : undefined}
                   value={formData.maxBudgetRupees}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10);
                     setFormData({ ...formData, maxBudgetRupees: isNaN(val) ? 0 : val });
+                    clearError('maxBudgetRupees');
                   }}
                   className="w-16 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-right font-bold text-amber-400 text-xs focus:outline-none focus:border-amber-400"
                 />
@@ -258,6 +339,11 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
               onChange={(e) => setFormData({ ...formData, maxBudgetRupees: parseInt(e.target.value, 10) })}
               className="w-full accent-amber-500 bg-slate-950 rounded-lg cursor-pointer h-1.5"
             />
+            {errors.maxBudgetRupees && (
+              <p id="planner-budget-error" className="mt-1 text-xs text-rose-400" role="alert">
+                {errors.maxBudgetRupees}
+              </p>
+            )}
             {/* Quick Budget Chips */}
             <div className="flex items-center gap-1 mt-1.5 overflow-x-auto pb-0.5">
               {[25, 50, 100, 200, 350, 500].map((preset) => (

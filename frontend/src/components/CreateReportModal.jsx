@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { Send, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Input, Select, Textarea, Modal } from './ui';
-import { validateForm, validateRequired, validateText, createSubmitGuard } from '../utils/validation';
+import { validateForm, validateRequired, validateText, focusFirstInvalid, createSubmitGuard } from '../utils/validation';
+
+/** Field → DOM id map so the first invalid control receives focus. */
+const FIELD_IDS = {
+  pseudonym: 'report-pseudonym',
+  area: 'report-area',
+  route_name: 'report-route-name',
+  message: 'report-message',
+};
 
 export default function CreateReportModal({ isOpen, onClose, onSubmit, isSubmitting }) {
   const [formData, setFormData] = useState({
@@ -41,6 +49,8 @@ export default function CreateReportModal({ isOpen, onClose, onSubmit, isSubmitt
 
     if (!isValid) {
       setErrors(validationErrors);
+      // Focus the first invalid field for keyboard/switch users
+      focusFirstInvalid(validationErrors, FIELD_IDS);
       // Preserves entered values while alerting user to fix errors
       return;
     }

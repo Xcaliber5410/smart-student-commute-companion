@@ -116,6 +116,42 @@ export function validateTime(value, label = 'Time') {
 }
 
 /**
+ * Validate a departure/arrival time in either 24-hour (HH:MM) or
+ * 12-hour (hh:mm AM/PM) format — both are accepted by the commute UI.
+ *
+ * @param {string} value - Time string
+ * @param {string} [label='Departure time'] - Human-readable label
+ * @returns {string|null} Error message or null if valid
+ */
+export function validateDepartureTime(value, label = 'Departure time') {
+  if (!value || typeof value !== 'string' || value.trim().length === 0) {
+    return `${label} is required.`;
+  }
+  const DEPARTURE_TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d(\s?[ap]m)?$/i;
+  if (!DEPARTURE_TIME_REGEX.test(value.trim())) {
+    return `Please enter ${label.toLowerCase()} as HH:MM (e.g. 08:30 or 08:30 AM).`;
+  }
+  return null;
+}
+
+/**
+ * Move keyboard focus to the first invalid field of a submitted form.
+ * Keeps error messages and focus in sync for keyboard/switch users.
+ *
+ * @param {Object} errors - Field → message map from validateForm()
+ * @param {Object<string,string>} fieldIds - Field → DOM element id map
+ * @returns {string|null} The id that received focus (or null)
+ */
+export function focusFirstInvalid(errors, fieldIds = {}) {
+  const firstField = Object.keys(errors)[0];
+  const elementId = firstField ? fieldIds[firstField] : null;
+  if (elementId && typeof document !== 'undefined') {
+    document.getElementById(elementId)?.focus();
+  }
+  return elementId;
+}
+
+/**
  * Validate an entire form data object against a declarative rules schema
  * 
  * @param {Object} data - Form data key-value pairs
