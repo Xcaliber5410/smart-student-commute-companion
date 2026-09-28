@@ -188,6 +188,56 @@ import { SettingsIcon } from 'lucide-react';
 </Card>
 ```
 
+### Tabs (+ TabPanel)
+Accessible tab strip / segmented control for switching between related views of the same data. Active state is owned by the caller.
+
+```jsx
+import { Tabs, TabPanel } from '@/components/ui';
+
+const tabs = [
+  { id: 'stops', label: 'Stops & Stations', icon: MapPin, count: 12 },
+  { id: 'routes', label: 'Routes & Lines', icon: Train, count: 4 },
+];
+
+<Tabs
+  idPrefix="transit-results"
+  ariaLabel="Transit result type"
+  tabs={tabs}
+  activeTab={activeTab}
+  onChange={setActiveTab}
+/>
+
+<TabPanel idPrefix="transit-results" tabId={activeTab}>
+  {/* active panel content */}
+</TabPanel>
+```
+
+Roving tabindex + Arrow/Home/End keys move between tabs. Use the same `idPrefix` for `Tabs` and `TabPanel` so `aria-controls` / `aria-labelledby` line up.
+
+### StatTile
+Compact summary metric (value + label + optional icon/hint) for counts at the top of feature screens. Value and label are real text — never color-only.
+
+```jsx
+import { StatTile } from '@/components/ui';
+
+<div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+  <StatTile value={reports.length} label="Active alerts" icon={<AlertTriangle />} variant="amber" />
+  <StatTile value={highImpact} label="High impact" icon={<AlertCircle />} variant="rose" />
+</div>
+```
+
+**Variants**: `slate`, `emerald`, `sky`, `amber`, `rose`, `indigo`
+
+### ListSkeleton
+Stable-size shimmer rows mirroring the DataCard list layout, with an accessible status message for screen readers.
+
+```jsx
+import { ListSkeleton } from '@/components/ui';
+
+// Loading placeholder — no layout jump when data arrives
+<ListSkeleton rows={3} label="Searching the transit network" />
+```
+
 ## Import Patterns
 
 **Recommended** (barrel import):

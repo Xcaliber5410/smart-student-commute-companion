@@ -36,3 +36,8 @@ export { default as FilterBar, FilterChip } from './FilterBar';
 // Reusable Dialog & Confirmation Patterns
 export { default as Modal } from './Modal';
 export { default as ConfirmDialog } from './ConfirmDialog';
+
+// Reusable View Switching, Summary & Loading Components (Day 4)
+export { default as Tabs, TabPanel } from './Tabs';
+export { default as StatTile } from './StatTile';
+export { default as ListSkeleton } from './ListSkeleton';

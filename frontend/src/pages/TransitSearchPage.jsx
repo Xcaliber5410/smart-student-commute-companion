@@ -1,8 +1,8 @@
 import React from 'react';
-import { Search as SearchIcon, RefreshCw } from 'lucide-react';
+import { Search as SearchIcon, RefreshCw, MapPin, Train } from 'lucide-react';
 import TransitSearchForm from '../components/TransitSearchForm';
 import TransitResults from '../components/TransitResults';
-import { LoadingState, ErrorState, EmptyState } from '../components/ui';
+import { ErrorState, EmptyState, ListSkeleton, StatTile } from '../components/ui';
 
 /**
  * TransitSearchPage - Core "Transit Search" feature page structure
@@ -74,9 +74,9 @@ export default function TransitSearchPage({
             description="Enter a station, stop, or line name above to explore official GTFS data — suburban rail, metro, and BEST bus routes."
           />
         ) : status === 'loading' ? (
-          <LoadingState
-            title="Searching the transit network..."
-            description="Looking up matching stops and lines in the official Mumbai GTFS dataset."
+          <ListSkeleton
+            rows={3}
+            label="Searching the transit network for matching stops and lines"
           />
         ) : status === 'error' ? (
           <ErrorState
@@ -96,7 +96,25 @@ export default function TransitSearchPage({
             description="Try a shorter keyword — for example a station (Dadar), an area (Andheri), or a line (Western Line)."
           />
         ) : (
-          <TransitResults stops={stops} routes={routes} />
+          <>
+            {/* Quick summary of the current result set */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <StatTile
+                value={stops.length}
+                label="Stops found"
+                icon={<MapPin className="w-4 h-4" aria-hidden="true" />}
+                variant="emerald"
+              />
+              <StatTile
+                value={routes.length}
+                label="Lines found"
+                icon={<Train className="w-4 h-4" aria-hidden="true" />}
+                variant="indigo"
+              />
+            </div>
+
+            <TransitResults stops={stops} routes={routes} />
+          </>
         )}
       </section>
     </div>

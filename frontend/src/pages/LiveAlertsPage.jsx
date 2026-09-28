@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Search as SearchIcon, RefreshCw } from 'lucide-react';
+import { Search as SearchIcon, RefreshCw, AlertTriangle, AlertCircle, MapPin } from 'lucide-react';
 import LiveStudentFeed from '../components/LiveStudentFeed';
-import { LoadingState, ErrorState, EmptyState, SearchInput, FilterBar, Select } from '../components/ui';
+import { LoadingState, ErrorState, EmptyState, SearchInput, FilterBar, Select, StatTile } from '../components/ui';
 import { applyListControls, buildActiveFilters } from '../utils/listControls';
 
 const IMPACT_LABELS = { low: 'Low', medium: 'Medium', high: 'High' };
@@ -99,6 +99,30 @@ export default function LiveAlertsPage({
           </button>
         )}
       </header>
+
+      {/* Quick summary of the loaded report set */}
+      {!isLoading && !loadError && reports.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <StatTile
+            value={reports.length}
+            label="Active alerts"
+            icon={<AlertTriangle className="w-4 h-4" aria-hidden="true" />}
+            variant="amber"
+          />
+          <StatTile
+            value={reports.filter((r) => r.impact === 'high').length}
+            label="High impact"
+            icon={<AlertCircle className="w-4 h-4" aria-hidden="true" />}
+            variant="rose"
+          />
+          <StatTile
+            value={new Set(reports.map((r) => r.area)).size}
+            label="Areas affected"
+            icon={<MapPin className="w-4 h-4" aria-hidden="true" />}
+            variant="sky"
+          />
+        </div>
+      )}
 
       {/* Search / filter / sort controls */}
       <FilterBar
