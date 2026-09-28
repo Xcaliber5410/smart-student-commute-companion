@@ -498,7 +498,8 @@ const docs = [
   'PWA_TESTING.md',
   'PWA_SUMMARY.md',
   'DAY_01_FOUNDATION_SUMMARY.md',
-  'DAY_03_SUMMARY.md'
+  'DAY_03_SUMMARY.md',
+  'DAY_04_SUMMARY.md'
 ];
 
 docs.forEach(doc => {
@@ -568,6 +569,64 @@ if (uiBarrel && uiBarrel.includes('Badge') && uiBarrel.includes('Modal') && uiBa
   pass('UI barrel exports Day 3 components');
 } else {
   fail('UI barrel missing Day 3 component exports');
+}
+
+// ============================================================
+section('13. DAY 4 FEATURES');
+
+// Day 4 feature screen
+if (fileExists('src/pages/TransitSearchPage.jsx')) pass('Feature page exists: TransitSearchPage.jsx');
+else fail('Feature page missing: src/pages/TransitSearchPage.jsx');
+
+// Day 4 feature components
+['TransitSearchForm.jsx', 'TransitResults.jsx'].forEach(file => {
+  if (fileExists(`src/components/${file}`)) pass(`Feature component exists: ${file}`);
+  else fail(`Feature component missing: src/components/${file}`);
+});
+
+// Day 4 reusable interface components
+['Tabs.jsx', 'StatTile.jsx', 'ListSkeleton.jsx'].forEach(file => {
+  if (fileExists(`src/components/ui/${file}`)) pass(`Reusable UI component exists: ${file}`);
+  else fail(`Reusable UI component missing: src/components/ui/${file}`);
+});
+if (uiBarrel && uiBarrel.includes('Tabs') && uiBarrel.includes('StatTile') && uiBarrel.includes('ListSkeleton')) {
+  pass('UI barrel exports Day 4 components');
+} else {
+  fail('UI barrel missing Day 4 component exports');
+}
+
+// Day 4 client-side state helpers
+if (fileExists('src/utils/uiPreferences.js')) pass('Local UI preference store exists (uiPreferences.js)');
+else fail('Local UI preference store missing (src/utils/uiPreferences.js)');
+if (fileExists('src/utils/validation.js')) pass('Client-side validation helpers exist (validation.js)');
+else fail('Client-side validation helpers missing (src/utils/validation.js)');
+
+// Day 4 feature service + request-state contract
+if (fileExists('src/services/transit.js')) pass('Feature service exists: transit.js');
+else fail('Feature service missing: src/services/transit.js');
+
+['transit.js', 'liveReports.js', 'rideGroups.js'].forEach(file => {
+  const content = readFile(`src/services/${file}`);
+  if (content && content.includes('FrontendApiError')) {
+    pass(`Service surfaces failures as errors: ${file}`);
+  } else {
+    fail(`Service does not distinguish failed requests: ${file}`);
+  }
+});
+
+// Day 4 screens expose loading / error / empty states and request feedback
+const transitPage = readFile('src/pages/TransitSearchPage.jsx');
+if (transitPage && transitPage.includes('ListSkeleton') && transitPage.includes('ErrorState') && transitPage.includes('EmptyState')) {
+  pass('TransitSearchPage provides loading, error, and empty states');
+} else {
+  fail('TransitSearchPage is missing loading/error/empty states');
+}
+
+const alertsPage = readFile('src/pages/LiveAlertsPage.jsx');
+if (alertsPage && alertsPage.includes('role="status"') && alertsPage.includes('isConnectionLost')) {
+  pass('LiveAlertsPage reflects refresh and connection request states');
+} else {
+  fail('LiveAlertsPage missing request-state feedback (refresh/connection)');
 }
 
 // ============================================================
