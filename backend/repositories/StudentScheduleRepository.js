@@ -39,6 +39,17 @@ class StudentScheduleRepository {
     return rows.map(r => StudentSchedule.fromRow(r));
   }
 
+  findActiveSchedulesForDay(day) {
+    if (!day || typeof day !== 'string') return [];
+    const stmt = this.database.prepare(`
+      SELECT * FROM student_schedules 
+      WHERE active = 1 AND LOWER(days_of_week) LIKE LOWER(?)
+      ORDER BY target_arrival_time ASC
+    `);
+    const rows = stmt.all(`%${day}%`);
+    return rows.map(r => StudentSchedule.fromRow(r));
+  }
+
   findWithPaginationAndFilters(userId, options = {}) {
     if (!userId || typeof userId !== 'string') {
       return { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };

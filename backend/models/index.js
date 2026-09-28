@@ -14,6 +14,8 @@ const { StudentProfile, studentProfileSchema } = require('./StudentProfile');
 const { StudentSchedule, studentScheduleSchema } = require('./StudentSchedule');
 const { SavedRoute, savedRouteSchema } = require('./SavedRoute');
 const { RideGroupMember, rideGroupMemberSchema } = require('./RideGroupMember');
+const { Notification, notificationSchema } = require('./Notification');
+const { Reminder, reminderSchema } = require('./Reminder');
 
 module.exports = {
   LiveReport,
@@ -35,5 +37,10 @@ module.exports = {
   SavedRoute,
   savedRouteSchema,
   RideGroupMember,
-  rideGroupMemberSchema
+  rideGroupMemberSchema,
+  Notification,
+  notificationSchema,
+  Reminder,
+  reminderSchema
 };
+

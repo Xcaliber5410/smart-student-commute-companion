@@ -32,6 +32,13 @@ const {
   savedRouteFilterSchema,
   studentGroupFilterSchema
 } = require('./studentValidators');
+const {
+  notificationFilterSchema,
+  bulkReadNotificationSchema,
+  createReminderSchema,
+  updateReminderSchema,
+  reminderFilterSchema
+} = require('./notificationValidators');
 
 module.exports = {
   validate,
@@ -50,6 +57,12 @@ module.exports = {
   updateSavedRouteSchema,
   savedRouteFilterSchema,
   studentGroupFilterSchema,
+  // Notifications & Reminders
+  notificationFilterSchema,
+  bulkReadNotificationSchema,
+  createReminderSchema,
+  updateReminderSchema,
+  reminderFilterSchema,
   // Ride Groups
   createRideGroupSchema,
   updateRideGroupSchema,
@@ -67,3 +80,4 @@ module.exports = {
   // Transit
   transitSearchQuerySchema
 };
+
