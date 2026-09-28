@@ -16,6 +16,7 @@ const { savedRouteService, SavedRouteService } = require('./savedRouteService');
 const { studentDashboardService, StudentDashboardService } = require('./studentDashboardService');
 const { notificationService, NotificationService } = require('./notificationService');
 const { reminderService, ReminderService } = require('./reminderService');
+const { reminderScheduler, ReminderScheduler } = require('./reminderScheduler');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -50,6 +51,8 @@ module.exports = {
   NotificationService,
   reminderService,
   ReminderService,
+  reminderScheduler,
+  ReminderScheduler,
 
   // Commute Planning & Spatial Services
   getActiveReports,
