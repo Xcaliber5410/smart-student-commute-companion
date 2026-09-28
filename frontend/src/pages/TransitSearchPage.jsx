@@ -75,6 +75,15 @@ export default function TransitSearchPage({
 
       {/* Results section: idle → loading → error → content */}
       <section aria-label="Transit search results" aria-busy={isBusy}>
+        {status === 'refreshing' && hasResults && (
+          <p
+            role="status"
+            className="flex items-center gap-2 text-xs text-slate-400 pb-3"
+          >
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" aria-hidden="true" />
+            Updating results for “{trimmedQuery}”…
+          </p>
+        )}
         {status === 'idle' ? (
           <EmptyState
             icon={<SearchIcon />}

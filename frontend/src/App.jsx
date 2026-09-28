@@ -32,6 +32,8 @@ import { AlertCircle, CheckCircle2 } from 'lucide-react';
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner');
   const [isConnected, setIsConnected] = useState(false);
+  // True only AFTER a live-stream disconnect/connect failure (never on first paint)
+  const [isConnectionLost, setIsConnectionLost] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [toast, setToast] = useState(null);
@@ -105,11 +107,18 @@ export default function App() {
 
     socket.on('connect', () => {
       setIsConnected(true);
+      setIsConnectionLost(false);
       socket.emit('join_commute_channel', { area: 'mumbai_general' });
     });
 
     socket.on('disconnect', () => {
       setIsConnected(false);
+      setIsConnectionLost(true);
+    });
+
+    socket.on('connect_error', () => {
+      setIsConnected(false);
+      setIsConnectionLost(true);
     });
 
     socket.on('live_report_created', (newReport) => {
@@ -137,6 +146,7 @@ export default function App() {
     return () => {
       socket.off('connect');
       socket.off('disconnect');
+      socket.off('connect_error');
       socket.off('live_report_created');
       socket.off('live_report_updated');
       socket.off('live_report_expired');
@@ -231,13 +241,54 @@ export default function App() {
     }
   };
 
+  // Refresh helpers — surface background-refresh failures instead of silently
+  // keeping stale data (useAsyncResource keeps loaded data on refresh errors)
+  const handleRefreshReports = async () => {
+    const result = await reportsResource.load();
+    if (!result?.ok && result?.keptData) {
+      showToast('Could not refresh live alerts — showing the previously loaded reports.', 'warning');
+    }
+    return result;
+  };
+
+  const handleRefreshGroups = async () => {
+    const result = await groupsResource.load();
+    if (!result?.ok && result?.keptData) {
+      showToast('Could not refresh commute groups — showing the previously loaded groups.', 'warning');
+    }
+    return result;
+  };
+
+  // Reconnect the live stream after a dropped/failed socket connection
+  const handleReconnect = () => {
+    const socket = getSocket();
+    if (!socket.connected) {
+      socket.connect();
+      showToast('Reconnecting to the live student stream…', 'info');
+    }
+  };
+
   // Transit Search Action
-  const handleTransitSearch = (rawQuery) => {
+  const handleTransitSearch = async (rawQuery) => {
     const q = (rawQuery || '').trim();
     if (!q) return; // empty queries never reach the API
+    // Avoid duplicate in-flight requests for the same query (double-submit)
+    if (transitResource.status === 'loading' && transitParamsRef.current.q === q) return;
     setRecentSearches(rememberSearch(q));
     transitParamsRef.current = { q };
-    transitResource.load();
+    const result = await transitResource.load();
+    if (!result?.ok && result?.keptData) {
+      showToast('Could not update results — showing the previous search results.', 'warning');
+    }
+  };
+
+  // Re-run the current transit query (refresh button) with the same guards
+  const handleTransitRefresh = async () => {
+    if (!transitParamsRef.current.q || transitResource.status === 'loading') return;
+    const result = await transitResource.load();
+    if (!result?.ok && result?.keptData) {
+      showToast('Could not update results — showing the previous search results.', 'warning');
+    }
   };
 
   // Re-run a remembered search from the recent-search chips
@@ -267,6 +318,7 @@ export default function App() {
   // Retry the last transit search (keeps the original query parameters)
   const handleTransitRetry = () => {
     if (!transitParamsRef.current.q) return;
+    if (transitResource.status === 'loading') return; // already in flight
     transitResource.load();
   };
 
@@ -321,7 +373,7 @@ export default function App() {
             loadError={reportsResource.loadError}
             onRetryLoad={reportsResource.load}
             isRefreshing={reportsResource.isRefreshing}
-            onRefresh={reportsResource.load}
+            onRefresh={handleRefreshReports}
           />
         );
 
@@ -335,7 +387,7 @@ export default function App() {
             loadError={groupsResource.loadError}
             onRetryLoad={groupsResource.load}
             isRefreshing={groupsResource.isRefreshing}
-            onRefresh={groupsResource.load}
+            onRefresh={handleRefreshGroups}
           />
         );
 
@@ -347,11 +399,13 @@ export default function App() {
             onContradict={handleContradictReport}
             onOpenCreateReport={() => setIsReportModalOpen(true)}
             isConnected={isConnected}
+            isConnectionLost={isConnectionLost}
+            onReconnect={handleReconnect}
             isLoading={reportsResource.isLoading}
             loadError={reportsResource.loadError}
             onRetryLoad={reportsResource.load}
             isRefreshing={reportsResource.isRefreshing}
-            onRefresh={reportsResource.load}
+            onRefresh={handleRefreshReports}
           />
         );
 
@@ -365,7 +419,7 @@ export default function App() {
             result={transitResource.data}
             error={transitResource.error}
             onRetry={handleTransitRetry}
-            onRefresh={() => transitResource.load()}
+            onRefresh={handleTransitRefresh}
             recentSearches={recentSearches}
             onSelectRecent={handleSelectRecentSearch}
             onClearRecent={handleClearRecentSearches}

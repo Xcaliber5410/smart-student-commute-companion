@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search as SearchIcon, RefreshCw, AlertTriangle, AlertCircle, MapPin } from 'lucide-react';
 import LiveStudentFeed from '../components/LiveStudentFeed';
-import { LoadingState, ErrorState, EmptyState, SearchInput, FilterBar, Select, StatTile } from '../components/ui';
+import { LoadingState, ErrorState, EmptyState, SearchInput, FilterBar, Select, StatTile, Alert } from '../components/ui';
 import { applyListControls, buildActiveFilters } from '../utils/listControls';
 
 const IMPACT_LABELS = { low: 'Low', medium: 'Medium', high: 'High' };
@@ -30,6 +30,8 @@ export default function LiveAlertsPage({
   onContradict,
   onOpenCreateReport,
   isConnected,
+  isConnectionLost = false,
+  onReconnect,
   isLoading = false,
   loadError = null,
   onRetryLoad,
@@ -124,6 +126,27 @@ export default function LiveAlertsPage({
         </div>
       )}
 
+      {/* Live-stream connection state: stale data must be explained, not hidden */}
+      {isConnectionLost && !isLoading && !loadError && (
+        <Alert variant="warning" title="Live updates paused">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              The connection to the live student stream was lost. You are seeing the
+              last loaded reports — new alerts may be delayed.
+            </span>
+            {onReconnect && (
+              <button
+                type="button"
+                onClick={onReconnect}
+                className="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-400/70"
+              >
+                Reconnect
+              </button>
+            )}
+          </div>
+        </Alert>
+      )}
+
       {/* Search / filter / sort controls */}
       <FilterBar
         activeFilters={activeFilters}
@@ -177,6 +200,15 @@ export default function LiveAlertsPage({
       </FilterBar>
 
       <section aria-label="Live disruption reports" aria-busy={isLoading || isRefreshing}>
+        {isRefreshing && !isLoading && !loadError && (
+          <p
+            role="status"
+            className="flex items-center gap-2 text-xs text-slate-400 pb-2"
+          >
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" aria-hidden="true" />
+            Checking for new alerts…
+          </p>
+        )}
         {isLoading ? (
           <LoadingState
             title="Loading live alerts..."

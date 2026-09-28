@@ -19,17 +19,30 @@ import {
   postLiveReport,
   confirmReport,
   contradictReport,
+  FrontendApiError,
 } from './api';
 
 /**
  * List active disruption reports.
+ *
+ * Request-state contract:
+ * - A 2xx response reporting `success: false` rejects instead of resolving to
+ *   an empty list, so screens render their error state rather than a false
+ *   "no alerts" empty state. A genuinely empty feed still resolves to [].
+ *
  * @param {Object} [filters] - { page, limit, mode, area, impact, status }
  * @returns {Promise<Array>} Normalized report list
+ * @throws {FrontendApiError} When the request or the reported result failed
  */
 export async function listReports(filters = {}) {
   const res = await fetchLiveReports(filters);
-  if (!res?.success) return [];
-  return res.reports || [];
+  if (res?.success === false) {
+    throw new FrontendApiError(
+      res.message || 'Live alerts could not be loaded right now. Please try again.',
+      null
+    );
+  }
+  return Array.isArray(res?.reports) ? res.reports : [];
 }
 
 /**

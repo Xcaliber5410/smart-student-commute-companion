@@ -13,17 +13,29 @@
  * All functions resolve with parsed JSON and reject with FrontendApiError
  * carrying user-friendly messages (never stack traces).
  */
-import { fetchRideGroups, postRideGroup, joinRideGroup } from './api';
+import { fetchRideGroups, postRideGroup, joinRideGroup, FrontendApiError } from './api';
 
 /**
  * List active commute groups.
+ *
+ * Request-state contract:
+ * - A 2xx response reporting `success: false` rejects instead of resolving to
+ *   an empty list, so screens render their error state rather than a false
+ *   "no groups" empty state. A genuinely empty feed still resolves to [].
+ *
  * @param {Object} [filters] - { page, limit, mode, origin, destination, status }
  * @returns {Promise<Array>} Normalized group list
+ * @throws {FrontendApiError} When the request or the reported result failed
  */
 export async function listGroups(filters = {}) {
   const res = await fetchRideGroups(filters);
-  if (!res?.success) return [];
-  return res.groups || [];
+  if (res?.success === false) {
+    throw new FrontendApiError(
+      res.message || 'Commute groups could not be loaded right now. Please try again.',
+      null
+    );
+  }
+  return Array.isArray(res?.groups) ? res.groups : [];
 }
 
 /**
