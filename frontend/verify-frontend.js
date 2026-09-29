@@ -778,6 +778,35 @@ if (fileExists('DAY_05_SUMMARY.md')) pass('Day 5 summary documentation exists (D
 else warn('Day 5 summary documentation missing (DAY_05_SUMMARY.md)');
 
 // ============================================================
+section('15. DAY 6 NOTIFICATIONS');
+
+const notificationsPage = readFile('src/pages/NotificationsPage.jsx');
+if (fileExists('src/pages/NotificationsPage.jsx')) pass('Notifications feature page exists');
+else fail('Notifications feature page is missing');
+if (notificationsPage && notificationsPage.includes('LoadingState') && notificationsPage.includes('ErrorState') && notificationsPage.includes('EmptyState')) {
+  pass('Notifications page provides loading, error, and empty states');
+} else {
+  fail('Notifications page is missing request states');
+}
+if (notificationsPage && notificationsPage.includes('SearchInput') && notificationsPage.includes("value: 'unread'")) {
+  pass('Notifications page supports search and unread filtering');
+} else {
+  fail('Notifications page is missing search or unread filtering');
+}
+
+const notificationItem = readFile('src/components/NotificationItem.jsx');
+if (notificationItem && notificationItem.includes('Mark read') && notificationItem.includes('aria-pressed')) {
+  pass('Notification items expose an accessible read-state action');
+} else {
+  fail('Notification item read-state action is missing accessible semantics');
+}
+if (navContent && navContent.includes("id: 'notifications'") && appContent && appContent.includes('NotificationsPage')) {
+  pass('Notifications page is wired into navigation and App rendering');
+} else {
+  fail('Notifications page is not wired into application navigation');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
