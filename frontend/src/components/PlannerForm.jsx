@@ -13,7 +13,9 @@ import {
   Umbrella, 
   Zap, 
   Scale, 
-  Coins 
+  Coins,
+  Bookmark,
+  Check
 } from 'lucide-react';
 import {
   validateForm,
@@ -44,12 +46,28 @@ const ORIGIN_PRESETS = [
   'Andheri East', 'Borivali West', 'Dadar', 'Bandra', 'Ghatkopar', 'Thane West', 'Vile Parle East', 'Kandivali East'
 ];
 
-export default function PlannerForm({ formData, setFormData, onPlan, isLoading }) {
+export default function PlannerForm({ formData, setFormData, onPlan, isLoading, onSaveCommute, isCommuteSaved = false }) {
   const [errors, setErrors] = useState({});
 
   const clearError = (field) => {
     setErrors((prev) => (prev[field] ? { ...prev, [field]: null } : prev));
   };
+
+  /** Shared client-side validation used by both planning and saving. */
+  const validatePlanner = () =>
+    validateForm(formData, {
+      origin: [
+        (v) => validateRequired(v, 'Starting area'),
+        (v) => validateText(v, { minLength: 2, maxLength: 100, label: 'Starting area' }),
+      ],
+      destination: [
+        (v) => validateRequired(v, 'College destination'),
+        (v) => validateText(v, { minLength: 2, maxLength: 100, label: 'College destination' }),
+      ],
+      maxBudgetRupees: [
+        (v) => validateNumber(v, { min: 5, max: 1500, label: 'Max budget' }),
+      ],
+    });
 
   const toggleMode = (mode) => {
     const current = [...formData.preferredModes];
@@ -66,19 +84,7 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
     e.preventDefault();
 
     // Client-side validation before dispatching a plan request
-    const { isValid, errors: validationErrors } = validateForm(formData, {
-      origin: [
-        (v) => validateRequired(v, 'Starting area'),
-        (v) => validateText(v, { minLength: 2, maxLength: 100, label: 'Starting area' }),
-      ],
-      destination: [
-        (v) => validateRequired(v, 'College destination'),
-        (v) => validateText(v, { minLength: 2, maxLength: 100, label: 'College destination' }),
-      ],
-      maxBudgetRupees: [
-        (v) => validateNumber(v, { min: 5, max: 1500, label: 'Max budget' }),
-      ],
-    });
+    const { isValid, errors: validationErrors } = validatePlanner();
 
     if (!isValid) {
       setErrors(validationErrors);
@@ -88,6 +94,21 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
 
     setErrors({});
     onPlan();
+  };
+
+  // Persist the current setup to "My Commutes" (validated the same way as
+  // planning, so a saved commute is always usable later).
+  const handleSaveCommute = () => {
+    const { isValid, errors: validationErrors } = validatePlanner();
+
+    if (!isValid) {
+      setErrors(validationErrors);
+      focusFirstInvalid(validationErrors, FIELD_IDS);
+      return;
+    }
+
+    setErrors({});
+    onSaveCommute?.();
   };
 
   return (
@@ -391,6 +412,42 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading }
             </>
           )}
         </button>
+
+        {/* Save this commute → "My Commutes" (persisted on this device) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800/80">
+          <p className="text-[11px] text-slate-500 leading-snug">
+            Keep this setup for one-tap planning from{' '}
+            <strong className="text-slate-400">My Commutes</strong>.
+          </p>
+          <button
+            type="button"
+            onClick={handleSaveCommute}
+            disabled={isCommuteSaved || isLoading}
+            aria-pressed={isCommuteSaved}
+            title={
+              isCommuteSaved
+                ? 'This commute is already saved in My Commutes'
+                : 'Save this commute setup on this device'
+            }
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-60 disabled:cursor-not-allowed active:scale-95"
+          >
+            {isCommuteSaved ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
+                <span className="text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-2 py-0.5">
+                  Saved
+                </span>
+              </>
+            ) : (
+              <>
+                <Bookmark className="w-3.5 h-3.5 text-slate-300" aria-hidden="true" />
+                <span className="text-slate-200 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-lg px-2 py-0.5 transition-colors">
+                  Save this commute
+                </span>
+              </>
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );

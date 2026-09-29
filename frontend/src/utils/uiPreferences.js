@@ -4,10 +4,16 @@
  * Small, failure-safe localStorage helpers for client-side view state:
  * - Recent transit searches (reusable query chips)
  * - Local UI preferences such as result sorting
+ * - Saved commutes ("My Commutes" — on-device planner shortcuts)
  *
- * Every accessor is wrapped in try/catch so private browsing modes,
- * disabled storage, or quota errors never break the UI. These helpers are
- * UX-only — they never store personal data, tokens, or credentials.
+ * View/preference accessors are wrapped in try/catch so private browsing
+ * modes, disabled storage, or quota errors never break the UI. Saved-commute
+ * helpers surface storage failures as errors instead, because silently
+ * pretending the list is empty would mislead the user.
+ *
+ * These helpers are UX-only — they never store personal data, tokens, or
+ * credentials. Saved commutes keep only the same area-level planner fields
+ * the user already types into the commute form.
  */
 
 const RECENT_SEARCHES_KEY = 'smart_commute_recent_transit_searches';
@@ -86,4 +92,179 @@ export function writeTransitSortPreference(value) {
     stops: value?.stops ?? current.stops,
     routes: value?.routes ?? current.routes,
   });
+}
+
+// ─── Saved Commutes ("My Commutes", Day 5) ───────────────────────────────────
+
+const SAVED_COMMUTES_KEY = 'smart_commute_saved_commutes';
+const MAX_SAVED_COMMUTES = 8;
+
+/** Preference profiles accepted by the commute planner form. */
+const ALLOWED_PREFERENCES = ['balanced', 'fastest', 'cheapest', 'rain-safe'];
+/** Transport modes accepted by the commute planner form. */
+const ALLOWED_MODES = ['train', 'metro', 'bus', 'auto', 'walk'];
+const DEFAULT_ARRIVAL_TIME = '09:00';
+
+function clampNumber(value, min, max, fallback) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(num)));
+}
+
+function cleanText(value, maxLength = 100) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLength) return null;
+  return trimmed;
+}
+
+/**
+ * Normalize a raw saved-commute entry into the exact shape the planner form
+ * consumes. Returns null when the entry is unusable (missing endpoints).
+ */
+function sanitizeSavedCommute(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  const origin = cleanText(entry.origin);
+  const destination = cleanText(entry.destination);
+  if (!origin || !destination) return null;
+
+  const modes = Array.isArray(entry.preferredModes)
+    ? entry.preferredModes.filter((mode) => ALLOWED_MODES.includes(mode))
+    : [];
+
+  return {
+    id: cleanText(entry.id, 60) || `sc-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+    origin,
+    destination,
+    desiredArrivalTime:
+      typeof entry.desiredArrivalTime === 'string' && /^\d{2}:\d{2}$/.test(entry.desiredArrivalTime)
+        ? entry.desiredArrivalTime
+        : DEFAULT_ARRIVAL_TIME,
+    preferredModes: modes.length > 0 ? modes : [...ALLOWED_MODES],
+    preference: ALLOWED_PREFERENCES.includes(entry.preference) ? entry.preference : 'balanced',
+    walkingToleranceMinutes: clampNumber(entry.walkingToleranceMinutes, 5, 30, 20),
+    maxBudgetRupees: clampNumber(entry.maxBudgetRupees, 5, 1500, 100),
+    savedAt: cleanText(entry.savedAt, 40) || null,
+  };
+}
+
+/**
+ * Stable comparison key for a commute setup (ignores id/savedAt). Used for
+ * duplicate detection and for highlighting the setup loaded in the planner.
+ *
+ * @param {Object} setup - Planner-form-shaped commute setup
+ * @returns {string} Normalized signature (empty for unusable input)
+ */
+export function commuteSignature(setup) {
+  if (!setup || typeof setup !== 'object') return '';
+  const origin = cleanText(setup.origin);
+  const destination = cleanText(setup.destination);
+  if (!origin || !destination) return '';
+  const modes = Array.isArray(setup.preferredModes)
+    ? setup.preferredModes.filter((mode) => ALLOWED_MODES.includes(mode)).sort()
+    : [];
+  return [
+    origin.toLowerCase(),
+    destination.toLowerCase(),
+    typeof setup.desiredArrivalTime === 'string' ? setup.desiredArrivalTime : DEFAULT_ARRIVAL_TIME,
+    ALLOWED_PREFERENCES.includes(setup.preference) ? setup.preference : 'balanced',
+    modes.join('+'),
+  ].join('|');
+}
+
+function writeSavedCommutes(list) {
+  try {
+    window.localStorage.setItem(SAVED_COMMUTES_KEY, JSON.stringify(list));
+  } catch {
+    throw new Error(
+      'This browser blocked local storage, so the commute could not be saved. Allow site storage for this app and try again.'
+    );
+  }
+}
+
+/**
+ * Read all saved commutes (newest first).
+ *
+ * Unlike the optional view-preference helpers, storage failures surface as
+ * errors so the screen can offer a real retry instead of silently showing an
+ * empty list. A corrupt payload resets to an empty list rather than failing
+ * forever.
+ *
+ * @returns {Array<Object>} Validated saved commutes
+ * @throws {Error} When local storage itself is unavailable
+ */
+export function readSavedCommutes() {
+  let raw;
+  try {
+    raw = window.localStorage.getItem(SAVED_COMMUTES_KEY);
+  } catch {
+    throw new Error(
+      'Saved commutes could not be read because local storage is unavailable in this browser.'
+    );
+  }
+  if (!raw) return [];
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    writeSavedCommutes([]);
+    return [];
+  }
+  if (!Array.isArray(parsed)) {
+    writeSavedCommutes([]);
+    return [];
+  }
+  return parsed.map(sanitizeSavedCommute).filter(Boolean).slice(0, MAX_SAVED_COMMUTES);
+}
+
+/**
+ * Save a commute setup (deduplicated by signature, newest first, capped).
+ *
+ * @param {Object} setup - Current planner form values
+ * @returns {Array<Object>} The updated saved-commute list
+ * @throws {Error} On unusable input or unavailable local storage
+ */
+export function saveCommute(setup) {
+  const candidate = sanitizeSavedCommute({ ...setup, savedAt: new Date().toISOString() });
+  if (!candidate) {
+    throw new Error('Add a starting point and a destination before saving this commute.');
+  }
+  const signature = commuteSignature(candidate);
+  const kept = readSavedCommutes().filter((saved) => commuteSignature(saved) !== signature);
+  const next = [
+    { ...candidate, id: `sc-${Date.now()}-${Math.random().toString(36).substring(2, 8)}` },
+    ...kept,
+  ].slice(0, MAX_SAVED_COMMUTES);
+  writeSavedCommutes(next);
+  return next;
+}
+
+/**
+ * Remove one saved commute by id.
+ * @returns {Array<Object>} The updated saved-commute list
+ */
+export function removeSavedCommute(id) {
+  const next = readSavedCommutes().filter((saved) => saved.id !== id);
+  writeSavedCommutes(next);
+  return next;
+}
+
+/** Remove every saved commute. @returns {Array} Always an empty list. */
+export function clearSavedCommutes() {
+  writeSavedCommutes([]);
+  return [];
+}
+
+/**
+ * Whether a planner setup already exists in a saved-commute list.
+ *
+ * @param {Array<Object>} list - Saved commutes
+ * @param {Object} setup - Planner-form-shaped setup to look for
+ * @returns {boolean}
+ */
+export function isCommuteSaved(list, setup) {
+  if (!Array.isArray(list) || list.length === 0) return false;
+  const signature = commuteSignature(setup);
+  return Boolean(signature) && list.some((saved) => commuteSignature(saved) === signature);
 }

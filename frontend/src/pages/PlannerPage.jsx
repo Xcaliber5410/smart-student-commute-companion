@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import PlannerForm from '../components/PlannerForm';
+import DashboardOverview from '../components/DashboardOverview';
 import RouteResults from '../components/RouteResults';
 import LiveStudentFeed from '../components/LiveStudentFeed';
 import { LoadingState, ErrorState } from '../components/ui';
@@ -25,6 +26,8 @@ import { LoadingState, ErrorState } from '../components/ui';
  * @param {Object|null} props.planResult - Latest plan result
  * @param {string|null} props.selectedRouteId - Currently selected route
  * @param {Function} props.setSelectedRouteId - Route selection updater
+ * @param {Function} props.onSaveCommute - Save the current setup to My Commutes
+ * @param {boolean} props.isCommuteSaved - Whether the current setup is saved
  * @param {Function} props.onOpenFeedback - Open feedback dialog for a recommendation
  * @param {Array} props.reports - Live disruption reports
  * @param {Function} props.onConfirm - Confirm a report
@@ -34,6 +37,11 @@ import { LoadingState, ErrorState } from '../components/ui';
  * @param {boolean} props.isLoadingInitial - Whether initial data is loading
  * @param {string|null} props.loadError - User-friendly initial load error
  * @param {Function} props.onRetryLoad - Retry the initial data load
+ * @param {number} props.savedCommutesCount - Commutes saved on this device
+ * @param {number} props.groupsCount - Active ride groups
+ * @param {string[]} props.recentSearches - Recent transit search queries
+ * @param {Function} props.onSelectRecent - Re-run a recent transit search
+ * @param {Function} props.onNavigate - Navigate to another screen (tab id)
  */
 export default function PlannerPage({
   formData,
@@ -43,6 +51,8 @@ export default function PlannerPage({
   planResult,
   selectedRouteId,
   setSelectedRouteId,
+  onSaveCommute,
+  isCommuteSaved = false,
   onOpenFeedback,
   reports = [],
   onConfirm,
@@ -54,6 +64,11 @@ export default function PlannerPage({
   onRetryLoad,
   isRefreshing = false,
   onRefresh,
+  savedCommutesCount = 0,
+  groupsCount = 0,
+  recentSearches = [],
+  onSelectRecent,
+  onNavigate,
 }) {
   return (
     <div className="space-y-5">
@@ -81,11 +96,28 @@ export default function PlannerPage({
         )}
       </header>
 
+      {/* Student dashboard summary — real counts, quick actions, recent work */}
+      <DashboardOverview
+        savedCommutesCount={savedCommutesCount}
+        groupsCount={groupsCount}
+        reportsCount={reports.length}
+        isConnected={isConnected}
+        isLoading={isLoadingInitial}
+        loadError={loadError}
+        onRetryLoad={onRetryLoad}
+        recentSearches={recentSearches}
+        onSelectRecent={onSelectRecent}
+        onNavigate={onNavigate}
+        onOpenCreateReport={onOpenCreateReport}
+      />
+
       <PlannerForm
         formData={formData}
         setFormData={setFormData}
         onPlan={onPlan}
         isLoading={isPlanning}
+        onSaveCommute={onSaveCommute}
+        isCommuteSaved={isCommuteSaved}
       />
 
       {/* Route recommendations */}

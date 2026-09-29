@@ -6,7 +6,7 @@ import MapView from './components/MapView';
 import CreateReportModal from './components/CreateReportModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
-import { PlannerPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage } from './pages';
+import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage } from './pages';
 import { 
   requestPlan, 
   sendFeedback
@@ -23,7 +23,16 @@ import {
   joinGroup 
 } from './services/rideGroups';
 import { searchTransit } from './services/transit';
-import { readRecentSearches, rememberSearch, clearRecentSearches } from './utils/uiPreferences';
+import {
+  readRecentSearches,
+  rememberSearch,
+  clearRecentSearches,
+  readSavedCommutes,
+  saveCommute,
+  removeSavedCommute,
+  commuteSignature,
+  isCommuteSaved,
+} from './utils/uiPreferences';
 import { resetDemoState } from './services/api';
 import { getSocket } from './services/socket';
 import useAsyncResource from './hooks/useAsyncResource';
@@ -57,8 +66,15 @@ export default function App() {
     { errorMessage: 'Unable to search the transit network. Please check your connection and try again.' }
   );
 
+  // My Commutes — on-device saved commute list (loads/reloads from storage)
+  const savedCommutesResource = useAsyncResource(
+    () => readSavedCommutes(),
+    { errorMessage: 'Unable to load saved commutes from this device. Check that site storage is allowed and try again.' }
+  );
+
   const reports = reportsResource.data || [];
   const groups = groupsResource.data || [];
+  const savedCommutes = savedCommutesResource.data || [];
 
   // Transit Search query state (draft is preserved while navigating between screens)
   const [transitQuery, setTransitQuery] = useState('');
@@ -101,6 +117,7 @@ export default function App() {
     // 1. Fetch initial reports and ride groups (each resource guards against stale responses)
     reportsResource.load();
     groupsResource.load();
+    savedCommutesResource.load();
 
     // 2. Setup Socket.IO
     const socket = getSocket();
@@ -155,13 +172,15 @@ export default function App() {
   }, []);
 
   // Execute Commute Planning (ref-guarded against duplicate rapid submissions)
+  // `setupOverride` plans an explicit setup (e.g. from My Commutes) without
+  // waiting for the planner form state to re-render.
   const planInFlightRef = useRef(false);
-  const handlePlan = async (isInitial = false) => {
+  const handlePlan = async (isInitial = false, setupOverride = null) => {
     if (planInFlightRef.current) return; // ignore duplicate submissions
     planInFlightRef.current = true;
     setIsLoading(true);
     try {
-      const data = await requestPlan(formData);
+      const data = await requestPlan(setupOverride || formData);
       if (data.success) {
         setPlanResult(data);
         const bestRoute = data.recommendation?.route;
@@ -297,6 +316,12 @@ export default function App() {
     handleTransitSearch(q);
   };
 
+  // Dashboard recent-search chip: jump to Transit Search and run the query
+  const handleDashboardRecentSearch = (q) => {
+    setActiveTab('transit');
+    handleSelectRecentSearch(q);
+  };
+
   const handleClearRecentSearches = () => {
     setRecentSearches(clearRecentSearches());
     showToast('Recent searches cleared.', 'info');
@@ -313,6 +338,58 @@ export default function App() {
     setFormData((prev) => ({ ...prev, destination: place }));
     setActiveTab('planner');
     showToast(`Destination set to "${place}". Press Plan Route to recalculate.`);
+  };
+
+  // ─── My Commutes (saved commute setups, stored on this device) ───────────
+  const currentCommuteSignature = commuteSignature(formData);
+  const isCurrentCommuteSaved = isCommuteSaved(savedCommutes, formData);
+
+  // Persist the current planner setup (duplicates collapse by signature)
+  const handleSaveCommute = () => {
+    try {
+      const next = saveCommute(formData);
+      savedCommutesResource.setData(next);
+      showToast('Commute saved to My Commutes.');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleRemoveSavedCommute = (id) => {
+    try {
+      const next = removeSavedCommute(id);
+      savedCommutesResource.setData(next);
+      showToast('Saved commute removed.', 'info');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  // Load a saved setup into the planner and run it immediately
+  const handlePlanCommute = async (commute) => {
+    if (planInFlightRef.current) return; // a plan request is already running
+    const setup = {
+      origin: commute.origin,
+      destination: commute.destination,
+      desiredArrivalTime: commute.desiredArrivalTime,
+      preferredModes: commute.preferredModes,
+      preference: commute.preference,
+      walkingToleranceMinutes: commute.walkingToleranceMinutes,
+      maxBudgetRupees: commute.maxBudgetRupees,
+    };
+    setFormData((prev) => ({ ...prev, ...setup }));
+    setActiveTab('planner');
+    showToast(`Loaded ${commute.origin} → ${commute.destination} into the planner.`, 'info');
+    await handlePlan(false, setup);
+  };
+
+  // Re-read saved commutes from storage (e.g. after changes in another tab)
+  const handleRefreshSavedCommutes = async () => {
+    const result = await savedCommutesResource.load();
+    if (!result?.ok && result?.keptData) {
+      showToast('Could not re-read saved commutes — showing the loaded list.', 'warning');
+    }
+    return result;
   };
 
   // Retry the last transit search (keeps the original query parameters)
@@ -360,6 +437,8 @@ export default function App() {
             planResult={planResult}
             selectedRouteId={selectedRouteId}
             setSelectedRouteId={setSelectedRouteId}
+            onSaveCommute={handleSaveCommute}
+            isCommuteSaved={isCurrentCommuteSaved}
             onOpenFeedback={(recId) => {
               setFeedbackRecId(recId);
               setIsFeedbackModalOpen(true);
@@ -374,6 +453,28 @@ export default function App() {
             onRetryLoad={reportsResource.load}
             isRefreshing={reportsResource.isRefreshing}
             onRefresh={handleRefreshReports}
+            savedCommutesCount={savedCommutes.length}
+            groupsCount={groups.length}
+            recentSearches={recentSearches}
+            onSelectRecent={handleDashboardRecentSearch}
+            onNavigate={setActiveTab}
+          />
+        );
+
+      case 'mycommutes':
+        return (
+          <MyCommutesPage
+            commutes={savedCommutes}
+            isLoading={savedCommutesResource.isLoading}
+            loadError={savedCommutesResource.loadError}
+            onRetryLoad={savedCommutesResource.load}
+            isRefreshing={savedCommutesResource.isRefreshing}
+            onRefresh={handleRefreshSavedCommutes}
+            onPlanCommute={handlePlanCommute}
+            onRemoveCommute={handleRemoveSavedCommute}
+            isPlanning={isLoading}
+            activeSignature={currentCommuteSignature}
+            onNavigateToPlanner={() => setActiveTab('planner')}
           />
         );
 

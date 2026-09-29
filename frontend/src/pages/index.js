@@ -10,6 +10,7 @@
  * layer and arrive via props.
  */
 export { default as PlannerPage } from './PlannerPage';
+export { default as MyCommutesPage } from './MyCommutesPage';
 export { default as TravelTogetherPage } from './TravelTogetherPage';
 export { default as LiveAlertsPage } from './LiveAlertsPage';
 export { default as TransitSearchPage } from './TransitSearchPage';

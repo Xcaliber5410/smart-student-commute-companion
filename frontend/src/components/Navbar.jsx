@@ -4,12 +4,12 @@ import {
   RotateCcw, 
   ShieldCheck, 
   Wifi, 
-  WifiOff, 
-  Users, 
-  AlertTriangle, 
+  WifiOff,  Users,
+  AlertTriangle,
   TrainFront,
-  Menu, 
-  X 
+  Bookmark,
+  Menu,
+  X
 } from 'lucide-react';
 import { ENABLE_DEMO_RESET } from '../config/index.js';
 import { ConfirmDialog } from './ui';
@@ -24,6 +24,13 @@ const NAV_ITEMS = [
     shortLabel: 'Planner',
     icon: Compass,
     description: 'Multimodal AI transit recommendations'
+  },
+  {
+    id: 'mycommutes',
+    label: 'My Commutes',
+    shortLabel: 'Commutes',
+    icon: Bookmark,
+    description: 'Saved commute setups for one-tap planning'
   },
   {
     id: 'transit',
@@ -162,7 +169,9 @@ export default function Navbar({
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${item.id === 'feed' && !isActive ? 'text-amber-400' : ''}`} aria-hidden="true" />
-                  <span>{item.label}</span>
+                  {/* Short labels below lg keep five tabs from crowding tablet widths */}
+                  <span className="hidden lg:inline">{item.label}</span>
+                  <span className="lg:hidden">{item.shortLabel}</span>
                   {item.hasBadge && reportsCount > 0 && (
                     <span 
                       className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ml-0.5 ${
