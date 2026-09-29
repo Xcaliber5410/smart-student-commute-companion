@@ -128,6 +128,9 @@ export default function NotificationsPage({
                 ]}
               />
             </div>
+            <p role="status" aria-live="polite" className="mt-3 text-xs text-slate-500">
+              Showing {visibleReports.length} of {reports.length} notifications
+            </p>
             {visibleReports.length === 0 ? (
               <EmptyState
                 headingLevel={2}

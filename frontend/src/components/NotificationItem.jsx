@@ -17,7 +17,7 @@ export default function NotificationItem({ report, isRead = false, onToggleRead 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <h2 className="text-sm font-semibold text-white">{report.area || 'Commute update'}</h2>
-          <time className="text-xs text-slate-500">{formatAge(report)}</time>
+          <time dateTime={report.created_at || undefined} className="text-xs text-slate-500">{formatAge(report)}</time>
         </div>
         <p className="mt-1 break-words text-sm leading-relaxed text-slate-300">{report.message}</p>
         <div className="mt-2 flex flex-wrap items-center gap-3">
