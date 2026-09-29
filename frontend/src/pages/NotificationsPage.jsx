@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Bell, RefreshCw } from 'lucide-react';
-import { EmptyState, ErrorState, LoadingState, SearchInput, Select } from '../components/ui';
+import { Alert, EmptyState, ErrorState, LoadingState, SearchInput, Select } from '../components/ui';
 import NotificationItem from '../components/NotificationItem';
 
 export default function NotificationsPage({
@@ -10,6 +10,8 @@ export default function NotificationsPage({
   onRetryLoad,
   isRefreshing = false,
   onRefresh,
+  isConnectionLost = false,
+  onReconnect,
 }) {
   const [query, setQuery] = useState('');
   const [view, setView] = useState('all');
@@ -58,7 +60,30 @@ export default function NotificationsPage({
         )}
       </header>
 
+      {isConnectionLost && !isLoading && !loadError && (
+        <Alert variant="warning" title="Live notifications paused">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>You are seeing the last loaded updates. New reports may be delayed.</span>
+            {onReconnect && (
+              <button
+                type="button"
+                onClick={onReconnect}
+                className="min-h-10 rounded-xl bg-amber-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/70"
+              >
+                Reconnect
+              </button>
+            )}
+          </div>
+        </Alert>
+      )}
+
       <section aria-label="Commute notifications" aria-busy={isLoading || isRefreshing}>
+        {isRefreshing && !isLoading && !loadError && (
+          <p role="status" className="mb-3 flex items-center gap-2 text-xs text-slate-400">
+            <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-400" aria-hidden="true" />
+            Checking for new notifications...
+          </p>
+        )}
         {isLoading ? (
           <LoadingState
             headingLevel={2}

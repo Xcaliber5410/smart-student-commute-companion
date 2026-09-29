@@ -643,6 +643,8 @@ export default function App() {
             onRetryLoad={reportsResource.load}
             isRefreshing={reportsResource.isRefreshing}
             onRefresh={handleRefreshReports}
+            isConnectionLost={isConnectionLost}
+            onReconnect={handleReconnect}
           />
         );
 
