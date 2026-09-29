@@ -630,6 +630,154 @@ if (alertsPage && alertsPage.includes('role="status"') && alertsPage.includes('i
 }
 
 // ============================================================
+section('14. DAY 5 FEATURES');
+
+// Day 5 dashboard & feature screens
+if (fileExists('src/components/DashboardOverview.jsx')) pass('Dashboard overview component exists (DashboardOverview.jsx)');
+else fail('Dashboard overview component missing: src/components/DashboardOverview.jsx');
+
+if (fileExists('src/pages/MyCommutesPage.jsx') && fileExists('src/components/SavedCommutes.jsx')) {
+  pass('My Commutes feature screen exists (page + card list)');
+} else {
+  fail('My Commutes feature screen missing (MyCommutesPage.jsx / SavedCommutes.jsx)');
+}
+
+const plannerPage = readFile('src/pages/PlannerPage.jsx');
+if (plannerPage && plannerPage.includes('DashboardOverview') && plannerPage.includes('showDashboardOverview')) {
+  pass('PlannerPage hosts the dashboard behind a user preference');
+} else {
+  fail('PlannerPage does not wire DashboardOverview to its preference');
+}
+
+const navContent = readFile('src/components/Navbar.jsx');
+if (navContent && navContent.includes("id: 'mycommutes'")) {
+  pass('Navigation exposes the My Commutes screen');
+} else {
+  fail('Navigation is missing the My Commutes entry');
+}
+
+// Day 5 progress & data-visualization components
+['ProgressBar.jsx', 'ComparisonBars.jsx'].forEach(file => {
+  if (fileExists(`src/components/ui/${file}`)) pass(`Progress/data-viz component exists: ${file}`);
+  else fail(`Progress/data-viz component missing: src/components/ui/${file}`);
+});
+if (uiBarrel && uiBarrel.includes('ProgressBar') && uiBarrel.includes('ComparisonBars')) {
+  pass('UI barrel exports Day 5 visualization components');
+} else {
+  fail('UI barrel missing Day 5 visualization exports');
+}
+
+const progressBar = readFile('src/components/ui/ProgressBar.jsx');
+if (progressBar && progressBar.includes('role="progressbar"') && progressBar.includes('aria-valuenow')) {
+  pass('ProgressBar exposes an accessible progressbar role');
+} else {
+  fail('ProgressBar is missing progressbar ARIA semantics');
+}
+
+const routeResults = readFile('src/components/RouteResults.jsx');
+if (routeResults && routeResults.includes('ProgressBar') && routeResults.includes('ComparisonBars')) {
+  pass('RouteResults renders visualizations from real plan data');
+} else {
+  fail('RouteResults does not use the visualization components');
+}
+
+// Day 5 notification & feedback experiences
+const toastContent = readFile('src/components/Toast.jsx');
+if (toastContent && toastContent.includes('role="alert"') && toastContent.includes('role="status"') && toastContent.includes('Dismiss')) {
+  pass('Toast is a dismissible queue with polite/assertive live regions');
+} else {
+  fail('Toast missing dismiss action or live-region roles');
+}
+
+const appContent = readFile('src/App.jsx');
+if (appContent && appContent.includes('setToasts') && appContent.includes('dismissToast')) {
+  pass('App owns a toast queue with per-toast dismissal');
+} else {
+  fail('App does not manage a dismissible toast queue');
+}
+
+// Day 5 personalization & preference controls
+if (fileExists('src/components/PreferencesDialog.jsx')) pass('Preferences dialog exists (PreferencesDialog.jsx)');
+else fail('Preferences dialog missing: src/components/PreferencesDialog.jsx');
+
+const prefsStore = readFile('src/utils/uiPreferences.js');
+if (prefsStore && prefsStore.includes('readAppPreferences') && prefsStore.includes('writeAppPreferences') && prefsStore.includes('DEFAULT_APP_PREFERENCES')) {
+  pass('Preference store exposes typed app-preference accessors');
+} else {
+  fail('Preference store missing readAppPreferences/writeAppPreferences');
+}
+if (prefsStore && prefsStore.includes('readSavedCommutes') && prefsStore.includes('saveCommute') && prefsStore.includes('commuteSignature')) {
+  pass('Saved-commute persistence helpers exist in uiPreferences.js');
+} else {
+  fail('Saved-commute persistence helpers missing from uiPreferences.js');
+}
+if (navContent && navContent.includes('onOpenPreferences')) {
+  pass('Navbar exposes the preferences entry point');
+} else {
+  fail('Navbar missing preferences entry point');
+}
+
+// Day 5 PWA installability & offline experience
+const manifest = readJSON('public/manifest.json');
+if (manifest && manifest.id && manifest.scope && manifest.lang && manifest.display === 'standalone') {
+  pass('Manifest has install identity (id/scope/lang, standalone display)');
+} else {
+  fail('Manifest missing install-identity fields (id/scope/lang/display)');
+}
+if (manifest && Array.isArray(manifest.icons) && manifest.icons.some(i => i.sizes === '512x512')) {
+  pass('Manifest provides a 512px icon');
+} else {
+  fail('Manifest is missing a 512px icon');
+}
+
+if (fileExists('src/hooks/usePwaInstall.js')) pass('Install-prompt hook exists (usePwaInstall.js)');
+else fail('Install-prompt hook missing: src/hooks/usePwaInstall.js');
+if (fileExists('src/components/PwaStatusBanner.jsx')) pass('Offline/update status banner exists (PwaStatusBanner.jsx)');
+else fail('Offline/update status banner missing: src/components/PwaStatusBanner.jsx');
+
+const swContent = readFile('public/sw.js');
+if (swContent && swContent.includes("'/api/'") && swContent.includes('OFFLINE_FALLBACK_HTML')) {
+  pass('Service worker keeps API exclusion and adds an offline fallback page');
+} else {
+  fail('Service worker lost its API exclusion or offline fallback');
+}
+if (swContent && swContent.includes("request.destination === 'document'")) {
+  pass('Service worker serves the app shell for failed navigations');
+} else {
+  fail('Service worker navigation fallback missing');
+}
+if (appContent && appContent.includes('PwaStatusBanner') && appContent.includes('usePwaInstall')) {
+  pass('App wires offline status and install prompt into the shell');
+} else {
+  fail('App does not wire PWA status/install into the shell');
+}
+
+// Day 5 responsive & accessibility polish
+['src/components/ui/EmptyState.jsx', 'src/components/ui/ErrorState.jsx', 'src/components/ui/LoadingState.jsx'].forEach(file => {
+  const content = readFile(file);
+  if (content && content.includes('headingLevel')) pass(`Heading-level control present: ${path.basename(file)}`);
+  else fail(`Heading-level control missing: ${path.basename(file)}`);
+});
+
+const navbarContent = navContent;
+if (navbarContent && navbarContent.includes('min-w-0 flex-1')) {
+  pass('Privacy banner truncates instead of forcing a 498px viewport');
+} else {
+  fail('Privacy banner truncation fix is missing');
+}
+
+const indexCss = readFile('src/index.css');
+if (indexCss && indexCss.includes('input[type="range"]') && /24px touch target/i.test(indexCss)) {
+  pass('Range sliders use a 24px minimum touch target');
+} else {
+  fail('Range slider touch-target styles missing from index.css');
+}
+
+// Day 5 documentation
+if (fileExists('DAY_05_SUMMARY.md')) pass('Day 5 summary documentation exists (DAY_05_SUMMARY.md)');
+else warn('Day 5 summary documentation missing (DAY_05_SUMMARY.md)');
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
