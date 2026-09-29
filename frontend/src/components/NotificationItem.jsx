@@ -10,7 +10,7 @@ function formatAge(report) {
 
 export default function NotificationItem({ report, isRead = false, onToggleRead }) {
   return (
-    <article className={`flex gap-3 p-4 ${isRead ? 'opacity-70' : 'bg-emerald-500/[0.04]'}`}>
+    <article className={`flex min-w-0 gap-3 p-3 sm:p-4 ${isRead ? 'opacity-70' : 'bg-emerald-500/[0.04]'}`}>
       <span className="mt-0.5 rounded-full bg-amber-500/10 p-2 text-amber-300" aria-hidden="true">
         <Bell className="h-4 w-4" />
       </span>
@@ -19,7 +19,7 @@ export default function NotificationItem({ report, isRead = false, onToggleRead 
           <h2 className="text-sm font-semibold text-white">{report.area || 'Commute update'}</h2>
           <time className="text-xs text-slate-500">{formatAge(report)}</time>
         </div>
-        <p className="mt-1 text-sm leading-relaxed text-slate-300">{report.message}</p>
+        <p className="mt-1 break-words text-sm leading-relaxed text-slate-300">{report.message}</p>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           {report.mode && <p className="text-xs font-medium text-emerald-300">{report.mode}</p>}
           {onToggleRead && (

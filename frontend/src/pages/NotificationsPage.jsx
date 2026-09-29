@@ -107,17 +107,18 @@ export default function NotificationsPage({
           />
         ) : (
           <>
-            <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+            <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3 sm:flex-row sm:items-end">
               <SearchInput
                 value={query}
                 onChange={setQuery}
                 label="Search notifications"
                 placeholder="Search area or message..."
-                className="min-w-[200px] flex-1"
+                className="w-full min-w-0 flex-1 sm:min-w-[200px]"
               />
               <Select
                 label="Show"
                 id="notification-view"
+                className="w-full sm:w-auto"
                 value={view}
                 onChange={(event) => setView(event.target.value)}
                 options={[
