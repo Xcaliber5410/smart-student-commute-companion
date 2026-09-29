@@ -45,7 +45,37 @@ export default function App() {
   const [isConnectionLost, setIsConnectionLost] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const [toast, setToast] = useState(null);
+
+  // Toast queue — capped so rapid events never bury the screen; each entry
+  // owns its auto-dismiss timer so overlapping toasts can't cancel each other
+  const [toasts, setToasts] = useState([]);
+  const toastTimersRef = useRef(new Map());
+  const nextToastIdRef = useRef(1);
+
+  const dismissToast = (id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+    const timer = toastTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      toastTimersRef.current.delete(id);
+    }
+  };
+
+  const showToast = (message, type = 'success') => {
+    const id = nextToastIdRef.current++;
+    // Keep the newest three notifications; older ones drop off automatically
+    setToasts((prev) => [...prev, { id, message, type }].slice(-3));
+    // Errors linger longer — failures need time to read and act on
+    const duration = type === 'error' ? 6000 : 3500;
+    const timer = setTimeout(() => dismissToast(id), duration);
+    toastTimersRef.current.set(id, timer);
+  };
+
+  // Clear any pending toast timers on unmount
+  useEffect(() => {
+    const timers = toastTimersRef.current;
+    return () => timers.forEach((timer) => clearTimeout(timer));
+  }, []);
 
   // Live Reports — async resource (loading/refreshing/error with stale-response guards)
   const reportsResource = useAsyncResource(
@@ -107,10 +137,7 @@ export default function App() {
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackRecId, setFeedbackRecId] = useState(null);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
-  };
+  // (showToast/dismissToast are defined with the toast queue above)
 
   // Initial Data & Socket Setup
   useEffect(() => {
@@ -129,7 +156,11 @@ export default function App() {
     });
 
     socket.on('disconnect', () => {
-      setIsConnected(false);
+      setIsConnected((wasConnected) => {
+        // Only notify on a real transition — never on first paint or repeats
+        if (wasConnected) showToast('Live updates disconnected — reconnecting automatically.', 'warning');
+        return false;
+      });
       setIsConnectionLost(true);
     });
 
@@ -564,10 +595,8 @@ export default function App() {
         {renderTabContent()}
       </MainLayout>
 
-      {/* Floating Toast Message */}
-      {toast && (
-        <Toast message={toast.message} type={toast.type} />
-      )}
+      {/* Floating notification region (dismissible queue) */}
+      <Toast toasts={toasts} onDismiss={dismissToast} />
 
       {/* Modals */}
       <CreateReportModal
