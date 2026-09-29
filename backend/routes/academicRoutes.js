@@ -6,13 +6,18 @@
 
 const express = require('express');
 const courseController = require('../controllers/courseController');
+const assignmentController = require('../controllers/assignmentController');
 const { authenticate } = require('../middleware/authMiddleware');
 const {
   validate,
   idParamSchema,
   createCourseSchema,
   updateCourseSchema,
-  courseFilterSchema
+  courseFilterSchema,
+  createAssignmentSchema,
+  updateAssignmentSchema,
+  updateAssignmentStatusSchema,
+  assignmentFilterSchema
 } = require('../validators');
 
 function createAcademicRoutes() {
@@ -66,6 +71,54 @@ function createAcademicRoutes() {
     '/academic/courses/:id',
     validate(idParamSchema, 'params'),
     courseController.deleteCourse
+  );
+
+  // -------------------------------------------------------------
+  // Assignment & Task Endpoints
+  // -------------------------------------------------------------
+  router.get(
+    '/academic/assignments',
+    validate(assignmentFilterSchema, 'query'),
+    assignmentController.listAssignments
+  );
+
+  router.post(
+    '/academic/assignments',
+    validate(createAssignmentSchema, 'body'),
+    assignmentController.createAssignment
+  );
+
+  router.get(
+    '/academic/assignments/:id',
+    validate(idParamSchema, 'params'),
+    assignmentController.getAssignment
+  );
+
+  router.patch(
+    '/academic/assignments/:id',
+    validate(idParamSchema, 'params'),
+    validate(updateAssignmentSchema, 'body'),
+    assignmentController.updateAssignment
+  );
+
+  router.put(
+    '/academic/assignments/:id',
+    validate(idParamSchema, 'params'),
+    validate(updateAssignmentSchema, 'body'),
+    assignmentController.updateAssignment
+  );
+
+  router.patch(
+    '/academic/assignments/:id/status',
+    validate(idParamSchema, 'params'),
+    validate(updateAssignmentStatusSchema, 'body'),
+    assignmentController.updateStatus
+  );
+
+  router.delete(
+    '/academic/assignments/:id',
+    validate(idParamSchema, 'params'),
+    assignmentController.deleteAssignment
   );
 
   return router;

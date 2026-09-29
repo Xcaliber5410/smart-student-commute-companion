@@ -42,15 +42,23 @@ const {
 const {
   createCourseSchema,
   updateCourseSchema,
-  courseFilterSchema
+  courseFilterSchema,
+  createAssignmentSchema,
+  updateAssignmentSchema,
+  updateAssignmentStatusSchema,
+  assignmentFilterSchema
 } = require('./academicValidators');
 
 module.exports = {
   validate,
-  // Academic Courses
+  // Academic Courses & Assignments
   createCourseSchema,
   updateCourseSchema,
   courseFilterSchema,
+  createAssignmentSchema,
+  updateAssignmentSchema,
+  updateAssignmentStatusSchema,
+  assignmentFilterSchema,
   // Common
   idParamSchema,
   paginationQuerySchema,

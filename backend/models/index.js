@@ -17,6 +17,12 @@ const { RideGroupMember, rideGroupMemberSchema } = require('./RideGroupMember');
 const { Notification, notificationSchema } = require('./Notification');
 const { Reminder, reminderSchema } = require('./Reminder');
 const { Course, courseSchema } = require('./Course');
+const {
+  Assignment,
+  assignmentSchema,
+  assignmentStatusEnum,
+  assignmentPriorityEnum
+} = require('./Assignment');
 
 module.exports = {
   LiveReport,
@@ -44,6 +50,10 @@ module.exports = {
   Reminder,
   reminderSchema,
   Course,
-  courseSchema
+  courseSchema,
+  Assignment,
+  assignmentSchema,
+  assignmentStatusEnum,
+  assignmentPriorityEnum
 };
 
