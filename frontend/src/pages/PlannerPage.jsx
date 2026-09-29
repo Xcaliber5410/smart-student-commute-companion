@@ -42,6 +42,7 @@ import { LoadingState, ErrorState } from '../components/ui';
  * @param {string[]} props.recentSearches - Recent transit search queries
  * @param {Function} props.onSelectRecent - Re-run a recent transit search
  * @param {Function} props.onNavigate - Navigate to another screen (tab id)
+ * @param {boolean} props.showDashboardOverview - User preference: show the dashboard summary
  */
 export default function PlannerPage({
   formData,
@@ -69,6 +70,7 @@ export default function PlannerPage({
   recentSearches = [],
   onSelectRecent,
   onNavigate,
+  showDashboardOverview = true,
 }) {
   return (
     <div className="space-y-5">
@@ -96,20 +98,22 @@ export default function PlannerPage({
         )}
       </header>
 
-      {/* Student dashboard summary — real counts, quick actions, recent work */}
-      <DashboardOverview
-        savedCommutesCount={savedCommutesCount}
-        groupsCount={groupsCount}
-        reportsCount={reports.length}
-        isConnected={isConnected}
-        isLoading={isLoadingInitial}
-        loadError={loadError}
-        onRetryLoad={onRetryLoad}
-        recentSearches={recentSearches}
-        onSelectRecent={onSelectRecent}
-        onNavigate={onNavigate}
-        onOpenCreateReport={onOpenCreateReport}
-      />
+      {/* Student dashboard summary — hidden when the user turns it off in Preferences */}
+      {showDashboardOverview && (
+        <DashboardOverview
+          savedCommutesCount={savedCommutesCount}
+          groupsCount={groupsCount}
+          reportsCount={reports.length}
+          isConnected={isConnected}
+          isLoading={isLoadingInitial}
+          loadError={loadError}
+          onRetryLoad={onRetryLoad}
+          recentSearches={recentSearches}
+          onSelectRecent={onSelectRecent}
+          onNavigate={onNavigate}
+          onOpenCreateReport={onOpenCreateReport}
+        />
+      )}
 
       <PlannerForm
         formData={formData}

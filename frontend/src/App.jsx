@@ -6,6 +6,7 @@ import MapView from './components/MapView';
 import CreateReportModal from './components/CreateReportModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
+import PreferencesDialog from './components/PreferencesDialog';
 import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage } from './pages';
 import { 
   requestPlan, 
@@ -27,6 +28,9 @@ import {
   readRecentSearches,
   rememberSearch,
   clearRecentSearches,
+  readAppPreferences,
+  writeAppPreferences,
+  resetAppPreferences,
   readSavedCommutes,
   saveCommute,
   removeSavedCommute,
@@ -95,6 +99,27 @@ export default function App() {
     () => searchTransit(transitParamsRef.current),
     { errorMessage: 'Unable to search the transit network. Please check your connection and try again.' }
   );
+
+  // Client-side personalization preferences (device-local, no backend sync)
+  const [appPreferences, setAppPreferences] = useState(() => readAppPreferences());
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+
+  // Apply a partial preference change with immediate UI feedback
+  const handlePreferenceChange = (overrides) => {
+    const next = writeAppPreferences(overrides);
+    setAppPreferences(next);
+    const [key, value] = Object.entries(overrides)[0] || [];
+    const labels = {
+      showDashboardOverview: `Dashboard overview ${next.showDashboardOverview ? 'shown' : 'hidden'}`,
+      liveReportToasts: `Live report notifications ${next.liveReportToasts ? 'enabled' : 'muted'}`,
+    };
+    showToast(labels[key] || 'Preference updated.', 'info');
+  };
+
+  const handlePreferenceReset = () => {
+    setAppPreferences(resetAppPreferences());
+    showToast('Preferences restored to defaults.', 'info');
+  };
 
   // My Commutes — on-device saved commute list (loads/reloads from storage)
   const savedCommutesResource = useAsyncResource(
@@ -171,7 +196,10 @@ export default function App() {
 
     socket.on('live_report_created', (newReport) => {
       reportsResource.setData((prev) => [newReport, ...(prev || []).filter(r => r.id !== newReport.id)]);
-      showToast(`⚠ Live Report from ${newReport.area}: ${newReport.message.substring(0, 50)}...`, 'warning');
+      // Respect the user's notification preference (read fresh each event)
+      if (readAppPreferences().liveReportToasts) {
+        showToast(`⚠ Live Report from ${newReport.area}: ${newReport.message.substring(0, 50)}...`, 'warning');
+      }
     });
 
     socket.on('live_report_updated', (updatedReport) => {
@@ -489,6 +517,7 @@ export default function App() {
             recentSearches={recentSearches}
             onSelectRecent={handleDashboardRecentSearch}
             onNavigate={setActiveTab}
+            showDashboardOverview={appPreferences.showDashboardOverview}
           />
         );
 
@@ -577,7 +606,8 @@ export default function App() {
     isResetting,
     activeTab,
     setActiveTab,
-    reportsCount: reports.length
+    reportsCount: reports.length,
+    onOpenPreferences: () => setIsPreferencesOpen(true)
   };
 
   return (
@@ -597,6 +627,15 @@ export default function App() {
 
       {/* Floating notification region (dismissible queue) */}
       <Toast toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Client-side personalization controls */}
+      <PreferencesDialog
+        isOpen={isPreferencesOpen}
+        onClose={() => setIsPreferencesOpen(false)}
+        preferences={appPreferences}
+        onChange={handlePreferenceChange}
+        onReset={handlePreferenceReset}
+      />
 
       {/* Modals */}
       <CreateReportModal

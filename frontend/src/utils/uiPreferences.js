@@ -18,6 +18,7 @@
 
 const RECENT_SEARCHES_KEY = 'smart_commute_recent_transit_searches';
 const TRANSIT_SORT_KEY = 'smart_commute_transit_sort';
+const APP_PREFERENCES_KEY = 'smart_commute_app_preferences';
 const MAX_RECENT_SEARCHES = 5;
 
 function safeRead(key, fallback) {
@@ -92,6 +93,61 @@ export function writeTransitSortPreference(value) {
     stops: value?.stops ?? current.stops,
     routes: value?.routes ?? current.routes,
   });
+}
+
+// ─── App Preferences (Day 5 — personalization controls) ───────────────────────
+
+/**
+ * Client-side interface preferences. These are display choices stored on
+ * this device only — NOT server-side user settings (no backend endpoint
+ * exists for persisting them, and none is implied).
+ */
+export const DEFAULT_APP_PREFERENCES = Object.freeze({
+  /** Show the "at a glance" dashboard overview on the planner screen. */
+  showDashboardOverview: true,
+  /** Show a toast when another student posts a live disruption report. */
+  liveReportToasts: true,
+});
+
+/** @returns {Object} Stored app preferences merged over defaults (validated). */
+export function readAppPreferences() {
+  const stored = safeRead(APP_PREFERENCES_KEY, null);
+  const result = { ...DEFAULT_APP_PREFERENCES };
+  if (stored && typeof stored === 'object') {
+    if (typeof stored.showDashboardOverview === 'boolean') {
+      result.showDashboardOverview = stored.showDashboardOverview;
+    }
+    if (typeof stored.liveReportToasts === 'boolean') {
+      result.liveReportToasts = stored.liveReportToasts;
+    }
+  }
+  return result;
+}
+
+/**
+ * Merge preference overrides into the stored app preferences.
+ * @param {Object} overrides - Partial preference object
+ * @returns {Object} The full updated preference set
+ */
+export function writeAppPreferences(overrides) {
+  const next = { ...readAppPreferences() };
+  if (overrides && typeof overrides === 'object') {
+    if (typeof overrides.showDashboardOverview === 'boolean') {
+      next.showDashboardOverview = overrides.showDashboardOverview;
+    }
+    if (typeof overrides.liveReportToasts === 'boolean') {
+      next.liveReportToasts = overrides.liveReportToasts;
+    }
+  }
+  safeWrite(APP_PREFERENCES_KEY, next);
+  return next;
+}
+
+/** Restore defaults. @returns {Object} The default preference set. */
+export function resetAppPreferences() {
+  const defaults = { ...DEFAULT_APP_PREFERENCES };
+  safeWrite(APP_PREFERENCES_KEY, defaults);
+  return defaults;
 }
 
 // ─── Saved Commutes ("My Commutes", Day 5) ───────────────────────────────────

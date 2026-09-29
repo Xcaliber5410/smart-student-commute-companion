@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   TrainFront,
   Bookmark,
+  SlidersHorizontal,
   Menu,
   X
 } from 'lucide-react';
@@ -62,7 +63,8 @@ export default function Navbar({
   isResetting, 
   activeTab, 
   setActiveTab, 
-  reportsCount = 0 
+  reportsCount = 0,
+  onOpenPreferences
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
@@ -215,6 +217,20 @@ export default function Navbar({
               )}
             </div>
 
+            {/* Preferences (client-side personalization controls) */}
+            {onOpenPreferences && (
+              <button
+                type="button"
+                onClick={onOpenPreferences}
+                title="Personalize your interface"
+                aria-label="Open preferences"
+                className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all hover:border-slate-500 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
+                <span className="hidden lg:inline">Preferences</span>
+              </button>
+            )}
+
             {/* Reset Demo State Button */}
             {ENABLE_DEMO_RESET && (
               <button
@@ -300,6 +316,23 @@ export default function Navbar({
                 );
               })}
             </div>
+
+            {/* Mobile Preferences Control */}
+            {onOpenPreferences && (
+              <div className="pt-2 border-t border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenPreferences();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
+                  <span>Preferences</span>
+                </button>
+              </div>
+            )}
 
             {/* Mobile Reset Demo Control */}
             {ENABLE_DEMO_RESET && (
