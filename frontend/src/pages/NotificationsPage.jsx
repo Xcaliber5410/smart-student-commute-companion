@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Bell, RefreshCw } from 'lucide-react';
-import { EmptyState, ErrorState, LoadingState } from '../components/ui';
+import { EmptyState, ErrorState, LoadingState, SearchInput, Select } from '../components/ui';
 import NotificationItem from '../components/NotificationItem';
 
 export default function NotificationsPage({
@@ -11,6 +11,30 @@ export default function NotificationsPage({
   isRefreshing = false,
   onRefresh,
 }) {
+  const [query, setQuery] = useState('');
+  const [view, setView] = useState('all');
+  const [readIds, setReadIds] = useState(() => new Set());
+
+  const visibleReports = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return reports.filter((report) => {
+      const matchesQuery = !normalizedQuery || [report.area, report.message, report.mode]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+      const isRead = readIds.has(report.id);
+      return matchesQuery && (view === 'all' || (view === 'unread' ? !isRead : isRead));
+    });
+  }, [query, readIds, reports, view]);
+
+  const handleToggleRead = (id) => {
+    setReadIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -57,11 +81,56 @@ export default function NotificationsPage({
             description="New student commute updates will appear here when they are reported."
           />
         ) : (
-          <div className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
-            {reports.map((report) => (
-              <NotificationItem key={report.id} report={report} />
-            ))}
-          </div>
+          <>
+            <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+              <SearchInput
+                value={query}
+                onChange={setQuery}
+                label="Search notifications"
+                placeholder="Search area or message..."
+                className="min-w-[200px] flex-1"
+              />
+              <Select
+                label="Show"
+                id="notification-view"
+                value={view}
+                onChange={(event) => setView(event.target.value)}
+                options={[
+                  { value: 'all', label: 'All notifications' },
+                  { value: 'unread', label: 'Unread only' },
+                  { value: 'read', label: 'Read only' },
+                ]}
+              />
+            </div>
+            {visibleReports.length === 0 ? (
+              <EmptyState
+                headingLevel={2}
+                icon={<Bell />}
+                title="No notifications match"
+                description="Try a different search or change the notification filter."
+                action={(
+                  <button
+                    type="button"
+                    onClick={() => { setQuery(''); setView('all'); }}
+                    className="min-h-10 rounded-xl bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              />
+            ) : (
+              <div className="mt-3 divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
+                {visibleReports.map((report) => (
+                  <NotificationItem
+                    key={report.id}
+                    report={report}
+                    isRead={readIds.has(report.id)}
+                    onToggleRead={handleToggleRead}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
