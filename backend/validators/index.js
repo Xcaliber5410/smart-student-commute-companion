@@ -39,9 +39,26 @@ const {
   updateReminderSchema,
   reminderFilterSchema
 } = require('./notificationValidators');
+const {
+  createCourseSchema,
+  updateCourseSchema,
+  courseFilterSchema,
+  createAssignmentSchema,
+  updateAssignmentSchema,
+  updateAssignmentStatusSchema,
+  assignmentFilterSchema
+} = require('./academicValidators');
 
 module.exports = {
   validate,
+  // Academic Courses & Assignments
+  createCourseSchema,
+  updateCourseSchema,
+  courseFilterSchema,
+  createAssignmentSchema,
+  updateAssignmentSchema,
+  updateAssignmentStatusSchema,
+  assignmentFilterSchema,
   // Common
   idParamSchema,
   paginationQuerySchema,

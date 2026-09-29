@@ -1,0 +1,253 @@
+/**
+ * AssignmentService
+ *
+ * Business logic and authorization guards for student academic tasks and assignments.
+ */
+
+const { assignmentRepository } = require('../repositories/AssignmentRepository');
+const { courseRepository } = require('../repositories/CourseRepository');
+const { userRepository } = require('../repositories/UserRepository');
+const { reminderRepository } = require('../repositories/ReminderRepository');
+const { Assignment } = require('../models/Assignment');
+const {
+  NotFoundError,
+  ForbiddenError,
+  BadRequestError
+} = require('../errors');
+
+class AssignmentService {
+  constructor(
+    assignmentRepo = assignmentRepository,
+    courseRepo = courseRepository,
+    userRepo = userRepository,
+    remRepo = reminderRepository
+  ) {
+    this.assignmentRepo = assignmentRepo;
+    this.courseRepo = courseRepo;
+    this.userRepo = userRepo;
+    this.remRepo = remRepo;
+  }
+
+  assertOwnership(assignment, requestingUser) {
+    if (!requestingUser) {
+      throw new ForbiddenError('Authentication required to access academic task');
+    }
+    if (requestingUser.role === 'admin' || requestingUser.id === assignment.user_id) {
+      return true;
+    }
+    throw new ForbiddenError('Access forbidden: you do not have permission to manage another student academic task');
+  }
+
+  syncAssignmentReminder(assignment) {
+    if (!assignment || !assignment.id) return null;
+
+    // If assignment is completed, cancelled, or reminders disabled, cancel any scheduled reminders
+    if (assignment.status === 'completed' || assignment.status === 'cancelled' || !assignment.reminder_enabled) {
+      const existing = this.remRepo.findByResource('assignment', assignment.id);
+      for (const rem of existing) {
+        if (rem.status === 'scheduled') {
+          this.remRepo.updateStatus(rem.id, 'cancelled');
+        }
+      }
+      return null;
+    }
+
+    // Active assignment: calculate reminder trigger timestamp
+    const leadTimeMs = (assignment.reminder_lead_time_minutes || 1440) * 60 * 1000;
+    let scheduledTime = assignment.due_date - leadTimeMs;
+    const now = Date.now();
+
+    // If reminder trigger is in past but deadline is future, clamp to immediate trigger
+    if (scheduledTime <= now && assignment.due_date > now) {
+      scheduledTime = now;
+    }
+
+    let courseSuffix = '';
+    if (assignment.course_id) {
+      const course = this.courseRepo.findById(assignment.course_id);
+      if (course) courseSuffix = ` for ${course.name}`;
+    }
+
+    const title = `Assignment Due: ${assignment.title}`;
+    const message = `Submission deadline approaching${courseSuffix}.`;
+
+    const existing = this.remRepo.findByResource('assignment', assignment.id);
+    const activeScheduled = existing.find(r => r.status === 'scheduled');
+
+    if (activeScheduled) {
+      return this.remRepo.update(activeScheduled.id, {
+        title,
+        message,
+        scheduled_time: scheduledTime,
+        reminder_type: 'assignment'
+      });
+    } else {
+      return this.remRepo.create({
+        user_id: assignment.user_id,
+        title,
+        message,
+        scheduled_time: scheduledTime,
+        reminder_type: 'assignment',
+        status: 'scheduled',
+        related_resource_type: 'assignment',
+        related_resource_id: assignment.id
+      });
+    }
+  }
+
+  createAssignment(userId, input, requestingUser) {
+    if (!requestingUser || (requestingUser.role !== 'admin' && requestingUser.id !== userId)) {
+      throw new ForbiddenError('You can only create assignments for your own account');
+    }
+
+    const user = this.userRepo.findById(userId);
+    if (!user) {
+      throw new NotFoundError(`Student user with id '${userId}' not found`);
+    }
+
+    if (!input.title || typeof input.title !== 'string' || input.title.trim().length < 2) {
+      throw new BadRequestError('Assignment title must have at least 2 characters');
+    }
+
+    if (!input.due_date || typeof Number(input.due_date) !== 'number' || Number(input.due_date) <= 0) {
+      throw new BadRequestError('A valid positive due_date timestamp is required');
+    }
+
+    // Validate course ownership if course_id is provided
+    if (input.course_id) {
+      const course = this.courseRepo.findById(input.course_id);
+      if (!course) {
+        throw new NotFoundError(`Course with id '${input.course_id}' not found`);
+      }
+      if (course.user_id !== userId) {
+        throw new ForbiddenError('Cannot link assignment to a course belonging to another student');
+      }
+    }
+
+    const assignmentInstance = Assignment.create({
+      ...input,
+      title: input.title.trim(),
+      user_id: userId,
+      due_date: Number(input.due_date)
+    });
+
+    const created = this.assignmentRepo.create(assignmentInstance);
+    // Sync scheduled deadline reminder
+    this.syncAssignmentReminder(created);
+    return created.toJSON();
+  }
+
+  listAssignments(userId, requestingUser, options = {}) {
+    if (!requestingUser || (requestingUser.role !== 'admin' && requestingUser.id !== userId)) {
+      throw new ForbiddenError('You can only view your own academic tasks');
+    }
+
+    const result = this.assignmentRepo.findWithPaginationAndFilters(userId, options);
+    return {
+      assignments: result.data.map(a => a.toJSON()),
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages
+      }
+    };
+  }
+
+  getAssignmentById(id, requestingUser) {
+    const assignment = this.assignmentRepo.findById(id);
+    if (!assignment) {
+      throw new NotFoundError(`Assignment with id '${id}' not found`);
+    }
+
+    this.assertOwnership(assignment, requestingUser);
+    return assignment.toJSON();
+  }
+
+  updateAssignment(id, updates, requestingUser) {
+    const assignment = this.assignmentRepo.findById(id);
+    if (!assignment) {
+      throw new NotFoundError(`Assignment with id '${id}' not found`);
+    }
+
+    this.assertOwnership(assignment, requestingUser);
+
+    if (updates.course_id !== undefined && updates.course_id !== null) {
+      const course = this.courseRepo.findById(updates.course_id);
+      if (!course) {
+        throw new NotFoundError(`Course with id '${updates.course_id}' not found`);
+      }
+      if (course.user_id !== assignment.user_id) {
+        throw new ForbiddenError('Cannot link assignment to a course belonging to another student');
+      }
+    }
+
+    if (updates.due_date !== undefined) {
+      if (typeof Number(updates.due_date) !== 'number' || Number(updates.due_date) <= 0) {
+        throw new BadRequestError('due_date must be a valid positive timestamp');
+      }
+    }
+
+    let completedAt = assignment.completed_at;
+    if (updates.status !== undefined) {
+      if (updates.status === 'completed' && assignment.status !== 'completed') {
+        completedAt = Date.now();
+      } else if (updates.status !== 'completed') {
+        completedAt = null;
+      }
+    }
+
+    const updated = this.assignmentRepo.update(id, {
+      ...updates,
+      title: updates.title ? updates.title.trim() : undefined,
+      due_date: updates.due_date ? Number(updates.due_date) : undefined,
+      completed_at: completedAt
+    });
+
+    // Re-sync reminder with updated deadline / status
+    this.syncAssignmentReminder(updated);
+
+    return updated.toJSON();
+  }
+
+  updateStatus(id, newStatus, requestingUser) {
+    const validStatuses = ['pending', 'in_progress', 'completed', 'cancelled'];
+    if (!validStatuses.includes(newStatus)) {
+      throw new BadRequestError(`Invalid status '${newStatus}'. Allowed: ${validStatuses.join(', ')}`);
+    }
+
+    const assignment = this.assignmentRepo.findById(id);
+    if (!assignment) {
+      throw new NotFoundError(`Assignment with id '${id}' not found`);
+    }
+
+    this.assertOwnership(assignment, requestingUser);
+
+    const completedAt = newStatus === 'completed' ? Date.now() : null;
+    const updated = this.assignmentRepo.updateStatus(id, newStatus, completedAt);
+
+    // Cancel or restore reminder based on status change
+    this.syncAssignmentReminder(updated);
+
+    return updated.toJSON();
+  }
+
+  deleteAssignment(id, requestingUser) {
+    const assignment = this.assignmentRepo.findById(id);
+    if (!assignment) {
+      throw new NotFoundError(`Assignment with id '${id}' not found`);
+    }
+
+    this.assertOwnership(assignment, requestingUser);
+
+    // Clean up any associated reminders
+    this.remRepo.deleteByResource('assignment', id);
+    this.assignmentRepo.delete(id);
+    return { success: true, id };
+  }
+}
+
+module.exports = {
+  AssignmentService,
+  assignmentService: new AssignmentService()
+};

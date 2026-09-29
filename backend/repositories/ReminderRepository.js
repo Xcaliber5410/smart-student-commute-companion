@@ -172,6 +172,24 @@ class ReminderRepository {
     const result = stmt.run(id);
     return result.changes > 0;
   }
+
+  findByResource(resourceType, resourceId) {
+    if (!resourceType || !resourceId) return [];
+    const stmt = this.database.prepare(
+      'SELECT * FROM reminders WHERE related_resource_type = ? AND related_resource_id = ?'
+    );
+    const rows = stmt.all(resourceType, resourceId);
+    return rows.map(r => Reminder.fromRow(r));
+  }
+
+  deleteByResource(resourceType, resourceId) {
+    if (!resourceType || !resourceId) return 0;
+    const stmt = this.database.prepare(
+      'DELETE FROM reminders WHERE related_resource_type = ? AND related_resource_id = ?'
+    );
+    const result = stmt.run(resourceType, resourceId);
+    return result.changes;
+  }
 }
 
 const reminderRepository = new ReminderRepository();

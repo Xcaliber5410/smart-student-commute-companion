@@ -17,6 +17,9 @@ const { studentDashboardService, StudentDashboardService } = require('./studentD
 const { notificationService, NotificationService } = require('./notificationService');
 const { reminderService, ReminderService } = require('./reminderService');
 const { reminderScheduler, ReminderScheduler } = require('./reminderScheduler');
+const { courseService, CourseService } = require('./courseService');
+const { assignmentService, AssignmentService } = require('./assignmentService');
+const { academicProgressService, AcademicProgressService } = require('./academicProgressService');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -27,6 +30,12 @@ const { explainRoutePlan } = require('./aiPlannerService');
 
 module.exports = {
   // Domain Services
+  courseService,
+  CourseService,
+  assignmentService,
+  AssignmentService,
+  academicProgressService,
+  AcademicProgressService,
   rideGroupService,
   RideGroupService,
   reportService,
