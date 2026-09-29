@@ -9,6 +9,7 @@ const { ReportRepository, reportRepository } = require('./ReportRepository');
 const { FeedbackRepository, feedbackRepository } = require('./FeedbackRepository');
 const { GeocodingRepository, geocodingRepository } = require('./GeocodingRepository');
 const { UserRepository, userRepository } = require('./UserRepository');
+const { CourseRepository, courseRepository } = require('./CourseRepository');
 
 module.exports = {
   RideGroupRepository,
@@ -20,6 +21,8 @@ module.exports = {
   GeocodingRepository,
   geocodingRepository,
   UserRepository,
-  userRepository
+  userRepository,
+  CourseRepository,
+  courseRepository
 };
 

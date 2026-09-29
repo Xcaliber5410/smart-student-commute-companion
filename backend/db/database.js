@@ -189,9 +189,45 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
     CREATE INDEX IF NOT EXISTS idx_reminders_user_status ON reminders(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_reminders_scheduled_status ON reminders(status, scheduled_time ASC);
+
+    -- 9. Academic Courses & Assignments (Day 8)
+    CREATE TABLE IF NOT EXISTS courses (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      code TEXT,
+      instructor TEXT,
+      color TEXT DEFAULT '#4F46E5',
+      credits INTEGER DEFAULT 3,
+      archived INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_courses_user_id ON courses(user_id);
+    CREATE INDEX IF NOT EXISTS idx_courses_user_archived ON courses(user_id, archived);
+
+    CREATE TABLE IF NOT EXISTS assignments (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      due_date INTEGER NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'medium',
+      status TEXT NOT NULL DEFAULT 'pending',
+      reminder_enabled INTEGER NOT NULL DEFAULT 1,
+      reminder_lead_time_minutes INTEGER NOT NULL DEFAULT 1440,
+      completed_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_assignments_user_id ON assignments(user_id);
+    CREATE INDEX IF NOT EXISTS idx_assignments_user_status ON assignments(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_assignments_user_due ON assignments(user_id, due_date ASC);
+    CREATE INDEX IF NOT EXISTS idx_assignments_course_id ON assignments(course_id);
   `);
 
-  // 9. GTFS Tables
+  // 10. GTFS Tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS gtfs_agency (
       agency_id TEXT PRIMARY KEY,

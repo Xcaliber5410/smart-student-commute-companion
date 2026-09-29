@@ -16,6 +16,7 @@ const { SavedRoute, savedRouteSchema } = require('./SavedRoute');
 const { RideGroupMember, rideGroupMemberSchema } = require('./RideGroupMember');
 const { Notification, notificationSchema } = require('./Notification');
 const { Reminder, reminderSchema } = require('./Reminder');
+const { Course, courseSchema } = require('./Course');
 
 module.exports = {
   LiveReport,
@@ -41,6 +42,8 @@ module.exports = {
   Notification,
   notificationSchema,
   Reminder,
-  reminderSchema
+  reminderSchema,
+  Course,
+  courseSchema
 };
 
