@@ -133,6 +133,7 @@ export default function PlannerPage({
             selectedRouteId={selectedRouteId}
             setSelectedRouteId={setSelectedRouteId}
             onOpenFeedback={onOpenFeedback}
+            maxBudgetRupees={formData?.maxBudgetRupees}
           />
         )}
       </section>

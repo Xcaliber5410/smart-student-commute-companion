@@ -16,13 +16,14 @@ import {
   Umbrella,
   CloudRain
 } from 'lucide-react';
-import { ErrorState } from './ui';
+import { ErrorState, ProgressBar, ComparisonBars } from './ui';
 
 export default function RouteResults({ 
   planResult, 
   selectedRouteId, 
   setSelectedRouteId, 
-  onOpenFeedback 
+  onOpenFeedback,
+  maxBudgetRupees
 }) {
   if (!planResult) return null;
 
@@ -68,10 +69,16 @@ export default function RouteResults({
                 <span className="text-xs font-semibold text-white">Mumbai Weather: {weather.condition}</span>
                 <span className="text-[10px] text-slate-400 font-mono">({weather.temperatureC}°C)</span>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Rain Probability: <strong className={weather.rainProbability > 50 ? 'text-amber-400' : 'text-slate-300'}>{weather.rainProbability}%</strong>
-                {weather.rainRisk === 'high' ? ' • Rain penalties applied to outdoor walking legs' : ' • Normal commuting conditions'}
-              </p>
+              <div className="min-w-[170px] max-w-[240px] flex-1">
+                <ProgressBar
+                  label={`Rain probability${weather.rainRisk === 'high' ? ' — rain penalties applied to walking legs' : ''}`}
+                  value={weather.rainProbability}
+                  max={100}
+                  variant={weather.rainProbability > 50 ? 'amber' : 'sky'}
+                  size="sm"
+                  displayValue={`${weather.rainProbability}%`}
+                />
+              </div>
             </div>
           </div>
           <span className="text-[10px] text-slate-400 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 hidden sm:inline">
@@ -193,6 +200,24 @@ export default function RouteResults({
           </div>
         </div>
 
+        {/* Budget usage vs the student's own limit (real planner data) */}
+        {Number.isFinite(maxBudgetRupees) && maxBudgetRupees > 0 && (
+          <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-4">
+            <ProgressBar
+              label="Fare vs your max budget"
+              value={recRoute.fareRupees}
+              max={maxBudgetRupees}
+              variant={recRoute.fareRupees > maxBudgetRupees ? 'rose' : 'emerald'}
+              displayValue={`₹${recRoute.fareRupees} of ₹${maxBudgetRupees}`}
+              hint={
+                recRoute.fareRupees <= maxBudgetRupees
+                  ? `₹${maxBudgetRupees - recRoute.fareRupees} left in your daily budget`
+                  : 'Over your configured budget limit'
+              }
+            />
+          </div>
+        )}
+
         {/* Warnings / Disruption Alerts */}
         {((aiReasoning.warnings && aiReasoning.warnings.length > 0) || (recRoute.disruptionAlerts && recRoute.disruptionAlerts.length > 0)) && (
           <div className="bg-amber-950/20 border border-amber-500/30 rounded-xl p-3 mb-4 space-y-1.5">
@@ -257,6 +282,49 @@ export default function RouteResults({
           </button>
         </div>
       </div>
+
+      {/* OPTION COMPARISON (real durations/fares from this plan result) */}
+      {alternatives.length > 0 && (
+        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
+          <ComparisonBars
+            title="Travel time across your options"
+            valueUnit="min"
+            items={[
+              {
+                label: `Recommended — ${recRoute.title}`,
+                value: recRoute.durationMinutes,
+                emphasis: true,
+                variant: 'emerald',
+              },
+              ...alternatives.map((alt) => ({
+                label: alt.title,
+                value: alt.durationMinutes,
+                variant: 'slate',
+              })),
+            ]}
+          />
+          <ComparisonBars
+            title="Fare across your options"
+            valueUnit="min"
+            items={[
+              {
+                label: `Recommended — ${recRoute.title}`,
+                value: recRoute.fareRupees,
+                displayValue: `₹${recRoute.fareRupees}`,
+                emphasis: true,
+                variant: 'amber',
+              },
+              ...alternatives.map((alt) => ({
+                label: alt.title,
+                value: alt.fareRupees,
+                displayValue: `₹${alt.fareRupees}`,
+                variant: 'slate',
+              })),
+            ]}
+            emptyMessage="No fares reported for these options."
+          />
+        </div>
+      )}
 
       {/* PRACTICAL ALTERNATIVES LIST */}
       <div>

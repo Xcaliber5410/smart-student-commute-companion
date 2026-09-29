@@ -41,3 +41,7 @@ export { default as ConfirmDialog } from './ConfirmDialog';
 export { default as Tabs, TabPanel } from './Tabs';
 export { default as StatTile } from './StatTile';
 export { default as ListSkeleton } from './ListSkeleton';
+
+// Reusable Progress & Data Visualization Components (Day 5)
+export { default as ProgressBar } from './ProgressBar';
+export { default as ComparisonBars } from './ComparisonBars';
