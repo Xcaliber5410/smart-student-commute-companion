@@ -82,6 +82,10 @@ const assignmentFilterSchema = z.object({
     z.boolean(),
     z.string().transform(v => v === 'true' || v === '1')
   ]).optional(),
+  upcoming: z.union([
+    z.boolean(),
+    z.string().transform(v => v === 'true' || v === '1')
+  ]).optional(),
   search: z.string().max(100).optional(),
   sort_by: z.enum(['due_date_asc', 'due_date_desc', 'created_at', 'priority']).optional().default('due_date_asc')
 });

@@ -89,8 +89,15 @@ class AssignmentRepository {
 
     if (options.overdue === true) {
       const now = Date.now();
-      conditions.push('status != ? AND due_date < ?');
-      params.push('completed', now);
+      conditions.push("status NOT IN ('completed', 'cancelled') AND due_date < ?");
+      params.push(now);
+    }
+
+    if (options.upcoming === true) {
+      const now = Date.now();
+      const sevenDaysLater = now + (7 * 24 * 60 * 60 * 1000);
+      conditions.push("status NOT IN ('completed', 'cancelled') AND due_date >= ? AND due_date <= ?");
+      params.push(now, sevenDaysLater);
     }
 
     if (options.search && typeof options.search === 'string') {

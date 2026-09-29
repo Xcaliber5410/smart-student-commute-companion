@@ -33,6 +33,7 @@
     "verify:course-service": "node scripts/verify_course_service.js",
     "verify:assignment-service": "node scripts/verify_assignment_service.js",
     "verify:assignment-reminders": "node scripts/verify_assignment_reminders.js",
+    "verify:academic-filtering": "node scripts/verify_academic_filtering.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",
