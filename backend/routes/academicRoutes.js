@@ -121,6 +121,12 @@ function createAcademicRoutes() {
     assignmentController.deleteAssignment
   );
 
+  // -------------------------------------------------------------
+  // Academic Progress & Dashboard Summary Endpoints
+  // -------------------------------------------------------------
+  router.get('/academic/progress', assignmentController.getAcademicSummary);
+  router.get('/academic/summary', assignmentController.getAcademicSummary);
+
   return router;
 }
 

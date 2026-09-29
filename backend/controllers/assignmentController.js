@@ -4,7 +4,7 @@
  * Exposes authenticated endpoints for managing student assignments, deliverables, and tasks.
  */
 
-const { assignmentService } = require('../services');
+const { assignmentService, academicProgressService } = require('../services');
 const { success, created } = require('../utils/apiResponse');
 
 function createAssignment(req, res, next) {
@@ -80,11 +80,22 @@ function deleteAssignment(req, res, next) {
   }
 }
 
+function getAcademicSummary(req, res, next) {
+  try {
+    const studentId = req.user.id;
+    const summary = academicProgressService.getStudentAcademicSummary(studentId, req.user, req.query);
+    return success(res, summary);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createAssignment,
   listAssignments,
   getAssignment,
   updateAssignment,
   updateStatus,
-  deleteAssignment
+  deleteAssignment,
+  getAcademicSummary
 };

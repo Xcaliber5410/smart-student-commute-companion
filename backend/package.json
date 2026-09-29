@@ -34,6 +34,7 @@
     "verify:assignment-service": "node scripts/verify_assignment_service.js",
     "verify:assignment-reminders": "node scripts/verify_assignment_reminders.js",
     "verify:academic-filtering": "node scripts/verify_academic_filtering.js",
+    "verify:academic-progress": "node scripts/verify_academic_progress.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",
