@@ -32,6 +32,7 @@
     "verify:notification-api": "node scripts/verify_notification_api.js",
     "verify:course-service": "node scripts/verify_course_service.js",
     "verify:assignment-service": "node scripts/verify_assignment_service.js",
+    "verify:assignment-reminders": "node scripts/verify_assignment_reminders.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",

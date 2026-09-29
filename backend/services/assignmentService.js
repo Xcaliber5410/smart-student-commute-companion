@@ -7,6 +7,7 @@
 const { assignmentRepository } = require('../repositories/AssignmentRepository');
 const { courseRepository } = require('../repositories/CourseRepository');
 const { userRepository } = require('../repositories/UserRepository');
+const { reminderRepository } = require('../repositories/ReminderRepository');
 const { Assignment } = require('../models/Assignment');
 const {
   NotFoundError,
@@ -18,11 +19,13 @@ class AssignmentService {
   constructor(
     assignmentRepo = assignmentRepository,
     courseRepo = courseRepository,
-    userRepo = userRepository
+    userRepo = userRepository,
+    remRepo = reminderRepository
   ) {
     this.assignmentRepo = assignmentRepo;
     this.courseRepo = courseRepo;
     this.userRepo = userRepo;
+    this.remRepo = remRepo;
   }
 
   assertOwnership(assignment, requestingUser) {
@@ -33,6 +36,63 @@ class AssignmentService {
       return true;
     }
     throw new ForbiddenError('Access forbidden: you do not have permission to manage another student academic task');
+  }
+
+  syncAssignmentReminder(assignment) {
+    if (!assignment || !assignment.id) return null;
+
+    // If assignment is completed, cancelled, or reminders disabled, cancel any scheduled reminders
+    if (assignment.status === 'completed' || assignment.status === 'cancelled' || !assignment.reminder_enabled) {
+      const existing = this.remRepo.findByResource('assignment', assignment.id);
+      for (const rem of existing) {
+        if (rem.status === 'scheduled') {
+          this.remRepo.updateStatus(rem.id, 'cancelled');
+        }
+      }
+      return null;
+    }
+
+    // Active assignment: calculate reminder trigger timestamp
+    const leadTimeMs = (assignment.reminder_lead_time_minutes || 1440) * 60 * 1000;
+    let scheduledTime = assignment.due_date - leadTimeMs;
+    const now = Date.now();
+
+    // If reminder trigger is in past but deadline is future, clamp to immediate trigger
+    if (scheduledTime <= now && assignment.due_date > now) {
+      scheduledTime = now;
+    }
+
+    let courseSuffix = '';
+    if (assignment.course_id) {
+      const course = this.courseRepo.findById(assignment.course_id);
+      if (course) courseSuffix = ` for ${course.name}`;
+    }
+
+    const title = `Assignment Due: ${assignment.title}`;
+    const message = `Submission deadline approaching${courseSuffix}.`;
+
+    const existing = this.remRepo.findByResource('assignment', assignment.id);
+    const activeScheduled = existing.find(r => r.status === 'scheduled');
+
+    if (activeScheduled) {
+      return this.remRepo.update(activeScheduled.id, {
+        title,
+        message,
+        scheduled_time: scheduledTime,
+        reminder_type: 'assignment'
+      });
+    } else {
+      return this.remRepo.create({
+        user_id: assignment.user_id,
+        title,
+        message,
+        scheduled_time: scheduledTime,
+        reminder_type: 'assignment',
+        status: 'scheduled',
+        related_resource_type: 'assignment',
+        related_resource_id: assignment.id
+      });
+    }
   }
 
   createAssignment(userId, input, requestingUser) {
@@ -72,6 +132,8 @@ class AssignmentService {
     });
 
     const created = this.assignmentRepo.create(assignmentInstance);
+    // Sync scheduled deadline reminder
+    this.syncAssignmentReminder(created);
     return created.toJSON();
   }
 
@@ -142,6 +204,9 @@ class AssignmentService {
       completed_at: completedAt
     });
 
+    // Re-sync reminder with updated deadline / status
+    this.syncAssignmentReminder(updated);
+
     return updated.toJSON();
   }
 
@@ -160,6 +225,10 @@ class AssignmentService {
 
     const completedAt = newStatus === 'completed' ? Date.now() : null;
     const updated = this.assignmentRepo.updateStatus(id, newStatus, completedAt);
+
+    // Cancel or restore reminder based on status change
+    this.syncAssignmentReminder(updated);
+
     return updated.toJSON();
   }
 
@@ -170,6 +239,9 @@ class AssignmentService {
     }
 
     this.assertOwnership(assignment, requestingUser);
+
+    // Clean up any associated reminders
+    this.remRepo.deleteByResource('assignment', id);
     this.assignmentRepo.delete(id);
     return { success: true, id };
   }
