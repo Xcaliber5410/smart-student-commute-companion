@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   TrainFront,
   Bookmark,
+  Bell,
   SlidersHorizontal,
   Download,
   Menu,
@@ -55,6 +56,13 @@ const NAV_ITEMS = [
     icon: AlertTriangle,
     description: 'Real-time crowd-sourced transit disruptions',
     hasBadge: true
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    shortLabel: 'Notices',
+    icon: Bell,
+    description: 'Recent student commute updates'
   }
 ];
 
