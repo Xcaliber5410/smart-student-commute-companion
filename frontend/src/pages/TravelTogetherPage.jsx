@@ -133,11 +133,13 @@ export default function TravelTogetherPage({
       <section aria-label="Commute groups" aria-busy={isLoading || isRefreshing}>
         {isLoading ? (
           <LoadingState
+            headingLevel={2}
             title="Loading commute groups..."
             description="Fetching open student ride pools for your college routes."
           />
         ) : loadError ? (
           <ErrorState
+            headingLevel={2}
             title="Commute groups unavailable"
             message={loadError}
             onRetry={onRetryLoad}
@@ -145,6 +147,7 @@ export default function TravelTogetherPage({
           />
         ) : showNoMatches ? (
           <EmptyState
+            headingLevel={2}
             icon={<SearchIcon />}
             title="No groups match your filters"
             description="Try a different search term, or clear the active filters to see all commute groups."

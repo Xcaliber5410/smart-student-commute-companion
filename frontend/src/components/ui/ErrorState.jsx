@@ -15,6 +15,9 @@ import Button from './Button';
  * @param {boolean} [props.isRetrying=false] - Whether retry is in progress
  * @param {string[]} [props.suggestions] - Optional helpful troubleshooting suggestions
  * @param {React.ReactNode} [props.customAction] - Custom action button or component
+ * @param {2|3|4|5|6} [props.headingLevel=3] - Heading rank; pass 2 when this
+ *   state renders as the first thing under the page h1 (keeps the document
+ *   outline free of skipped levels)
  * @param {string} [props.className=''] - Additional container classes
  */
 export default function ErrorState({
@@ -25,8 +28,10 @@ export default function ErrorState({
   isRetrying = false,
   suggestions,
   customAction,
+  headingLevel = 3,
   className = ''
 }) {
+  const Heading = `h${Math.min(6, Math.max(2, Number(headingLevel) || 3))}`;
   return (
     <div 
       className={`text-center py-10 px-4 bg-rose-950/20 rounded-2xl border border-rose-900/50 shadow-xl ${className}`}
@@ -39,9 +44,9 @@ export default function ErrorState({
         </div>
 
         <div className="space-y-1">
-          <h3 className="text-base font-bold text-slate-100">
+          <Heading className="text-base font-bold text-slate-100">
             {title}
-          </h3>
+          </Heading>
           <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
             {message}
           </p>

@@ -10,6 +10,9 @@ import React from 'react';
  * @param {string} props.title - Empty state title
  * @param {string} props.description - Empty state description
  * @param {React.ReactNode} props.action - Optional call-to-action button
+ * @param {2|3|4|5|6} [props.headingLevel=3] - Heading rank; pass 2 when this
+ *   state renders as the first thing under the page h1 (keeps the document
+ *   outline free of skipped levels)
  * @param {string} props.className - Additional CSS classes
  * 
  * @example
@@ -25,8 +28,11 @@ export default function EmptyState({
   title,
   description,
   action,
+  headingLevel = 3,
   className = '',
 }) {
+  const Heading = `h${Math.min(6, Math.max(2, Number(headingLevel) || 3))}`;
+
   return (
     <div 
       className={`text-center py-12 px-4 bg-slate-950/40 rounded-xl border border-dashed border-slate-800 ${className}`}
@@ -41,9 +47,9 @@ export default function EmptyState({
         )}
         
         {title && (
-          <h3 className="text-base font-semibold text-slate-200">
+          <Heading className="text-base font-semibold text-slate-200">
             {title}
-          </h3>
+          </Heading>
         )}
         
         {description && (

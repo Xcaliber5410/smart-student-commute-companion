@@ -112,10 +112,10 @@ export default function Navbar({
     <>
       <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800">
         {/* Top Privacy & Security Notice Banner */}
-        <div className="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-indigo-950/60 border-b border-slate-800/80 px-4 py-1.5 text-xs text-slate-300 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-indigo-950/60 border-b border-slate-800/80 px-4 py-1.5 text-xs text-slate-300 flex items-center justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" />
-            <span className="truncate">
+            <span className="truncate min-w-0">
               <strong className="text-emerald-400 font-semibold">Privacy Protected:</strong> Area-level commute routing without continuous GPS tracking.
             </span>
           </div>

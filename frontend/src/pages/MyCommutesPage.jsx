@@ -82,6 +82,7 @@ export default function MyCommutesPage({
           <ListSkeleton rows={3} label="Loading your saved commutes" />
         ) : loadError ? (
           <ErrorState
+            headingLevel={2}
             title="Saved commutes unavailable"
             message={loadError}
             onRetry={onRetryLoad}
@@ -93,6 +94,7 @@ export default function MyCommutesPage({
           />
         ) : commutes.length === 0 ? (
           <EmptyState
+            headingLevel={2}
             icon={<Bookmark className="w-6 h-6 text-emerald-400" aria-hidden="true" />}
             title="No saved commutes yet"
             description="Configure your route in the planner, then press “Save this commute” to keep it here for one-tap planning."

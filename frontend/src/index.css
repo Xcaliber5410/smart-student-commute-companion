@@ -154,6 +154,80 @@ p {
   background: var(--color-surface-elevated) !important;
 }
 
+/* Attribution links meet the 24px minimum target size (WCAG 2.5.8) */
+.leaflet-control-attribution {
+  padding: 4px 6px !important;
+}
+
+.leaflet-control-attribution a {
+  display: inline-block;
+  padding: 5px 3px;
+}
+
+/* ============================================================
+   RANGE SLIDERS - 24px TOUCH TARGET (WCAG 2.5.8)
+   ============================================================
+   Native appearance is replaced so the hit area can be taller than the
+   visual track. Per-slider accent colors reuse the Tailwind `accent-*`
+   classes already applied in the markup.
+*/
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1.5rem; /* 24px hit area */
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 9999px;
+  background: #10b981;
+  border: 2px solid #020617;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+input[type="range"].accent-amber-500::-webkit-slider-thumb {
+  background: #f59e0b;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #10b981;
+  border: 2px solid #020617;
+}
+
+input[type="range"].accent-amber-500::-moz-range-thumb {
+  background: #f59e0b;
+}
+
+input[type="range"]:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.6);
+  outline-offset: 3px;
+  border-radius: 9999px;
+}
+
 /* ============================================================
    ANIMATIONS
    ============================================================ */

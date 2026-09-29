@@ -329,7 +329,7 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading, 
               aria-valuemin={5}
               aria-valuemax={30}
               aria-valuenow={formData.walkingToleranceMinutes}
-              className="w-full accent-emerald-500 bg-slate-950 rounded-lg cursor-pointer h-1.5"
+              className="w-full accent-emerald-500 bg-slate-950 rounded-lg cursor-pointer"
             />
           </div>
 
@@ -367,7 +367,7 @@ export default function PlannerForm({ formData, setFormData, onPlan, isLoading, 
               aria-label={`Maximum budget: ₹${formData.maxBudgetRupees}`}
               value={Math.min(600, formData.maxBudgetRupees || 10)}
               onChange={(e) => setFormData({ ...formData, maxBudgetRupees: parseInt(e.target.value, 10) })}
-              className="w-full accent-amber-500 bg-slate-950 rounded-lg cursor-pointer h-1.5"
+              className="w-full accent-amber-500 bg-slate-950 rounded-lg cursor-pointer"
             />
             {errors.maxBudgetRupees && (
               <p id="planner-budget-error" className="mt-1 text-xs text-rose-400" role="alert">

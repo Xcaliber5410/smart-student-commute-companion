@@ -211,11 +211,13 @@ export default function LiveAlertsPage({
         )}
         {isLoading ? (
           <LoadingState
+            headingLevel={2}
             title="Loading live alerts..."
             description="Fetching the latest student disruption reports across Mumbai."
           />
         ) : loadError ? (
           <ErrorState
+            headingLevel={2}
             title="Live alerts unavailable"
             message={loadError}
             onRetry={onRetryLoad}
@@ -223,6 +225,7 @@ export default function LiveAlertsPage({
           />
         ) : showNoMatches ? (
           <EmptyState
+            headingLevel={2}
             icon={<SearchIcon />}
             title="No alerts match your filters"
             description="Try a different search term, or clear the active filters to see all live reports."
