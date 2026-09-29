@@ -23,6 +23,35 @@ const STATIC_ASSETS = [
   // They'll be cached on first load via fetch event
 ];
 
+// Minimal offline fallback for first-visit-while-offline navigations.
+// Keeps the same visual language as the app shell (dark, system fonts).
+const OFFLINE_FALLBACK_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#10b981">
+<title>Offline — Smart Student Commute</title>
+<style>
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:#020617; color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:1.5rem; }
+  main { max-width:26rem; text-align:center; }
+  h1 { font-size:1.25rem; color:#fff; margin:0 0 .5rem; }
+  p { font-size:.9rem; color:#94a3b8; line-height:1.6; margin:0 0 1.25rem; }
+  button { background:#10b981; color:#020617; border:0; border-radius:.75rem; padding:.65rem 1.4rem;
+           font-size:.9rem; font-weight:700; cursor:pointer; }
+  button:focus-visible { outline:3px solid #34d399; outline-offset:2px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>You&rsquo;re offline</h1>
+  <p>This page isn&rsquo;t cached yet and there&rsquo;s no connection. Reconnect and try again — the app shell will load from cache once it&rsquo;s been visited online.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+</main>
+</body>
+</html>`;
+
 // Assets that should NEVER be cached
 const EXCLUDED_PATHS = [
   '/api/',           // All API calls
@@ -148,14 +177,20 @@ self.addEventListener('fetch', (event) => {
             console.error('[SW] Fetch failed:', error);
             
             // For navigation requests, return cached index.html if available
-            if (request.destination === 'document') {
+            if (request.destination === 'document' || request.mode === 'navigate') {
               return caches.match('/index.html')
                 .then((cachedIndex) => {
                   if (cachedIndex) {
                     console.log('[SW] Serving cached index.html as fallback');
                     return cachedIndex;
                   }
-                  throw error;
+                  // No shell cached yet (first visit was offline) — serve a
+                  // clear offline page instead of a raw browser error.
+                  return new Response(OFFLINE_FALLBACK_HTML, {
+                    status: 503,
+                    statusText: 'Offline',
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                  });
                 });
             }
             

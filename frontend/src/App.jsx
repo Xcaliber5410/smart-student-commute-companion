@@ -7,6 +7,7 @@ import CreateReportModal from './components/CreateReportModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
 import PreferencesDialog from './components/PreferencesDialog';
+import PwaStatusBanner from './components/PwaStatusBanner';
 import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage } from './pages';
 import { 
   requestPlan, 
@@ -40,6 +41,7 @@ import {
 import { resetDemoState } from './services/api';
 import { getSocket } from './services/socket';
 import useAsyncResource from './hooks/useAsyncResource';
+import usePwaInstall from './hooks/usePwaInstall';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
@@ -103,6 +105,49 @@ export default function App() {
   // Client-side personalization preferences (device-local, no backend sync)
   const [appPreferences, setAppPreferences] = useState(() => readAppPreferences());
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+
+  // PWA status — connectivity + pending service-worker update
+  const [isOffline, setIsOffline] = useState(() =>
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  );
+  const [swUpdateAvailable, setSwUpdateAvailable] = useState(false);
+  const { canInstall, isInstalled, promptInstall } = usePwaInstall();
+
+  // Browser connectivity transitions (online/offline events)
+  useEffect(() => {
+    const handleOffline = () => {
+      setIsOffline(true);
+      showToast('You are offline — live data is unavailable until you reconnect.', 'warning');
+    };
+    const handleOnline = () => {
+      setIsOffline(false);
+      showToast('Back online — live data is available again.', 'success');
+    };
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
+  // Service-worker update flow (registerSW.js dispatches this event)
+  useEffect(() => {
+    const handleSwUpdate = () => setSwUpdateAvailable(true);
+    window.addEventListener('swUpdateAvailable', handleSwUpdate);
+    return () => window.removeEventListener('swUpdateAvailable', handleSwUpdate);
+  }, []);
+
+  const handleApplyUpdate = () => window.location.reload();
+
+  const handleInstallApp = async () => {
+    const outcome = await promptInstall();
+    if (outcome === 'accepted') {
+      showToast('Thanks! The app is being installed on your device.', 'success');
+    } else if (outcome === 'dismissed') {
+      showToast('Install dismissed — you can add the app from your browser menu anytime.', 'info');
+    }
+  };
 
   // Apply a partial preference change with immediate UI feedback
   const handlePreferenceChange = (overrides) => {
@@ -607,7 +652,9 @@ export default function App() {
     activeTab,
     setActiveTab,
     reportsCount: reports.length,
-    onOpenPreferences: () => setIsPreferencesOpen(true)
+    onOpenPreferences: () => setIsPreferencesOpen(true),
+    canInstall: canInstall && !isInstalled,
+    onInstallApp: handleInstallApp
   };
 
   return (
@@ -622,6 +669,11 @@ export default function App() {
           />
         }
       >
+        <PwaStatusBanner
+          isOffline={isOffline}
+          updateAvailable={swUpdateAvailable}
+          onRefresh={handleApplyUpdate}
+        />
         {renderTabContent()}
       </MainLayout>
 

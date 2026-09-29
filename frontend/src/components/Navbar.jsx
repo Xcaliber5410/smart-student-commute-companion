@@ -9,6 +9,7 @@ import {
   TrainFront,
   Bookmark,
   SlidersHorizontal,
+  Download,
   Menu,
   X
 } from 'lucide-react';
@@ -64,7 +65,9 @@ export default function Navbar({
   activeTab, 
   setActiveTab, 
   reportsCount = 0,
-  onOpenPreferences
+  onOpenPreferences,
+  canInstall = false,
+  onInstallApp
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
@@ -217,6 +220,20 @@ export default function Navbar({
               )}
             </div>
 
+            {/* PWA Install action (only when the browser offers it) */}
+            {canInstall && onInstallApp && (
+              <button
+                type="button"
+                onClick={onInstallApp}
+                title="Install this app on your device"
+                aria-label="Install app"
+                className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 border border-emerald-400 text-slate-950 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                <span className="hidden lg:inline">Install App</span>
+              </button>
+            )}
+
             {/* Preferences (client-side personalization controls) */}
             {onOpenPreferences && (
               <button
@@ -319,7 +336,20 @@ export default function Navbar({
 
             {/* Mobile Preferences Control */}
             {onOpenPreferences && (
-              <div className="pt-2 border-t border-slate-800/80">
+              <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                {canInstall && onInstallApp && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onInstallApp();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-500 border border-emerald-400 text-slate-950 text-xs font-bold hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Install App</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
