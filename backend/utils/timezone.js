@@ -83,6 +83,20 @@ function formatInMumbaiTime(epochMs) {
   });
 }
 
+/**
+ * Returns UTC millisecond timestamps for start of day (00:00:00) and end of day (23:59:59.999) in IST.
+ */
+function getMumbaiTodayRange(baseDate = new Date()) {
+  const istNow = getMumbaiNow(baseDate);
+  const year = istNow.getFullYear();
+  const month = istNow.getMonth();
+  const day = istNow.getDate();
+
+  const startOfDay = Date.UTC(year, month, day, 0, 0, 0, 0) - IST_OFFSET_MS;
+  const endOfDay = startOfDay + (24 * 3600 * 1000) - 1;
+  return { startOfDay, endOfDay };
+}
+
 module.exports = {
   DEFAULT_TIMEZONE,
   IST_OFFSET_MS,
@@ -91,5 +105,6 @@ module.exports = {
   getMumbaiDayOfWeek,
   getMumbaiTimeHHMM,
   parseMumbaiTimeToEpoch,
-  formatInMumbaiTime
+  formatInMumbaiTime,
+  getMumbaiTodayRange
 };

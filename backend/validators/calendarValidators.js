@@ -56,9 +56,26 @@ const calendarEventFilterSchema = z.object({
   sort_by: z.enum(['start_time_asc', 'start_time_desc', 'created_at']).default('start_time_asc')
 });
 
+const calendarRangeQuerySchema = z.object({
+  start: z.coerce.number().int().positive('start must be a positive epoch timestamp'),
+  end: z.coerce.number().int().positive('end must be a positive epoch timestamp')
+}).refine(data => data.start < data.end, {
+  message: 'start must be strictly before end',
+  path: ['end']
+}).refine(data => (data.end - data.start) <= (90 * 86400000), {
+  message: 'Date range cannot exceed 90 days',
+  path: ['end']
+});
+
+const calendarUpcomingQuerySchema = z.object({
+  days: z.coerce.number().int().min(1, 'days must be at least 1').max(30, 'days cannot exceed 30').default(7)
+});
+
 module.exports = {
   eventTypeEnum,
   createCalendarEventSchema,
   updateCalendarEventSchema,
-  calendarEventFilterSchema
+  calendarEventFilterSchema,
+  calendarRangeQuerySchema,
+  calendarUpcomingQuerySchema
 };
