@@ -39,6 +39,12 @@ import {
   isCommuteSaved,
 } from './utils/uiPreferences';
 import { resetDemoState } from './services/api';
+import {
+  getPermission as getDeviceAlertPermission,
+  requestPermission as requestDeviceAlertPermission,
+  watchPermission as watchDeviceAlertPermission,
+  showNotification as showDeviceNotification,
+} from './services/deviceAlerts';
 import { getSocket } from './services/socket';
 import useAsyncResource from './hooks/useAsyncResource';
 import usePwaInstall from './hooks/usePwaInstall';
@@ -147,6 +153,13 @@ export default function App() {
 
   const handleApplyUpdate = () => window.location.reload();
 
+  // Day 7 — keep device-alert permission state live when the user changes it
+  // in browser site settings (feature-detected; no-op when unsupported)
+  useEffect(() => {
+    const stopWatching = watchDeviceAlertPermission(setDeviceAlertPermission);
+    return stopWatching;
+  }, []);
+
   const handleInstallApp = async () => {
     const outcome = await promptInstall();
     if (outcome === 'accepted') {
@@ -171,23 +184,17 @@ export default function App() {
 
   // Day 7 — request browser notification permission (must run inside a user gesture)
   const handleRequestDevicePermission = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      showToast('This browser does not support device alerts.', 'error');
-      return;
-    }
     if (isPermissionRequestPending) return;
     setIsPermissionRequestPending(true);
     try {
-      const result = await Promise.resolve(window.Notification.requestPermission());
-      const resolved =
-        result === 'granted' || result === 'denied' || result === 'default'
-          ? result
-          : window.Notification.permission;
+      const resolved = await requestDeviceAlertPermission();
       setDeviceAlertPermission(resolved);
       if (resolved === 'granted') {
         showToast('Device alerts enabled for this browser.', 'success');
       } else if (resolved === 'denied') {
         showToast('Notifications are blocked — allow them in your browser site settings.', 'error');
+      } else if (resolved === 'unsupported') {
+        showToast('This browser does not support device alerts.', 'error');
       } else {
         showToast('Permission request dismissed — you can enable device alerts anytime.', 'info');
       }
@@ -199,24 +206,23 @@ export default function App() {
   };
 
   // Day 7 — fire a local test notification (granted permission required)
-  const handleSendTestAlert = () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      showToast('This browser does not support device alerts.', 'error');
-      return;
-    }
-    if (window.Notification.permission !== 'granted') {
-      showToast('Allow notifications before sending a test alert.', 'error');
-      return;
-    }
+  const handleSendTestAlert = async () => {
     setIsSendingTestAlert(true);
     try {
-      new window.Notification('Test device alert', {
+      const shown = await showDeviceNotification({
+        title: 'Test device alert',
         body: 'Device alerts are working. Live disruption reports will appear like this while the app is in the background.',
         tag: 'device-alert-test',
       });
-      showToast('Test alert shown on this device.', 'success');
-    } catch {
-      showToast('This browser blocked the test notification.', 'error');
+      if (shown) {
+        showToast('Test alert shown on this device.', 'success');
+      } else if (getDeviceAlertPermission() === 'unsupported') {
+        showToast('This browser does not support device alerts.', 'error');
+      } else if (getDeviceAlertPermission() !== 'granted') {
+        showToast('Allow notifications before sending a test alert.', 'error');
+      } else {
+        showToast('This browser blocked the test notification.', 'error');
+      }
     } finally {
       setIsSendingTestAlert(false);
     }
@@ -305,6 +311,17 @@ export default function App() {
       // Respect the user's notification preference (read fresh each event)
       if (readAppPreferences().liveReportToasts) {
         showToast(`⚠ Live Report from ${newReport.area}: ${newReport.message.substring(0, 50)}...`, 'warning');
+      }
+      // Day 7 — mirror the report as an OS-level alert, but only while the
+      // app is NOT focused (no duplicate noise while actively using it).
+      // Preferences are read fresh because this handler outlives renders.
+      const prefs = readAppPreferences();
+      if (prefs.deviceAlerts && !document.hasFocus() && getDeviceAlertPermission() === 'granted') {
+        showDeviceNotification({
+          title: `Live report — ${newReport.area}`,
+          body: newReport.message,
+          tag: `live-report-${newReport.id}`,
+        });
       }
     });
 
