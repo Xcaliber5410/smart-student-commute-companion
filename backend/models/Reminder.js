@@ -6,7 +6,7 @@
 
 const { z } = require('zod');
 
-const reminderTypeEnum = z.enum(['commute', 'class', 'ride_group', 'assignment', 'custom']);
+const reminderTypeEnum = z.enum(['commute', 'class', 'ride_group', 'assignment', 'calendar_event', 'study_session', 'custom']);
 const reminderStatusEnum = z.enum(['scheduled', 'triggered', 'completed', 'cancelled']);
 
 const reminderSchema = z.object({

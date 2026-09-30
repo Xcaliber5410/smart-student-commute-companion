@@ -225,9 +225,54 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_assignments_user_status ON assignments(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_assignments_user_due ON assignments(user_id, due_date ASC);
     CREATE INDEX IF NOT EXISTS idx_assignments_course_id ON assignments(course_id);
+
+    -- 10. Student Planning: Calendar Events & Study Sessions (Day 9)
+    CREATE TABLE IF NOT EXISTS calendar_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      location TEXT,
+      event_type TEXT NOT NULL DEFAULT 'lecture',
+      start_time INTEGER NOT NULL,
+      end_time INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'scheduled',
+      reminder_enabled INTEGER NOT NULL DEFAULT 1,
+      reminder_lead_time_minutes INTEGER NOT NULL DEFAULT 30,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_calendar_events_user_id ON calendar_events(user_id);
+    CREATE INDEX IF NOT EXISTS idx_calendar_events_user_range ON calendar_events(user_id, start_time, end_time);
+    CREATE INDEX IF NOT EXISTS idx_calendar_events_user_status ON calendar_events(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_calendar_events_course_id ON calendar_events(course_id);
+
+    CREATE TABLE IF NOT EXISTS study_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      assignment_id TEXT REFERENCES assignments(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      notes TEXT,
+      planned_start_time INTEGER NOT NULL,
+      planned_duration_minutes INTEGER NOT NULL,
+      actual_duration_minutes INTEGER,
+      status TEXT NOT NULL DEFAULT 'planned',
+      reminder_enabled INTEGER NOT NULL DEFAULT 1,
+      reminder_lead_time_minutes INTEGER NOT NULL DEFAULT 15,
+      completed_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_study_sessions_user_id ON study_sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_study_sessions_user_time ON study_sessions(user_id, planned_start_time);
+    CREATE INDEX IF NOT EXISTS idx_study_sessions_user_status ON study_sessions(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_study_sessions_course_id ON study_sessions(course_id);
+    CREATE INDEX IF NOT EXISTS idx_study_sessions_assignment_id ON study_sessions(assignment_id);
   `);
 
-  // 10. GTFS Tables
+  // 11. GTFS Tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS gtfs_agency (
       agency_id TEXT PRIMARY KEY,
