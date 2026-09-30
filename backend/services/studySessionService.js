@@ -25,6 +25,68 @@ class StudySessionService {
     this.remRepo = remRepo;
   }
 
+  syncStudySessionReminder(session) {
+    if (!session || !session.id) return null;
+
+    // If session is completed, cancelled, or reminders disabled, cancel any scheduled reminders
+    if (session.status === 'completed' || session.status === 'cancelled' || !session.reminder_enabled) {
+      const existing = this.remRepo.findByResource('study_session', session.id);
+      for (const rem of existing) {
+        if (rem.status === 'scheduled') {
+          this.remRepo.updateStatus(rem.id, 'cancelled');
+        }
+      }
+      return null;
+    }
+
+    // Active session: calculate reminder trigger timestamp
+    const leadTimeMs = (session.reminder_lead_time_minutes || 15) * 60 * 1000;
+    let scheduledTime = session.planned_start_time - leadTimeMs;
+    const now = Date.now();
+
+    // If session is already in the past, don't schedule
+    if (session.planned_start_time <= now) {
+      return null;
+    }
+
+    // If trigger in past but session future, clamp to immediate
+    if (scheduledTime <= now && session.planned_start_time > now) {
+      scheduledTime = now;
+    }
+
+    let courseSuffix = '';
+    if (session.course_id) {
+      const course = this.courseRepo.findById(session.course_id);
+      if (course) courseSuffix = ` for ${course.name}`;
+    }
+
+    const title = `Study Session: ${session.title}`;
+    const message = `Planned study block of ${session.planned_duration_minutes} minutes${courseSuffix}.`;
+
+    const existing = this.remRepo.findByResource('study_session', session.id);
+    const activeScheduled = existing.find(r => r.status === 'scheduled');
+
+    if (activeScheduled) {
+      return this.remRepo.update(activeScheduled.id, {
+        title,
+        message,
+        scheduled_time: scheduledTime,
+        reminder_type: 'study_session'
+      });
+    } else {
+      return this.remRepo.create({
+        user_id: session.user_id,
+        title,
+        message,
+        scheduled_time: scheduledTime,
+        reminder_type: 'study_session',
+        status: 'scheduled',
+        related_resource_type: 'study_session',
+        related_resource_id: session.id
+      });
+    }
+  }
+
   async createSession(userId, data) {
     if (!userId) {
       throw new ValidationError('Student user ID is required');
@@ -61,7 +123,9 @@ class StudySessionService {
       user_id: userId
     });
 
-    return this.studyRepo.create(session);
+    const saved = this.studyRepo.create(session);
+    this.syncStudySessionReminder(saved);
+    return saved;
   }
 
   async getSessionById(userId, sessionId) {
@@ -135,7 +199,9 @@ class StudySessionService {
       processedUpdates.completed_at = null;
     }
 
-    return this.studyRepo.update(sessionId, processedUpdates);
+    const updated = this.studyRepo.update(sessionId, processedUpdates);
+    this.syncStudySessionReminder(updated);
+    return updated;
   }
 
   async updateStatus(userId, sessionId, status, actualDuration) {

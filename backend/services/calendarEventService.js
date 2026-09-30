@@ -18,6 +18,69 @@ class CalendarEventService {
     this.remRepo = remRepo;
   }
 
+  syncEventReminder(event) {
+    if (!event || !event.id) return null;
+
+    // If event is cancelled or reminders disabled, cancel any scheduled reminders
+    if (event.status === 'cancelled' || !event.reminder_enabled) {
+      const existing = this.remRepo.findByResource('calendar_event', event.id);
+      for (const rem of existing) {
+        if (rem.status === 'scheduled') {
+          this.remRepo.updateStatus(rem.id, 'cancelled');
+        }
+      }
+      return null;
+    }
+
+    // Active event: calculate reminder trigger timestamp
+    const leadTimeMs = (event.reminder_lead_time_minutes || 30) * 60 * 1000;
+    let scheduledTime = event.start_time - leadTimeMs;
+    const now = Date.now();
+
+    // If event is already in the past, don't create reminders
+    if (event.start_time <= now) {
+      return null;
+    }
+
+    // If reminder trigger is in past but event is future, clamp to immediate trigger
+    if (scheduledTime <= now && event.start_time > now) {
+      scheduledTime = now;
+    }
+
+    let courseSuffix = '';
+    if (event.course_id) {
+      const course = this.courseRepo.findById(event.course_id);
+      if (course) courseSuffix = ` (${course.name})`;
+    }
+
+    const title = `Upcoming ${event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}: ${event.title}`;
+    const locationStr = event.location ? ` at ${event.location}` : '';
+    const message = `Event starting soon${courseSuffix}${locationStr}.`;
+
+    const existing = this.remRepo.findByResource('calendar_event', event.id);
+    const activeScheduled = existing.find(r => r.status === 'scheduled');
+
+    if (activeScheduled) {
+      return this.remRepo.update(activeScheduled.id, {
+        title,
+        message,
+        scheduled_time: scheduledTime,
+        reminder_type: 'calendar_event'
+      });
+    } else {
+      return this.remRepo.create({
+        user_id: event.user_id,
+        title,
+        message,
+        scheduled_time: scheduledTime,
+        reminder_type: 'calendar_event',
+        status: 'scheduled',
+        related_resource_type: 'calendar_event',
+        related_resource_id: event.id
+      });
+    }
+  }
+
   async createEvent(userId, data) {
     if (!userId) {
       throw new ValidationError('Student user ID is required');
@@ -44,6 +107,7 @@ class CalendarEventService {
     });
 
     const saved = this.eventRepo.create(event);
+    this.syncEventReminder(saved);
     return saved;
   }
 
@@ -104,6 +168,7 @@ class CalendarEventService {
     }
 
     const updated = this.eventRepo.update(eventId, updates);
+    this.syncEventReminder(updated);
     return updated;
   }
 
