@@ -107,6 +107,8 @@ export const DEFAULT_APP_PREFERENCES = Object.freeze({
   showDashboardOverview: true,
   /** Show a toast when another student posts a live disruption report. */
   liveReportToasts: true,
+  /** Raise OS-level device alerts for live reports while the app is backgrounded. */
+  deviceAlerts: true,
 });
 
 /** @returns {Object} Stored app preferences merged over defaults (validated). */
@@ -119,6 +121,9 @@ export function readAppPreferences() {
     }
     if (typeof stored.liveReportToasts === 'boolean') {
       result.liveReportToasts = stored.liveReportToasts;
+    }
+    if (typeof stored.deviceAlerts === 'boolean') {
+      result.deviceAlerts = stored.deviceAlerts;
     }
   }
   return result;
@@ -137,6 +142,9 @@ export function writeAppPreferences(overrides) {
     }
     if (typeof overrides.liveReportToasts === 'boolean') {
       next.liveReportToasts = overrides.liveReportToasts;
+    }
+    if (typeof overrides.deviceAlerts === 'boolean') {
+      next.deviceAlerts = overrides.deviceAlerts;
     }
   }
   safeWrite(APP_PREFERENCES_KEY, next);

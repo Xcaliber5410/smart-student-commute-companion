@@ -104,6 +104,13 @@ export default function App() {
 
   // Client-side personalization preferences (device-local, no backend sync)
   const [appPreferences, setAppPreferences] = useState(() => readAppPreferences());
+
+  // Day 7 — Device Alerts: browser notification permission state
+  const [deviceAlertPermission, setDeviceAlertPermission] = useState(() =>
+    typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'default'
+  );
+  const [isPermissionRequestPending, setIsPermissionRequestPending] = useState(false);
+  const [isSendingTestAlert, setIsSendingTestAlert] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
   // PWA status — connectivity + pending service-worker update
@@ -157,8 +164,62 @@ export default function App() {
     const labels = {
       showDashboardOverview: `Dashboard overview ${next.showDashboardOverview ? 'shown' : 'hidden'}`,
       liveReportToasts: `Live report notifications ${next.liveReportToasts ? 'enabled' : 'muted'}`,
+      deviceAlerts: `Device alerts ${next.deviceAlerts ? 'enabled' : 'disabled'}`,
     };
     showToast(labels[key] || 'Preference updated.', 'info');
+  };
+
+  // Day 7 — request browser notification permission (must run inside a user gesture)
+  const handleRequestDevicePermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      showToast('This browser does not support device alerts.', 'error');
+      return;
+    }
+    if (isPermissionRequestPending) return;
+    setIsPermissionRequestPending(true);
+    try {
+      const result = await Promise.resolve(window.Notification.requestPermission());
+      const resolved =
+        result === 'granted' || result === 'denied' || result === 'default'
+          ? result
+          : window.Notification.permission;
+      setDeviceAlertPermission(resolved);
+      if (resolved === 'granted') {
+        showToast('Device alerts enabled for this browser.', 'success');
+      } else if (resolved === 'denied') {
+        showToast('Notifications are blocked — allow them in your browser site settings.', 'error');
+      } else {
+        showToast('Permission request dismissed — you can enable device alerts anytime.', 'info');
+      }
+    } catch {
+      showToast('The browser could not complete the permission request. Try again.', 'error');
+    } finally {
+      setIsPermissionRequestPending(false);
+    }
+  };
+
+  // Day 7 — fire a local test notification (granted permission required)
+  const handleSendTestAlert = () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      showToast('This browser does not support device alerts.', 'error');
+      return;
+    }
+    if (window.Notification.permission !== 'granted') {
+      showToast('Allow notifications before sending a test alert.', 'error');
+      return;
+    }
+    setIsSendingTestAlert(true);
+    try {
+      new window.Notification('Test device alert', {
+        body: 'Device alerts are working. Live disruption reports will appear like this while the app is in the background.',
+        tag: 'device-alert-test',
+      });
+      showToast('Test alert shown on this device.', 'success');
+    } catch {
+      showToast('This browser blocked the test notification.', 'error');
+    } finally {
+      setIsSendingTestAlert(false);
+    }
   };
 
   const handlePreferenceReset = () => {
@@ -651,7 +712,14 @@ export default function App() {
       case 'devicealerts':
         return (
           <DeviceAlertsPage
+            permission={deviceAlertPermission}
+            isPermissionPending={isPermissionRequestPending}
+            onRequestPermission={handleRequestDevicePermission}
             isLiveSyncConnected={isConnected}
+            isEnabled={appPreferences.deviceAlerts}
+            onToggleEnabled={(value) => handlePreferenceChange({ deviceAlerts: value })}
+            onSendTestAlert={handleSendTestAlert}
+            isSendingTest={isSendingTestAlert}
           />
         );
 

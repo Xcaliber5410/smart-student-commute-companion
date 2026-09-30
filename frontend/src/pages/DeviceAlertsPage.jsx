@@ -1,25 +1,45 @@
 import React from 'react';
-import { BellRing, Info, Moon, ShieldAlert, Smartphone, Wifi, WifiOff } from 'lucide-react';
-import { Alert, Card, StatTile } from '../components/ui';
+import { BellRing, Info, Moon, Send, ShieldAlert, Smartphone, Wifi, WifiOff } from 'lucide-react';
+import { Alert, Button, Card, StatTile, Toggle } from '../components/ui';
 import DeviceAlertPermissionCard from '../components/DeviceAlertPermissionCard';
 
 /**
  * Device Alerts (Day 7 feature screen)
  *
- * Presentation-only page: permission/live-sync status and an explanation of
- * when OS-level alerts fire. Interactive controls (enable, toggles, test alert)
- * arrive via props in later commits.
+ * Presentation-only page: permission/live-sync status, settings controls, and
+ * an explanation of when OS-level alerts fire. All effects (permission
+ * request, preference writes, test notification) run in the application
+ * layer and arrive via callback props.
  */
 export default function DeviceAlertsPage({
   permission = 'default',
   isPermissionPending = false,
-  permissionAction = null,
+  onRequestPermission,
   isLiveSyncConnected = false,
   isEnabled = true,
-  controls = null,
+  onToggleEnabled,
+  onSendTestAlert,
+  isSendingTest = false,
 }) {
   const isSupported = typeof window !== 'undefined' && 'Notification' in window;
   const effectivePermission = !isSupported ? 'unsupported' : permission;
+  const canSendTest = effectivePermission === 'granted' && isEnabled && !isSendingTest;
+
+  // Permission action slot: the enable button appears only while the browser
+  // has not been asked yet (denied/unsupported are guided by the alerts above).
+  const permissionAction = effectivePermission === 'default' ? (
+    <Button
+      type="button"
+      variant="primary"
+      size="sm"
+      icon={<BellRing className="h-3.5 w-3.5" aria-hidden="true" />}
+      loading={isPermissionPending}
+      disabled={isPermissionPending}
+      onClick={onRequestPermission}
+    >
+      {isPermissionPending ? 'Requesting...' : 'Enable device alerts'}
+    </Button>
+  ) : null;
 
   return (
     <div className="space-y-5">
@@ -97,12 +117,41 @@ export default function DeviceAlertsPage({
         </div>
       </section>
 
-      {controls && (
-        <section aria-label="Device alert settings" className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Settings</h2>
-          {controls}
-        </section>
-      )}
+      <section aria-label="Device alert settings" className="space-y-3">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Settings</h2>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+          <Toggle
+            id="device-alerts-enabled"
+            checked={isEnabled}
+            onChange={onToggleEnabled}
+            label="Device alerts"
+            description="Show OS-level notifications for new live disruption reports while the app is in the background."
+            className="border-b border-slate-800 pb-3"
+          />
+          <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-200">Send test alert</p>
+              <p className="text-xs text-slate-500 leading-relaxed pt-0.5">
+                Raise a sample notification now to see how alerts appear on this device.
+                {!canSendTest && effectivePermission === 'granted' && !isEnabled
+                  ? ' Turn device alerts on first.'
+                  : ''}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={<Send className="h-3.5 w-3.5" aria-hidden="true" />}
+              loading={isSendingTest}
+              disabled={!canSendTest}
+              onClick={onSendTestAlert}
+            >
+              Send test alert
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <p className="flex items-start gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5 text-xs text-slate-400">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
