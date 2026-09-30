@@ -9,6 +9,7 @@ import {
   TrainFront,
   Bookmark,
   Bell,
+  BellRing,
   SlidersHorizontal,
   Download,
   Menu,
@@ -63,6 +64,13 @@ const NAV_ITEMS = [
     shortLabel: 'Notices',
     icon: Bell,
     description: 'Recent student commute updates'
+  },
+  {
+    id: 'devicealerts',
+    label: 'Device Alerts',
+    shortLabel: 'Device',
+    icon: BellRing,
+    description: 'OS-level alerts for live disruptions'
   }
 ];
 

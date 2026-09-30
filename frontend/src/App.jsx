@@ -8,7 +8,7 @@ import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
 import PreferencesDialog from './components/PreferencesDialog';
 import PwaStatusBanner from './components/PwaStatusBanner';
-import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage } from './pages';
+import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage } from './pages';
 import { 
   requestPlan, 
   sendFeedback
@@ -645,6 +645,13 @@ export default function App() {
             onRefresh={handleRefreshReports}
             isConnectionLost={isConnectionLost}
             onReconnect={handleReconnect}
+          />
+        );
+
+      case 'devicealerts':
+        return (
+          <DeviceAlertsPage
+            isLiveSyncConnected={isConnected}
           />
         );
 

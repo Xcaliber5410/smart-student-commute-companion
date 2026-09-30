@@ -15,3 +15,4 @@ export { default as TravelTogetherPage } from './TravelTogetherPage';
 export { default as LiveAlertsPage } from './LiveAlertsPage';
 export { default as TransitSearchPage } from './TransitSearchPage';
 export { default as NotificationsPage } from './NotificationsPage';
+export { default as DeviceAlertsPage } from './DeviceAlertsPage';
