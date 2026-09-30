@@ -6,6 +6,7 @@
 
 const express = require('express');
 const calendarEventController = require('../controllers/calendarEventController');
+const studySessionController = require('../controllers/studySessionController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validate');
 const { idParamSchema } = require('../validators/commonValidators');
@@ -14,6 +15,12 @@ const {
   updateCalendarEventSchema,
   calendarEventFilterSchema
 } = require('../validators/calendarValidators');
+const {
+  createStudySessionSchema,
+  updateStudySessionSchema,
+  updateStudySessionStatusSchema,
+  studySessionFilterSchema
+} = require('../validators/studySessionValidators');
 
 function createCalendarRoutes() {
   const router = express.Router();
@@ -60,6 +67,54 @@ function createCalendarRoutes() {
     '/calendar/events/:id',
     validate(idParamSchema, 'params'),
     calendarEventController.deleteEvent
+  );
+
+  // -------------------------------------------------------------
+  // Study Session Endpoints
+  // -------------------------------------------------------------
+  router.get(
+    '/calendar/study-sessions',
+    validate(studySessionFilterSchema, 'query'),
+    studySessionController.listSessions
+  );
+
+  router.post(
+    '/calendar/study-sessions',
+    validate(createStudySessionSchema, 'body'),
+    studySessionController.createSession
+  );
+
+  router.get(
+    '/calendar/study-sessions/:id',
+    validate(idParamSchema, 'params'),
+    studySessionController.getSession
+  );
+
+  router.patch(
+    '/calendar/study-sessions/:id',
+    validate(idParamSchema, 'params'),
+    validate(updateStudySessionSchema, 'body'),
+    studySessionController.updateSession
+  );
+
+  router.put(
+    '/calendar/study-sessions/:id',
+    validate(idParamSchema, 'params'),
+    validate(updateStudySessionSchema, 'body'),
+    studySessionController.updateSession
+  );
+
+  router.patch(
+    '/calendar/study-sessions/:id/status',
+    validate(idParamSchema, 'params'),
+    validate(updateStudySessionStatusSchema, 'body'),
+    studySessionController.updateStatus
+  );
+
+  router.delete(
+    '/calendar/study-sessions/:id',
+    validate(idParamSchema, 'params'),
+    studySessionController.deleteSession
   );
 
   return router;

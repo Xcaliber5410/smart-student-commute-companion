@@ -53,9 +53,20 @@ const {
   updateCalendarEventSchema,
   calendarEventFilterSchema
 } = require('./calendarValidators');
+const {
+  createStudySessionSchema,
+  updateStudySessionSchema,
+  updateStudySessionStatusSchema,
+  studySessionFilterSchema
+} = require('./studySessionValidators');
 
 module.exports = {
   validate,
+  // Study Sessions
+  createStudySessionSchema,
+  updateStudySessionSchema,
+  updateStudySessionStatusSchema,
+  studySessionFilterSchema,
   // Calendar Events
   createCalendarEventSchema,
   updateCalendarEventSchema,
