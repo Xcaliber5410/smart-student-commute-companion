@@ -8,6 +8,7 @@ const express = require('express');
 const calendarEventController = require('../controllers/calendarEventController');
 const studySessionController = require('../controllers/studySessionController');
 const calendarRangeController = require('../controllers/calendarRangeController');
+const workloadAnalysisController = require('../controllers/workloadAnalysisController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validate');
 const { idParamSchema } = require('../validators/commonValidators');
@@ -16,7 +17,9 @@ const {
   updateCalendarEventSchema,
   calendarEventFilterSchema,
   calendarRangeQuerySchema,
-  calendarUpcomingQuerySchema
+  calendarUpcomingQuerySchema,
+  calendarWorkloadQuerySchema,
+  calendarConflictQuerySchema
 } = require('../validators/calendarValidators');
 const {
   createStudySessionSchema,
@@ -32,7 +35,7 @@ function createCalendarRoutes() {
   router.use(authenticate);
 
   // -------------------------------------------------------------
-  // Calendar Range & Agenda Endpoints
+  // Calendar Range, Workload & Conflict Endpoints
   // -------------------------------------------------------------
   router.get(
     '/calendar/range',
@@ -49,6 +52,18 @@ function createCalendarRoutes() {
     '/calendar/upcoming',
     validate(calendarUpcomingQuerySchema, 'query'),
     calendarRangeController.getUpcomingSchedule
+  );
+
+  router.get(
+    '/calendar/conflicts',
+    validate(calendarConflictQuerySchema, 'query'),
+    workloadAnalysisController.getConflicts
+  );
+
+  router.get(
+    '/calendar/workload',
+    validate(calendarWorkloadQuerySchema, 'query'),
+    workloadAnalysisController.getWorkload
   );
 
   // -------------------------------------------------------------

@@ -71,11 +71,41 @@ const calendarUpcomingQuerySchema = z.object({
   days: z.coerce.number().int().min(1, 'days must be at least 1').max(30, 'days cannot exceed 30').default(7)
 });
 
+const calendarWorkloadQuerySchema = z.object({
+  start: z.coerce.number().int().positive().optional(),
+  end: z.coerce.number().int().positive().optional(),
+  days: z.coerce.number().int().min(1, 'days must be at least 1').max(30, 'days cannot exceed 30').default(7)
+}).refine(data => {
+  if (data.start !== undefined && data.end !== undefined) {
+    return data.start < data.end;
+  }
+  return true;
+}, {
+  message: 'start must be strictly before end',
+  path: ['end']
+});
+
+const calendarConflictQuerySchema = z.object({
+  start: z.coerce.number().int().positive().optional(),
+  end: z.coerce.number().int().positive().optional(),
+  days: z.coerce.number().int().min(1, 'days must be at least 1').max(60, 'days cannot exceed 60').default(14)
+}).refine(data => {
+  if (data.start !== undefined && data.end !== undefined) {
+    return data.start < data.end;
+  }
+  return true;
+}, {
+  message: 'start must be strictly before end',
+  path: ['end']
+});
+
 module.exports = {
   eventTypeEnum,
   createCalendarEventSchema,
   updateCalendarEventSchema,
   calendarEventFilterSchema,
   calendarRangeQuerySchema,
-  calendarUpcomingQuerySchema
+  calendarUpcomingQuerySchema,
+  calendarWorkloadQuerySchema,
+  calendarConflictQuerySchema
 };
