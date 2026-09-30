@@ -1,34 +1,7 @@
 import React from 'react';
 import { BellRing, Info, Moon, ShieldAlert, Smartphone, Wifi, WifiOff } from 'lucide-react';
-import { Alert, Badge, Card, StatTile } from '../components/ui';
-
-const PERMISSION_META = {
-  loading: {
-    label: 'Checking...',
-    variant: 'slate',
-    description: 'Reading the browser notification permission.',
-  },
-  granted: {
-    label: 'Allowed',
-    variant: 'emerald',
-    description: 'This browser may show system-level notifications for live disruptions.',
-  },
-  denied: {
-    label: 'Blocked',
-    variant: 'rose',
-    description: 'Notifications are blocked for this site. Allow them in your browser site settings to receive device alerts.',
-  },
-  default: {
-    label: 'Not asked yet',
-    variant: 'amber',
-    description: 'Permission has not been requested. Enable device alerts below to be prompted.',
-  },
-  unsupported: {
-    label: 'Unsupported',
-    variant: 'rose',
-    description: 'This browser does not support the Notification API, so device alerts are unavailable.',
-  },
-};
+import { Alert, Card, StatTile } from '../components/ui';
+import DeviceAlertPermissionCard from '../components/DeviceAlertPermissionCard';
 
 /**
  * Device Alerts (Day 7 feature screen)
@@ -39,13 +12,14 @@ const PERMISSION_META = {
  */
 export default function DeviceAlertsPage({
   permission = 'default',
+  isPermissionPending = false,
+  permissionAction = null,
   isLiveSyncConnected = false,
   isEnabled = true,
   controls = null,
 }) {
   const isSupported = typeof window !== 'undefined' && 'Notification' in window;
   const effectivePermission = !isSupported ? 'unsupported' : permission;
-  const meta = PERMISSION_META[effectivePermission] || PERMISSION_META.default;
 
   return (
     <div className="space-y-5">
@@ -76,14 +50,12 @@ export default function DeviceAlertsPage({
 
       <section aria-label="Device alert status" className="space-y-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Status</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <StatTile
-            icon={<BellRing className="h-4 w-4" />}
-            variant={meta.variant}
-            value={meta.label}
-            label="Notification permission"
-            hint={isSupported ? 'Browser permission' : 'Not supported here'}
-          />
+        <DeviceAlertPermissionCard
+          permission={effectivePermission}
+          action={permissionAction}
+          isPending={isPermissionPending}
+        />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <StatTile
             icon={isLiveSyncConnected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
             variant={isLiveSyncConnected ? 'emerald' : 'amber'}
@@ -99,9 +71,6 @@ export default function DeviceAlertsPage({
             hint="Your saved preference"
           />
         </div>
-        <p role="status" aria-live="polite" className="text-xs text-slate-500">
-          {meta.description}
-        </p>
       </section>
 
       <section aria-label="How device alerts work" className="space-y-3">

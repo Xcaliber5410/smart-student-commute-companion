@@ -33,6 +33,9 @@ export { default as MetaRow, MetaList } from './MetaRow';
 export { default as SearchInput } from './SearchInput';
 export { default as FilterBar, FilterChip } from './FilterBar';
 
+// Reusable Accessible Inputs (Day 7)
+export { default as Toggle } from './Toggle';
+
 // Reusable Dialog & Confirmation Patterns
 export { default as Modal } from './Modal';
 export { default as ConfirmDialog } from './ConfirmDialog';
