@@ -9,7 +9,10 @@ async function getScheduleInRange(req, res, next) {
   try {
     const { start, end } = req.query;
     const schedule = await calendarRangeService.getScheduleInRange(req.user.id, start, end);
-    return success(res, schedule, 'Calendar range schedule retrieved successfully');
+    return success(res, {
+      message: 'Calendar range schedule retrieved successfully',
+      ...schedule
+    });
   } catch (err) {
     next(err);
   }
@@ -18,7 +21,10 @@ async function getScheduleInRange(req, res, next) {
 async function getTodaySchedule(req, res, next) {
   try {
     const schedule = await calendarRangeService.getTodaySchedule(req.user.id);
-    return success(res, schedule, "Today's schedule retrieved successfully");
+    return success(res, {
+      message: "Today's schedule retrieved successfully",
+      ...schedule
+    });
   } catch (err) {
     next(err);
   }
@@ -28,7 +34,10 @@ async function getUpcomingSchedule(req, res, next) {
   try {
     const days = req.query.days ? Number(req.query.days) : 7;
     const schedule = await calendarRangeService.getUpcomingSchedule(req.user.id, days);
-    return success(res, schedule, 'Upcoming schedule retrieved successfully');
+    return success(res, {
+      message: 'Upcoming schedule retrieved successfully',
+      ...schedule
+    });
   } catch (err) {
     next(err);
   }
