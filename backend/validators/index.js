@@ -48,9 +48,18 @@ const {
   updateAssignmentStatusSchema,
   assignmentFilterSchema
 } = require('./academicValidators');
+const {
+  createCalendarEventSchema,
+  updateCalendarEventSchema,
+  calendarEventFilterSchema
+} = require('./calendarValidators');
 
 module.exports = {
   validate,
+  // Calendar Events
+  createCalendarEventSchema,
+  updateCalendarEventSchema,
+  calendarEventFilterSchema,
   // Academic Courses & Assignments
   createCourseSchema,
   updateCourseSchema,

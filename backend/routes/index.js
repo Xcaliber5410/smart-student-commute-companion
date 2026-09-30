@@ -11,6 +11,7 @@ const createAuthRoutes = require('./authRoutes');
 const createStudentRoutes = require('./studentRoutes');
 const createNotificationRoutes = require('./notificationRoutes');
 const { createAcademicRoutes } = require('./academicRoutes');
+const { createCalendarRoutes } = require('./calendarRoutes');
 
 /**
  * Centralized API Router Aggregator.
@@ -37,7 +38,10 @@ function createApiRouter(io) {
   // 5. Academic Courses, Subjects & Tasks (Day 8)
   router.use(createAcademicRoutes());
 
-  // 5. Multimodal Transit Planning routes
+  // 6. Student Planning & Calendar Events (Day 9)
+  router.use(createCalendarRoutes());
+
+  // 7. Multimodal Transit Planning routes
   router.use(createPlanRoutes());
 
   // 5. Disruption & Community Reports routes
