@@ -13,6 +13,12 @@
 const CACHE_NAME = 'sscc-v1';
 const STATIC_CACHE_NAME = 'sscc-static-v1';
 
+// Day 8: PWA Share Target — cache holding the most recent shared payload
+// while the SW redirects the share POST to the app shell. Deliberately NOT
+// prefixed 'sscc-' so the activate cleanup never wipes a pending payload.
+const SHARE_TARGET_CACHE = 'share-target-payload-v1';
+const SHARE_TARGET_PAYLOAD_URL = '/__share-target-payload';
+
 // Assets to cache on install (critical static assets only)
 const STATIC_ASSETS = [
   '/',
@@ -111,13 +117,66 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Day 8: hand the stashed share-target payload to any window client that
+// asks for it (the app polls once its service-worker is ready).
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'SHARE_TARGET_FETCH') return;
+  event.source?.postMessage({ type: 'SHARE_TARGET_PING' });
+  caches
+    .open(SHARE_TARGET_CACHE)
+    .then((cache) => cache.match(SHARE_TARGET_PAYLOAD_URL))
+    .then((cached) => (cached ? cached.json() : null))
+    .then((payload) => {
+      event.source?.postMessage({ type: 'SHARE_TARGET_PAYLOAD', payload });
+      if (payload) {
+        // Payload delivered — it now lives with the app (sessionStorage).
+        caches.delete(SHARE_TARGET_CACHE).catch(() => {});
+      }
+    })
+    .catch(() => {
+      event.source?.postMessage({ type: 'SHARE_TARGET_PAYLOAD', payload: null });
+    });
+});
+
 /**
  * Fetch Event - Serve from cache for static assets, network for dynamic content
  */
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
+  // ── Day 8: PWA Share Target interception ───────────────────────────
+  // The manifest declares POST /share-target. When the OS share sheet
+  // targets this app, the browser POSTs the shared title/text/url here.
+  // The payload is stashed in a small cache and the request is answered
+  // with a redirect to the app (?share-target=1), where the Install &
+  // Share hub picks it up via the shareTarget service. No server involved.
+  if (request.method === 'POST' && url.pathname === '/share-target') {
+    event.respondWith(
+      (async () => {
+        try {
+          const formData = await request.formData();
+          const payload = {
+            title: formData.get('title') || '',
+            text: formData.get('text') || '',
+            url: formData.get('url') || '',
+          };
+          const cache = await caches.open(SHARE_TARGET_CACHE);
+          await cache.put(
+            SHARE_TARGET_PAYLOAD_URL,
+            new Response(JSON.stringify(payload), {
+              headers: { 'Content-Type': 'application/json' }
+            })
+          );
+        } catch (error) {
+          console.warn('[SW] Could not read shared content:', error);
+        }
+        return Response.redirect(self.location.origin + '/?share-target=1', 303);
+      })()
+    );
+    return;
+  }
+
   // Skip caching for excluded paths (API calls, WebSockets, etc.)
   if (EXCLUDED_PATHS.some(path => url.pathname.startsWith(path))) {
     return; // Let browser handle these normally

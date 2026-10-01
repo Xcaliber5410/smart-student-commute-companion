@@ -80,7 +80,7 @@
       "name": "Plan Route",
       "short_name": "Route",
       "description": "Plan your commute route",
-      "url": "/?tab=plan",
+      "url": "/?tab=planner",
       "icons": [{ "src": "/icons/icon-96x96.svg", "sizes": "96x96" }]
     },
     {
@@ -90,5 +90,15 @@
       "url": "/?tab=feed",
       "icons": [{ "src": "/icons/icon-96x96.svg", "sizes": "96x96" }]
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

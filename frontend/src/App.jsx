@@ -47,6 +47,12 @@ import {
   showNotification as showDeviceNotification,
 } from './services/deviceAlerts';
 import { getSocket } from './services/socket';
+import {
+  clearShareTargetData,
+  getShareTargetData,
+  isShareTargetLaunch,
+  watchShareTargetDeliveries,
+} from './services/shareTarget';
 import useAsyncResource from './hooks/useAsyncResource';
 import usePwaInstall from './hooks/usePwaInstall';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -138,6 +144,11 @@ export default function App() {
   const [isSendingTestAlert, setIsSendingTestAlert] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
+  // Day 8 — PWA Share Target: content shared INTO the app from the OS share
+  // sheet. Consumed once by the report composer, then cleared.
+  const [sharedReportPrefill, setSharedReportPrefill] = useState(null);
+  const [sharedPrefillKey, setSharedPrefillKey] = useState(0);
+
   // PWA status — connectivity + pending service-worker update
   const [isOffline, setIsOffline] = useState(() =>
     typeof navigator !== 'undefined' ? !navigator.onLine : false
@@ -180,6 +191,35 @@ export default function App() {
     return stopWatching;
   }, []);
 
+  // Day 8 — PWA Share Target: consume shared content on mount (sessionStorage
+  // fallback) and live via the service-worker message channel. New payloads
+  // arm the report composer prefill; the user applies or dismisses it.
+  useEffect(() => {
+    const applySharedPayload = (payload) => {
+      if (!payload) return;
+      const hasContent = [payload.title, payload.text, payload.url]
+        .some((part) => typeof part === 'string' && part.trim().length > 0);
+      if (!hasContent) return;
+      setSharedReportPrefill(payload);
+      setSharedPrefillKey((key) => key + 1);
+      if (activeTab === 'installshare') {
+        showToast('Shared content is ready to attach to a report.', 'info');
+      }
+    };
+
+    const stopWatchingDeliveries = watchShareTargetDeliveries(applySharedPayload);
+
+    // Fallback for launches where the SW message raced the page load: read
+    // any payload stashed by the SW before the page subscribed.
+    const stored = getShareTargetData();
+    if (stored) {
+      applySharedPayload(stored);
+      clearShareTargetData();
+    }
+
+    return stopWatchingDeliveries;
+  }, []);
+
   const handleInstallApp = async () => {
     const outcome = await promptInstall();
     if (outcome === 'accepted') {
@@ -187,6 +227,19 @@ export default function App() {
     } else if (outcome === 'dismissed') {
       showToast('Install dismissed — you can add the app from your browser menu anytime.', 'info');
     }
+  };
+
+  // Day 8 — act on content shared into the app from the OS share sheet.
+  // The actual prefill runs inside the report composer (sharedPrefill);
+  // here we just open it and manage dismissal.
+  const handleUseSharedInReport = () => {
+    setIsReportModalOpen(true);
+  };
+
+  const handleDismissSharedReport = () => {
+    setSharedReportPrefill(null);
+    clearShareTargetData();
+    showToast('Shared content dismissed.', 'info');
   };
 
   // Apply a partial preference change with immediate UI feedback
@@ -766,6 +819,9 @@ export default function App() {
             installStatus={isInstalled ? 'installed' : canInstall ? 'available' : 'manual'}
             onInstallApp={handleInstallApp}
             onNotify={showToast}
+            sharedReport={sharedReportPrefill}
+            onUseSharedInReport={handleUseSharedInReport}
+            onDismissShared={handleDismissSharedReport}
           />
         );
 
@@ -830,6 +886,8 @@ export default function App() {
         onClose={() => setIsReportModalOpen(false)}
         onSubmit={handleCreateReport}
         isSubmitting={isSubmittingReport}
+        sharedPrefill={sharedReportPrefill}
+        prefillKey={sharedPrefillKey}
       />
 
       <CreateGroupModal

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Send, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Input, Select, Textarea, Modal } from './ui';
 import { validateForm, validateRequired, validateText, focusFirstInvalid, createSubmitGuard } from '../utils/validation';
@@ -11,7 +11,14 @@ const FIELD_IDS = {
   message: 'report-message',
 };
 
-export default function CreateReportModal({ isOpen, onClose, onSubmit, isSubmitting }) {
+export default function CreateReportModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  isSubmitting,
+  sharedPrefill = null,
+  prefillKey = 0,
+}) {
   const [formData, setFormData] = useState({
     pseudonym: '',
     area: '',
@@ -21,6 +28,26 @@ export default function CreateReportModal({ isOpen, onClose, onSubmit, isSubmitt
     impact: 'medium',
     durationObservedMinutes: 60
   });
+
+  // Day 8 — merge content shared into the app (PWA Share Target) into the
+  // report composer. Runs only when a new shared payload is applied
+  // (prefillKey bump), never overwrites typed text, and appends whatever
+  // shared parts exist (title/text/url) to the message field.
+  useEffect(() => {
+    if (!sharedPrefill) return;
+    const sharedText = [sharedPrefill.title, sharedPrefill.text, sharedPrefill.url]
+      .map((part) => (part || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    if (!sharedText) return;
+    setFormData((prev) => ({
+      ...prev,
+      message: prev.message
+        ? `${prev.message} ${sharedText}`.slice(0, 250)
+        : sharedText.slice(0, 250),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillKey]);
 
   const [errors, setErrors] = useState({});
 

@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import {
   BellRing,
   ChevronDown,
+  ClipboardList,
   Compass,
   Download,
   Info,
   Share2,
   Smartphone,
 } from 'lucide-react';
-import { Card, StatTile } from '../components/ui';
+import { Badge, Card, StatTile } from '../components/ui';
 import InstallStatusCard from '../components/ui/InstallStatusCard';
 import ShareableCard from '../components/ui/ShareableCard';
 
@@ -39,11 +40,18 @@ const QUICK_SHARE_SCREENS = [
  * @param {'installed'|'available'|'manual'} [props.installStatus='manual']
  * @param {Function} [props.onInstallApp] - Trigger the deferred browser install prompt
  * @param {Function} [props.onNotify] - Surface user feedback via the app toast system
+ * @param {{title?: string, text?: string, url?: string}|null} [props.sharedReport=null]
+ *   Content shared into the app via the OS share sheet, when present
+ * @param {Function} [props.onUseSharedInReport] - Open the report composer with the shared content
+ * @param {Function} [props.onDismissShared] - Discard the shared content
  */
 export default function InstallShareHubPage({
   installStatus = 'manual',
   onInstallApp,
   onNotify,
+  sharedReport = null,
+  onUseSharedInReport,
+  onDismissShared,
 }) {
   const [isManualGuideOpen, setIsManualGuideOpen] = useState(false);
   const isWebShareSupported = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -202,14 +210,62 @@ export default function InstallShareHubPage({
 
       <section aria-label="Shared content" className="space-y-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Shared into the app</h2>
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
-          <Share2 className="mx-auto h-6 w-6 text-slate-600" aria-hidden="true" />
-          <p className="pt-2 text-sm font-semibold text-slate-300">Nothing shared here yet</p>
-          <p className="mx-auto max-w-md pt-1 text-xs leading-relaxed text-slate-500">
-            When your device&rsquo;s share sheet targets this app, shared links or text land here and can be
-            turned into a live disruption report in one tap.
-          </p>
-        </div>
+        {sharedReport ? (
+          <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="sky">Shared content received</Badge>
+              <p role="status" className="text-xs text-sky-300">
+                Choose how to use it below — nothing is stored on any server.
+              </p>
+            </div>
+            <dl className="mt-3 space-y-1.5 text-xs">
+              {sharedReport.title && (
+                <div className="flex gap-2">
+                  <dt className="shrink-0 font-semibold text-slate-400">Title</dt>
+                  <dd className="min-w-0 break-words text-slate-200">{sharedReport.title}</dd>
+                </div>
+              )}
+              {sharedReport.text && (
+                <div className="flex gap-2">
+                  <dt className="shrink-0 font-semibold text-slate-400">Text</dt>
+                  <dd className="min-w-0 break-words text-slate-200">{sharedReport.text}</dd>
+                </div>
+              )}
+              {sharedReport.url && (
+                <div className="flex gap-2">
+                  <dt className="shrink-0 font-semibold text-slate-400">Link</dt>
+                  <dd className="min-w-0 break-all text-slate-200">{sharedReport.url}</dd>
+                </div>
+              )}
+            </dl>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onUseSharedInReport}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition-all hover:bg-emerald-400 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                <ClipboardList className="h-4 w-4" aria-hidden="true" />
+                Use in a live report
+              </button>
+              <button
+                type="button"
+                onClick={onDismissShared}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
+            <Share2 className="mx-auto h-6 w-6 text-slate-600" aria-hidden="true" />
+            <p className="pt-2 text-sm font-semibold text-slate-300">Nothing shared here yet</p>
+            <p className="mx-auto max-w-md pt-1 text-xs leading-relaxed text-slate-500">
+              When your device&rsquo;s share sheet targets this app, shared links or text land here and can be
+              turned into a live disruption report in one tap.
+            </p>
+          </div>
+        )}
       </section>
 
       <section aria-label="How install and share work" className="space-y-3">
