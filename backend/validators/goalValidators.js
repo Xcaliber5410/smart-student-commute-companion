@@ -121,10 +121,30 @@ const goalFilterSchema = z.object({
   search: data.search
 }));
 
+const linkGoalAssignmentsSchema = z.object({
+  assignment_ids: z.array(z.string().min(1)).min(1, 'At least one assignment ID must be provided').optional(),
+  assignmentIds: z.array(z.string().min(1)).min(1, 'At least one assignment ID must be provided').optional()
+}).refine(data => (data.assignment_ids && data.assignment_ids.length > 0) || (data.assignmentIds && data.assignmentIds.length > 0), {
+  message: 'assignment_ids must contain at least one assignment ID'
+}).transform(data => ({
+  assignment_ids: data.assignment_ids || data.assignmentIds
+}));
+
+const linkGoalStudySessionsSchema = z.object({
+  session_ids: z.array(z.string().min(1)).min(1, 'At least one session ID must be provided').optional(),
+  sessionIds: z.array(z.string().min(1)).min(1, 'At least one session ID must be provided').optional()
+}).refine(data => (data.session_ids && data.session_ids.length > 0) || (data.sessionIds && data.sessionIds.length > 0), {
+  message: 'session_ids must contain at least one session ID'
+}).transform(data => ({
+  session_ids: data.session_ids || data.sessionIds
+}));
+
 module.exports = {
   createGoalSchema,
   updateGoalSchema,
   updateGoalProgressSchema,
   goalFilterSchema,
+  linkGoalAssignmentsSchema,
+  linkGoalStudySessionsSchema,
   goalStatusEnum
 };

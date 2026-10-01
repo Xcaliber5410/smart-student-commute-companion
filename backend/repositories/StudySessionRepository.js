@@ -40,10 +40,21 @@ class StudySessionRepository {
       query += ' AND assignment_id = ?';
       params.push(options.assignment_id);
     }
+    if (options.goal_id) {
+      query += ' AND goal_id = ?';
+      params.push(options.goal_id);
+    }
 
     query += ' ORDER BY planned_start_time ASC';
     const stmt = this.database.prepare(query);
     const rows = stmt.all(...params);
+    return rows.map(r => StudySession.fromRow(r));
+  }
+
+  findByGoalId(goalId) {
+    if (!goalId || typeof goalId !== 'string') return [];
+    const stmt = this.database.prepare('SELECT * FROM study_sessions WHERE goal_id = ? ORDER BY planned_start_time ASC');
+    const rows = stmt.all(goalId);
     return rows.map(r => StudySession.fromRow(r));
   }
 
@@ -100,6 +111,11 @@ class StudySessionRepository {
     if (options.assignment_id) {
       whereClause += ' AND assignment_id = ?';
       params.push(options.assignment_id);
+    }
+
+    if (options.goal_id) {
+      whereClause += ' AND goal_id = ?';
+      params.push(options.goal_id);
     }
 
     if (options.status) {
@@ -159,12 +175,12 @@ class StudySessionRepository {
     const row = session.toRow();
     const stmt = this.database.prepare(`
       INSERT INTO study_sessions (
-        id, user_id, course_id, assignment_id, title, notes,
+        id, user_id, course_id, assignment_id, goal_id, title, notes,
         planned_start_time, planned_duration_minutes, actual_duration_minutes,
         status, reminder_enabled, reminder_lead_time_minutes,
         completed_at, created_at, updated_at
       ) VALUES (
-        @id, @user_id, @course_id, @assignment_id, @title, @notes,
+        @id, @user_id, @course_id, @assignment_id, @goal_id, @title, @notes,
         @planned_start_time, @planned_duration_minutes, @actual_duration_minutes,
         @status, @reminder_enabled, @reminder_lead_time_minutes,
         @completed_at, @created_at, @updated_at
@@ -175,13 +191,42 @@ class StudySessionRepository {
     return session;
   }
 
+  getGoalStudySessionSummary(goalId) {
+    if (!goalId || typeof goalId !== 'string') {
+      return { total_sessions: 0, completed_sessions: 0, completed_minutes: 0, total_planned_minutes: 0, completed_hours: 0 };
+    }
+    const stmt = this.database.prepare(`
+      SELECT 
+        COUNT(*) as total_sessions,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_sessions,
+        SUM(CASE WHEN status = 'completed' THEN COALESCE(actual_duration_minutes, planned_duration_minutes, 0) ELSE 0 END) as completed_minutes,
+        SUM(COALESCE(planned_duration_minutes, 0)) as total_planned_minutes
+      FROM study_sessions
+      WHERE goal_id = ? AND status != 'cancelled'
+    `);
+    const row = stmt.get(goalId);
+    const totalSessions = Number(row?.total_sessions || 0);
+    const completedSessions = Number(row?.completed_sessions || 0);
+    const completedMinutes = Number(row?.completed_minutes || 0);
+    const totalPlannedMinutes = Number(row?.total_planned_minutes || 0);
+    const completedHours = Math.round((completedMinutes / 60) * 10) / 10;
+
+    return {
+      total_sessions: totalSessions,
+      completed_sessions: completedSessions,
+      completed_minutes: completedMinutes,
+      completed_hours: completedHours,
+      total_planned_minutes: totalPlannedMinutes
+    };
+  }
+
   update(id, updates) {
     if (!id || typeof id !== 'string') return null;
     const existing = this.findById(id);
     if (!existing) return null;
 
     const allowedFields = [
-      'course_id', 'assignment_id', 'title', 'notes',
+      'course_id', 'assignment_id', 'goal_id', 'title', 'notes',
       'planned_start_time', 'planned_duration_minutes', 'actual_duration_minutes',
       'status', 'reminder_enabled', 'reminder_lead_time_minutes', 'completed_at'
     ];

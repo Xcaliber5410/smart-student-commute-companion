@@ -10,6 +10,7 @@ const { studySessionRepository } = require('../repositories/StudySessionReposito
 const { courseRepository } = require('../repositories/CourseRepository');
 const { assignmentRepository } = require('../repositories/AssignmentRepository');
 const { reminderRepository } = require('../repositories/ReminderRepository');
+const { goalRepository } = require('../repositories/GoalRepository');
 const { NotFoundError, ForbiddenError, ValidationError } = require('../errors');
 
 class StudySessionService {
@@ -17,12 +18,18 @@ class StudySessionService {
     studyRepo = studySessionRepository,
     crseRepo = courseRepository,
     asgnRepo = assignmentRepository,
-    remRepo = reminderRepository
+    remRepo = reminderRepository,
+    goalRepo = goalRepository
   ) {
     this.studyRepo = studyRepo;
     this.courseRepo = crseRepo;
     this.asgnRepo = asgnRepo;
     this.remRepo = remRepo;
+    this.goalRepo = goalRepo;
+  }
+
+  getGoalService() {
+    return require('./goalService').goalService;
   }
 
   syncStudySessionReminder(session) {
@@ -118,6 +125,17 @@ class StudySessionService {
       }
     }
 
+    // Verify goal ownership if goal_id provided
+    if (data.goal_id) {
+      const goal = this.goalRepo.findById(data.goal_id);
+      if (!goal) {
+        throw new NotFoundError(`Goal with ID ${data.goal_id} not found`);
+      }
+      if (goal.user_id !== userId) {
+        throw new ForbiddenError('Cannot link study session to a goal belonging to another student');
+      }
+    }
+
     const session = StudySession.create({
       ...data,
       user_id: userId
@@ -125,6 +143,12 @@ class StudySessionService {
 
     const saved = this.studyRepo.create(session);
     this.syncStudySessionReminder(saved);
+
+    // Sync goal progress if session is linked to a goal
+    if (saved.goal_id) {
+      this.getGoalService().syncGoalProgressFromWork(saved.goal_id, { id: userId, role: 'student' });
+    }
+
     return saved;
   }
 
@@ -187,6 +211,16 @@ class StudySessionService {
       }
     }
 
+    if (updates.goal_id !== undefined && updates.goal_id !== null && updates.goal_id !== '' && updates.goal_id !== existing.goal_id) {
+      const goal = this.goalRepo.findById(updates.goal_id);
+      if (!goal) {
+        throw new NotFoundError(`Goal with ID ${updates.goal_id} not found`);
+      }
+      if (goal.user_id !== userId) {
+        throw new ForbiddenError('Cannot link study session to a goal belonging to another student');
+      }
+    }
+
     const processedUpdates = { ...updates };
 
     // Handle status transition side effects
@@ -201,6 +235,15 @@ class StudySessionService {
 
     const updated = this.studyRepo.update(sessionId, processedUpdates);
     this.syncStudySessionReminder(updated);
+
+    // Sync goal progress if goal relationship changed or session updated
+    if (existing.goal_id) {
+      this.getGoalService().syncGoalProgressFromWork(existing.goal_id, { id: userId, role: 'student' });
+    }
+    if (updates.goal_id && updates.goal_id !== existing.goal_id) {
+      this.getGoalService().syncGoalProgressFromWork(updates.goal_id, { id: userId, role: 'student' });
+    }
+
     return updated;
   }
 
@@ -214,12 +257,19 @@ class StudySessionService {
 
   async deleteSession(userId, sessionId) {
     // Check existence and ownership
-    await this.getSessionById(userId, sessionId);
+    const session = await this.getSessionById(userId, sessionId);
 
     // Clean up any linked reminder records
     this.remRepo.deleteByResource('study_session', sessionId);
 
-    return this.studyRepo.delete(sessionId);
+    const deleted = this.studyRepo.delete(sessionId);
+
+    // If session belonged to a goal, sync goal progress
+    if (session.goal_id) {
+      this.getGoalService().syncGoalProgressFromWork(session.goal_id, { id: userId, role: 'student' });
+    }
+
+    return deleted;
   }
 }
 

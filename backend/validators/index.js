@@ -64,6 +64,8 @@ const {
   updateGoalSchema,
   updateGoalProgressSchema,
   goalFilterSchema,
+  linkGoalAssignmentsSchema,
+  linkGoalStudySessionsSchema,
   goalStatusEnum
 } = require('./goalValidators');
 
@@ -128,6 +130,8 @@ module.exports = {
   updateGoalSchema,
   updateGoalProgressSchema,
   goalFilterSchema,
+  linkGoalAssignmentsSchema,
+  linkGoalStudySessionsSchema,
   goalStatusEnum
 };
 

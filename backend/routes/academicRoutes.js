@@ -22,7 +22,9 @@ const {
   createGoalSchema,
   updateGoalSchema,
   updateGoalProgressSchema,
-  goalFilterSchema
+  goalFilterSchema,
+  linkGoalAssignmentsSchema,
+  linkGoalStudySessionsSchema
 } = require('../validators');
 
 function createAcademicRoutes() {
@@ -184,6 +186,45 @@ function createAcademicRoutes() {
     '/academic/goals/:id',
     validate(idParamSchema, 'params'),
     goalController.deleteGoal
+  );
+
+  // -------------------------------------------------------------
+  // Goal Workflow & Work Integration Endpoints
+  // -------------------------------------------------------------
+  router.get(
+    '/academic/goals/:id/work',
+    validate(idParamSchema, 'params'),
+    goalController.getGoalWork
+  );
+
+  router.post(
+    '/academic/goals/:id/sync-progress',
+    validate(idParamSchema, 'params'),
+    goalController.syncGoalProgress
+  );
+
+  router.post(
+    '/academic/goals/:id/assignments',
+    validate(idParamSchema, 'params'),
+    validate(linkGoalAssignmentsSchema, 'body'),
+    goalController.linkAssignments
+  );
+
+  router.delete(
+    '/academic/goals/:id/assignments/:assignmentId',
+    goalController.unlinkAssignment
+  );
+
+  router.post(
+    '/academic/goals/:id/study-sessions',
+    validate(idParamSchema, 'params'),
+    validate(linkGoalStudySessionsSchema, 'body'),
+    goalController.linkStudySessions
+  );
+
+  router.delete(
+    '/academic/goals/:id/study-sessions/:sessionId',
+    goalController.unlinkStudySession
   );
 
   // -------------------------------------------------------------

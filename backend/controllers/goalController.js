@@ -113,6 +113,83 @@ function deleteGoal(req, res, next) {
   }
 }
 
+function getGoalWork(req, res, next) {
+  try {
+    const { id } = req.params;
+    const summary = goalService.getGoalWorkSummary(id, req.user);
+    return success(res, summary);
+  } catch (err) {
+    next(err);
+  }
+}
+
+function syncGoalProgress(req, res, next) {
+  try {
+    const { id } = req.params;
+    const goal = goalService.syncGoalProgressFromWork(id, req.user);
+    return success(res, {
+      message: 'Goal progress synchronized successfully',
+      goal: goal ? goal.toJSON() : null
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function linkAssignments(req, res, next) {
+  try {
+    const { id } = req.params;
+    const assignmentIds = req.body.assignment_ids || req.body.assignmentIds;
+    const result = goalService.linkAssignments(id, assignmentIds, req.user);
+    return success(res, {
+      message: 'Assignments linked to goal successfully',
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function unlinkAssignment(req, res, next) {
+  try {
+    const { id, assignmentId } = req.params;
+    const result = goalService.unlinkAssignment(id, assignmentId, req.user);
+    return success(res, {
+      message: 'Assignment unlinked from goal successfully',
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function linkStudySessions(req, res, next) {
+  try {
+    const { id } = req.params;
+    const sessionIds = req.body.session_ids || req.body.sessionIds;
+    const result = goalService.linkStudySessions(id, sessionIds, req.user);
+    return success(res, {
+      message: 'Study sessions linked to goal successfully',
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function unlinkStudySession(req, res, next) {
+  try {
+    const { id, sessionId } = req.params;
+    const result = goalService.unlinkStudySession(id, sessionId, req.user);
+    return success(res, {
+      message: 'Study session unlinked from goal successfully',
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createGoal,
   listGoals,
@@ -121,5 +198,11 @@ module.exports = {
   updateProgress,
   completeGoal,
   cancelGoal,
-  deleteGoal
+  deleteGoal,
+  getGoalWork,
+  syncGoalProgress,
+  linkAssignments,
+  unlinkAssignment,
+  linkStudySessions,
+  unlinkStudySession
 };

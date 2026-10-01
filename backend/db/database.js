@@ -210,6 +210,7 @@ function initDb() {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      goal_id TEXT REFERENCES goals(id) ON DELETE SET NULL,
       title TEXT NOT NULL,
       description TEXT,
       due_date INTEGER NOT NULL,
@@ -225,6 +226,7 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_assignments_user_status ON assignments(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_assignments_user_due ON assignments(user_id, due_date ASC);
     CREATE INDEX IF NOT EXISTS idx_assignments_course_id ON assignments(course_id);
+    CREATE INDEX IF NOT EXISTS idx_assignments_goal_id ON assignments(goal_id);
 
     -- 10. Student Planning: Calendar Events & Study Sessions (Day 9)
     CREATE TABLE IF NOT EXISTS calendar_events (
@@ -253,6 +255,7 @@ function initDb() {
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
       assignment_id TEXT REFERENCES assignments(id) ON DELETE SET NULL,
+      goal_id TEXT REFERENCES goals(id) ON DELETE SET NULL,
       title TEXT NOT NULL,
       notes TEXT,
       planned_start_time INTEGER NOT NULL,
@@ -270,6 +273,7 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_study_sessions_user_status ON study_sessions(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_study_sessions_course_id ON study_sessions(course_id);
     CREATE INDEX IF NOT EXISTS idx_study_sessions_assignment_id ON study_sessions(assignment_id);
+    CREATE INDEX IF NOT EXISTS idx_study_sessions_goal_id ON study_sessions(goal_id);
 
     -- 11. Student Goals & Progress
     CREATE TABLE IF NOT EXISTS goals (

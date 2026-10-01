@@ -40,6 +40,9 @@ const courseFilterSchema = z.object({
 
 const createAssignmentSchema = z.object({
   course_id: z.string().max(100).optional().nullable(),
+  courseId: z.string().max(100).optional().nullable(),
+  goal_id: z.string().max(100).optional().nullable(),
+  goalId: z.string().max(100).optional().nullable(),
   title: z.string().min(2, 'Title must have at least 2 characters').max(150),
   description: z.string().max(2000).optional().nullable(),
   due_date: z.coerce.number().int().positive('due_date must be a positive timestamp'),
@@ -50,10 +53,17 @@ const createAssignmentSchema = z.object({
     z.coerce.number().int()
   ]).optional().default(true),
   reminder_lead_time_minutes: z.coerce.number().int().min(0).max(43200).optional().default(1440)
-});
+}).transform(data => ({
+  ...data,
+  course_id: data.course_id !== undefined ? data.course_id : (data.courseId !== undefined ? data.courseId : null),
+  goal_id: data.goal_id !== undefined ? data.goal_id : (data.goalId !== undefined ? data.goalId : null)
+}));
 
 const updateAssignmentSchema = z.object({
   course_id: z.string().max(100).optional().nullable(),
+  courseId: z.string().max(100).optional().nullable(),
+  goal_id: z.string().max(100).optional().nullable(),
+  goalId: z.string().max(100).optional().nullable(),
   title: z.string().min(2).max(150).optional(),
   description: z.string().max(2000).optional().nullable(),
   due_date: z.coerce.number().int().positive().optional(),
@@ -64,6 +74,17 @@ const updateAssignmentSchema = z.object({
     z.coerce.number().int()
   ]).optional(),
   reminder_lead_time_minutes: z.coerce.number().int().min(0).max(43200).optional()
+}).transform(data => {
+  const result = { ...data };
+  if (data.course_id !== undefined) result.course_id = data.course_id;
+  else if (data.courseId !== undefined) result.course_id = data.courseId;
+
+  if (data.goal_id !== undefined) result.goal_id = data.goal_id;
+  else if (data.goalId !== undefined) result.goal_id = data.goalId;
+
+  delete result.courseId;
+  delete result.goalId;
+  return result;
 });
 
 const updateAssignmentStatusSchema = z.object({

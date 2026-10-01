@@ -21,6 +21,10 @@ const { courseService, CourseService } = require('./courseService');
 const { assignmentService, AssignmentService } = require('./assignmentService');
 const { academicProgressService, AcademicProgressService } = require('./academicProgressService');
 const { goalService, GoalService } = require('./goalService');
+const { calendarEventService, CalendarEventService } = require('./calendarEventService');
+const { studySessionService, StudySessionService } = require('./studySessionService');
+const { calendarRangeService, CalendarRangeService } = require('./calendarRangeService');
+const { workloadAnalysisService, WorkloadAnalysisService } = require('./workloadAnalysisService');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -39,6 +43,14 @@ module.exports = {
   AcademicProgressService,
   goalService,
   GoalService,
+  calendarEventService,
+  CalendarEventService,
+  studySessionService,
+  StudySessionService,
+  calendarRangeService,
+  CalendarRangeService,
+  workloadAnalysisService,
+  WorkloadAnalysisService,
   rideGroupService,
   RideGroupService,
   reportService,
