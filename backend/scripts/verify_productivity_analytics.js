@@ -256,7 +256,7 @@ async function run() {
 
   // 9. Calendar Event
   db.prepare(`
-    INSERT INTO calendar_events (
+    INSERT OR REPLACE INTO calendar_events (
       id, user_id, course_id, title, event_type, start_time, end_time, status,
       reminder_enabled, reminder_lead_time_minutes, created_at, updated_at
     ) VALUES (

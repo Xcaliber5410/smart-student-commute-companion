@@ -56,6 +56,8 @@ const expectedEndpoints = [
   { method: 'DELETE', path: '/student/saved-routes/:id' },
   { method: 'GET', path: '/student/ride-groups' },
   { method: 'GET', path: '/student/dashboard' },
+  { method: 'GET', path: '/student/insights' },
+  { method: 'GET', path: '/student/overview' },
   { method: 'GET', path: '/notifications' },
   { method: 'GET', path: '/notifications/unread' },
   { method: 'GET', path: '/notifications/count' },
@@ -91,6 +93,8 @@ const expectedEndpoints = [
   { method: 'GET', path: '/academic/summary' },
   { method: 'GET', path: '/academic/productivity' },
   { method: 'GET', path: '/academic/statistics' },
+  { method: 'GET', path: '/academic/insights' },
+  { method: 'GET', path: '/academic/overview' },
   // Student Goal Endpoints
   { method: 'GET', path: '/academic/goals' },
   { method: 'POST', path: '/academic/goals' },

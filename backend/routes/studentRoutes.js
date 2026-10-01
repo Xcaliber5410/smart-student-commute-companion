@@ -18,7 +18,8 @@ const {
   createSavedRouteSchema,
   updateSavedRouteSchema,
   savedRouteFilterSchema,
-  studentGroupFilterSchema
+  studentGroupFilterSchema,
+  studentInsightsFilterSchema
 } = require('../validators');
 
 function createStudentRoutes() {
@@ -101,7 +102,20 @@ function createStudentRoutes() {
   // 5. Dashboard Aggregation
   router.get('/student/dashboard', studentController.getDashboard);
 
+  // 6. Student Overview & Academic Insights
+  router.get(
+    '/student/insights',
+    validate(studentInsightsFilterSchema, 'query'),
+    studentController.getStudentInsights
+  );
+  router.get(
+    '/student/overview',
+    validate(studentInsightsFilterSchema, 'query'),
+    studentController.getStudentInsights
+  );
+
   return router;
 }
 
 module.exports = createStudentRoutes;
+

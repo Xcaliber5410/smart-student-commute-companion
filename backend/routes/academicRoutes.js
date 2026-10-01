@@ -9,6 +9,7 @@ const courseController = require('../controllers/courseController');
 const assignmentController = require('../controllers/assignmentController');
 const goalController = require('../controllers/goalController');
 const productivityController = require('../controllers/productivityController');
+const studentController = require('../controllers/studentController');
 const { authenticate } = require('../middleware/authMiddleware');
 const {
   validate,
@@ -26,7 +27,8 @@ const {
   goalFilterSchema,
   linkGoalAssignmentsSchema,
   linkGoalStudySessionsSchema,
-  productivityFilterSchema
+  productivityFilterSchema,
+  studentInsightsFilterSchema
 } = require('../validators');
 
 function createAcademicRoutes() {
@@ -244,8 +246,19 @@ function createAcademicRoutes() {
     validate(productivityFilterSchema, 'query'),
     productivityController.getProductivityMetrics
   );
+  router.get(
+    '/academic/insights',
+    validate(studentInsightsFilterSchema, 'query'),
+    studentController.getStudentInsights
+  );
+  router.get(
+    '/academic/overview',
+    validate(studentInsightsFilterSchema, 'query'),
+    studentController.getStudentInsights
+  );
 
   return router;
 }
 
 module.exports = { createAcademicRoutes };
+

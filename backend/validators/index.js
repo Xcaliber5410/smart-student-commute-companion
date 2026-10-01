@@ -30,7 +30,8 @@ const {
   createSavedRouteSchema,
   updateSavedRouteSchema,
   savedRouteFilterSchema,
-  studentGroupFilterSchema
+  studentGroupFilterSchema,
+  studentInsightsFilterSchema
 } = require('./studentValidators');
 const {
   notificationFilterSchema,
@@ -105,6 +106,7 @@ module.exports = {
   updateSavedRouteSchema,
   savedRouteFilterSchema,
   studentGroupFilterSchema,
+  studentInsightsFilterSchema,
   // Notifications & Reminders
   notificationFilterSchema,
   bulkReadNotificationSchema,

@@ -10,7 +10,8 @@ const {
   studentScheduleService,
   savedRouteService,
   rideGroupService,
-  studentDashboardService
+  studentDashboardService,
+  studentInsightsService
 } = require('../services');
 const { success, created } = require('../utils/apiResponse');
 
@@ -180,6 +181,17 @@ function getDashboard(req, res, next) {
   }
 }
 
+// 6. Unified Student Insights & Overview
+async function getStudentInsights(req, res, next) {
+  try {
+    const studentId = req.params.studentId || req.user.id;
+    const insights = await studentInsightsService.getStudentInsights(studentId, req.user, req.query);
+    return success(res, { insights });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getStudentContext,
   updateStudentProfile,
@@ -194,5 +206,7 @@ module.exports = {
   updateSavedRoute,
   deleteSavedRoute,
   listStudentRideGroups,
-  getDashboard
+  getDashboard,
+  getStudentInsights
 };
+
