@@ -89,6 +89,16 @@ const expectedEndpoints = [
   { method: 'DELETE', path: '/academic/assignments/:id' },
   { method: 'GET', path: '/academic/progress' },
   { method: 'GET', path: '/academic/summary' },
+  // Student Goal Endpoints
+  { method: 'GET', path: '/academic/goals' },
+  { method: 'POST', path: '/academic/goals' },
+  { method: 'GET', path: '/academic/goals/:id' },
+  { method: 'PATCH', path: '/academic/goals/:id' },
+  { method: 'PUT', path: '/academic/goals/:id' },
+  { method: 'PATCH', path: '/academic/goals/:id/progress' },
+  { method: 'POST', path: '/academic/goals/:id/complete' },
+  { method: 'POST', path: '/academic/goals/:id/cancel' },
+  { method: 'DELETE', path: '/academic/goals/:id' },
   // Day 9 Calendar & Planning Endpoints
   { method: 'GET', path: '/calendar/range' },
   { method: 'GET', path: '/calendar/today' },

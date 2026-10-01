@@ -7,6 +7,7 @@
 const express = require('express');
 const courseController = require('../controllers/courseController');
 const assignmentController = require('../controllers/assignmentController');
+const goalController = require('../controllers/goalController');
 const { authenticate } = require('../middleware/authMiddleware');
 const {
   validate,
@@ -17,7 +18,11 @@ const {
   createAssignmentSchema,
   updateAssignmentSchema,
   updateAssignmentStatusSchema,
-  assignmentFilterSchema
+  assignmentFilterSchema,
+  createGoalSchema,
+  updateGoalSchema,
+  updateGoalProgressSchema,
+  goalFilterSchema
 } = require('../validators');
 
 function createAcademicRoutes() {
@@ -119,6 +124,66 @@ function createAcademicRoutes() {
     '/academic/assignments/:id',
     validate(idParamSchema, 'params'),
     assignmentController.deleteAssignment
+  );
+
+  // -------------------------------------------------------------
+  // Student Goal Endpoints
+  // -------------------------------------------------------------
+  router.get(
+    '/academic/goals',
+    validate(goalFilterSchema, 'query'),
+    goalController.listGoals
+  );
+
+  router.post(
+    '/academic/goals',
+    validate(createGoalSchema, 'body'),
+    goalController.createGoal
+  );
+
+  router.get(
+    '/academic/goals/:id',
+    validate(idParamSchema, 'params'),
+    goalController.getGoal
+  );
+
+  router.patch(
+    '/academic/goals/:id',
+    validate(idParamSchema, 'params'),
+    validate(updateGoalSchema, 'body'),
+    goalController.updateGoal
+  );
+
+  router.put(
+    '/academic/goals/:id',
+    validate(idParamSchema, 'params'),
+    validate(updateGoalSchema, 'body'),
+    goalController.updateGoal
+  );
+
+  router.patch(
+    '/academic/goals/:id/progress',
+    validate(idParamSchema, 'params'),
+    validate(updateGoalProgressSchema, 'body'),
+    goalController.updateProgress
+  );
+
+  router.post(
+    '/academic/goals/:id/complete',
+    validate(idParamSchema, 'params'),
+    goalController.completeGoal
+  );
+
+  router.post(
+    '/academic/goals/:id/cancel',
+    validate(idParamSchema, 'params'),
+    goalController.cancelGoal
+  );
+
+  router.delete(
+    '/academic/goals/:id',
+    validate(idParamSchema, 'params'),
+    goalController.deleteGoal
   );
 
   // -------------------------------------------------------------

@@ -20,6 +20,7 @@ const { reminderScheduler, ReminderScheduler } = require('./reminderScheduler');
 const { courseService, CourseService } = require('./courseService');
 const { assignmentService, AssignmentService } = require('./assignmentService');
 const { academicProgressService, AcademicProgressService } = require('./academicProgressService');
+const { goalService, GoalService } = require('./goalService');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -36,6 +37,8 @@ module.exports = {
   AssignmentService,
   academicProgressService,
   AcademicProgressService,
+  goalService,
+  GoalService,
   rideGroupService,
   RideGroupService,
   reportService,

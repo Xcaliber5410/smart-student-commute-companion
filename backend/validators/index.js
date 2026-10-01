@@ -59,6 +59,13 @@ const {
   updateStudySessionStatusSchema,
   studySessionFilterSchema
 } = require('./studySessionValidators');
+const {
+  createGoalSchema,
+  updateGoalSchema,
+  updateGoalProgressSchema,
+  goalFilterSchema,
+  goalStatusEnum
+} = require('./goalValidators');
 
 module.exports = {
   validate,
@@ -115,6 +122,12 @@ module.exports = {
   // Commute Plan
   planCommuteSchema,
   // Transit
-  transitSearchQuerySchema
+  transitSearchQuerySchema,
+  // Goals
+  createGoalSchema,
+  updateGoalSchema,
+  updateGoalProgressSchema,
+  goalFilterSchema,
+  goalStatusEnum
 };
 

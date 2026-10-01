@@ -41,6 +41,7 @@
     "verify:calendar-range": "node scripts/verify_calendar_range.js",
     "verify:workload-analysis": "node scripts/verify_workload_analysis.js",
     "verify:goal-models": "node scripts/verify_goal_models.js",
+    "verify:goal-service": "node scripts/verify_goal_service.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",
