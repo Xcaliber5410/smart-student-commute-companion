@@ -36,6 +36,10 @@ export { default as FilterBar, FilterChip } from './FilterBar';
 // Reusable Accessible Inputs (Day 7)
 export { default as Toggle } from './Toggle';
 
+// Reusable Install & Share Components (Day 8)
+export { default as ShareableCard } from './ShareableCard';
+export { default as InstallStatusCard } from './InstallStatusCard';
+
 // Reusable Dialog & Confirmation Patterns
 export { default as Modal } from './Modal';
 export { default as ConfirmDialog } from './ConfirmDialog';

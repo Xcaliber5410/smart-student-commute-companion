@@ -10,7 +10,9 @@ import {
   Smartphone,
   SquarePlus,
 } from 'lucide-react';
-import { Badge, Card, StatTile } from '../components/ui';
+import { Card, StatTile } from '../components/ui';
+import InstallStatusCard from '../components/ui/InstallStatusCard';
+import ShareableCard from '../components/ui/ShareableCard';
 
 const INSTALL_STATUS_META = {
   installed: {
@@ -86,50 +88,32 @@ export default function InstallShareHubPage({
 
       <section aria-label="Install the app" className="space-y-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Install the app</h2>
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <span
-              aria-hidden="true"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-slate-300"
-            >
-              {installMeta.icon}
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-bold text-white">Home screen install</h3>
-                <Badge variant={installMeta.variant}>{installMeta.label}</Badge>
-              </div>
-              <p className="pt-0.5 text-xs text-slate-400 leading-relaxed">{installMeta.description}</p>
-            </div>
-          </div>
-          {installStatus === 'available' && onInstallApp && (
-            <button
-              type="button"
-              onClick={onInstallApp}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-all hover:bg-emerald-400 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              Install app
-            </button>
-          )}
-        </div>
+        <InstallStatusCard
+          status={installStatus}
+          action={
+            installStatus === 'available' && onInstallApp ? (
+              <button
+                type="button"
+                onClick={onInstallApp}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-all hover:bg-emerald-400 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Install app
+              </button>
+            ) : null
+          }
+        />
       </section>
 
       <section aria-label="Share the app" className="space-y-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Share the app</h2>
-        <Card title={<span className="flex items-center gap-2"><Link2 className="h-4 w-4 text-sky-400" aria-hidden="true" />App link</span>}>
-          <p className="text-sm text-slate-400">
-            Send classmates the address of this app so they can plan the same commute.
-          </p>
-          <p className="mt-2 break-all rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300">
-            {appUrl || 'App link unavailable'}
-          </p>
-          {!isWebShareSupported && (
-            <p className="mt-2 text-xs text-slate-500">
-              Native sharing is not available in this browser — you can still copy the link manually.
-            </p>
-          )}
-        </Card>
+        <ShareableCard
+          label="App link"
+          value={appUrl || 'App link unavailable'}
+          description="Send classmates the address of this app so they can plan the same commute."
+          shareTitle="Smart Student Commute Companion"
+          onShare={isWebShareSupported && appUrl ? () => navigator.share({ title: 'Smart Student Commute Companion', text: 'Plan your college commute with me:', url: appUrl }) : undefined}
+        />
       </section>
 
       <section aria-label="Shared content" className="space-y-3">
