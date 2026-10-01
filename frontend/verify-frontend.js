@@ -807,6 +807,115 @@ if (navContent && navContent.includes("id: 'notifications'") && appContent && ap
 }
 
 // ============================================================
+// 16. DAY 7 DEVICE ALERTS
+// ============================================================
+
+section('16. DAY 7 DEVICE ALERTS');
+
+const deviceAlertsPage = readFile('src/pages/DeviceAlertsPage.jsx');
+if (fileExists('src/pages/DeviceAlertsPage.jsx')) pass('Device Alerts feature page exists');
+else fail('Device Alerts feature page is missing');
+if (deviceAlertsPage && deviceAlertsPage.includes('How it works') && deviceAlertsPage.includes('Settings')) {
+  pass('Device Alerts page explains the feature and offers a settings section');
+} else {
+  fail('Device Alerts page is missing its explanation or settings section');
+}
+if (
+  deviceAlertsPage &&
+  deviceAlertsPage.includes('unsupported') &&
+  deviceAlertsPage.includes('denied') &&
+  deviceAlertsPage.includes('permission')
+) {
+  pass('Device Alerts page handles unsupported, denied, and pending permission states');
+} else {
+  fail('Device Alerts page is missing permission states');
+}
+if (
+  deviceAlertsPage &&
+  deviceAlertsPage.includes('Enable device alerts') &&
+  deviceAlertsPage.includes('Send test alert') &&
+  deviceAlertsPage.includes('Toggle')
+) {
+  pass('Device Alerts page exposes enable, toggle, and test-alert interactions');
+} else {
+  fail('Device Alerts page is missing enable, toggle, or test-alert interactions');
+}
+if (navContent && navContent.includes("id: 'devicealerts'") && appContent && appContent.includes('DeviceAlertsPage')) {
+  pass('Device Alerts page is wired into navigation and App rendering');
+} else {
+  fail('Device Alerts page is not wired into application navigation');
+}
+
+const deviceAlertsService = readFile('src/services/deviceAlerts.js');
+if (
+  deviceAlertsService &&
+  deviceAlertsService.includes('isSupported') &&
+  deviceAlertsService.includes('requestPermission') &&
+  deviceAlertsService.includes('showNotification')
+) {
+  pass('Device alerts service wraps the browser Notification API');
+} else {
+  fail('Device alerts service is missing Notification API wrappers');
+}
+if (deviceAlertsService && deviceAlertsService.includes('navigator.serviceWorker')) {
+  pass('Device alerts service falls back to the service worker (Android Chrome)');
+} else {
+  fail('Device alerts service has no service-worker notification fallback');
+}
+if (deviceAlertsService && deviceAlertsService.includes('watchPermission')) {
+  pass('Device alerts service watches external permission changes');
+} else {
+  fail('Device alerts service does not watch permission changes');
+}
+
+const uiBarrelDay7 = readFile('src/components/ui/index.js');
+if (uiBarrelDay7 && uiBarrelDay7.includes("from './Toggle'")) {
+  pass('UI barrel exports the accessible Toggle switch');
+} else {
+  fail('UI barrel is missing the Toggle export');
+}
+const toggleComponent = readFile('src/components/ui/Toggle.jsx');
+if (toggleComponent && toggleComponent.includes('role="switch"') && toggleComponent.includes('peer-focus-visible')) {
+  pass('Toggle is an accessible switch with visible focus');
+} else {
+  fail('Toggle is missing switch semantics or focus styling');
+}
+const permissionCard = readFile('src/components/DeviceAlertPermissionCard.jsx');
+if (permissionCard && permissionCard.includes('Badge') && permissionCard.includes('role="status"')) {
+  pass('Permission card shows a status badge and polite live region');
+} else {
+  fail('Permission card is missing status badge or live-region announcements');
+}
+
+const prefsStoreDay7 = readFile('src/utils/uiPreferences.js');
+if (prefsStoreDay7 && prefsStoreDay7.includes('deviceAlerts: true') && prefsStoreDay7.includes('stored.deviceAlerts')) {
+  pass('Device-alerts preference is persisted with validation');
+} else {
+  fail('Device-alerts preference is missing from the app preference store');
+}
+if (appContent && appContent.includes('handlePreferenceChange({ deviceAlerts: value })')) {
+  pass('App applies the device-alerts toggle through the preference store');
+} else {
+  fail('App does not wire the device-alerts toggle to the preference store');
+}
+if (
+  appContent &&
+  appContent.includes("socket.on('live_report_created'") &&
+  appContent.includes('showDeviceNotification') &&
+  appContent.includes('!document.hasFocus()') &&
+  appContent.includes('getDeviceAlertPermission()')
+) {
+  pass('Live reports raise device alerts only when backgrounded and permitted');
+} else {
+  fail('Live-report socket handler is missing the background device-alert integration');
+}
+if (appContent && appContent.includes('watchDeviceAlertPermission')) {
+  pass('App keeps device-alert permission state live');
+} else {
+  fail('App does not watch device-alert permission changes');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
