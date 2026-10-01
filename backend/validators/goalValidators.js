@@ -14,7 +14,7 @@ const createGoalSchema = z.object({
   target_date: z.coerce.number().int().positive('target_date must be a positive timestamp').optional().nullable(),
   targetDate: z.coerce.number().int().positive('targetDate must be a positive timestamp').optional().nullable(),
   status: goalStatusEnum.optional().default('in_progress'),
-  progress: z.coerce.number().int().min(0, 'Progress cannot be negative').max(100, 'Progress cannot exceed 100').optional().default(0),
+  progress: z.coerce.number().int().min(0, 'Progress cannot be negative').max(100, 'Progress cannot exceed 100').optional(),
   target_value: z.coerce.number().positive('target_value must be greater than 0').optional().nullable(),
   targetValue: z.coerce.number().positive('targetValue must be greater than 0').optional().nullable(),
   current_value: z.coerce.number().min(0, 'current_value cannot be negative').optional().default(0),
@@ -87,6 +87,24 @@ const goalFilterSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   status: goalStatusEnum.optional(),
+  active: z.union([
+    z.boolean(),
+    z.string().transform(v => v === 'true' || v === '1')
+  ]).optional(),
+  completed: z.union([
+    z.boolean(),
+    z.string().transform(v => v === 'true' || v === '1')
+  ]).optional(),
+  overdue: z.union([
+    z.boolean(),
+    z.string().transform(v => v === 'true' || v === '1')
+  ]).optional(),
+  from: z.coerce.number().int().positive().optional(),
+  to: z.coerce.number().int().positive().optional(),
+  start_date: z.coerce.number().int().positive().optional(),
+  startDate: z.coerce.number().int().positive().optional(),
+  end_date: z.coerce.number().int().positive().optional(),
+  endDate: z.coerce.number().int().positive().optional(),
   course_id: z.string().max(100).optional(),
   courseId: z.string().max(100).optional(),
   search: z.string().max(100).optional()
@@ -94,6 +112,11 @@ const goalFilterSchema = z.object({
   page: data.page,
   limit: data.limit,
   status: data.status,
+  active: data.active,
+  completed: data.completed,
+  overdue: data.overdue,
+  from: data.from !== undefined ? data.from : (data.start_date !== undefined ? data.start_date : data.startDate),
+  to: data.to !== undefined ? data.to : (data.end_date !== undefined ? data.end_date : data.endDate),
   course_id: data.course_id || data.courseId,
   search: data.search
 }));

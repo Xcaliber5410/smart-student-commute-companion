@@ -24,9 +24,14 @@ function listGoals(req, res, next) {
   try {
     const studentId = req.user.id;
     const result = goalService.listGoals(studentId, req.query, req.user);
+    const goalsJson = result.data.map(g => g.toJSON());
     return success(res, {
-      ...result,
-      data: result.data.map(g => g.toJSON())
+      goals: goalsJson,
+      data: goalsJson,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages
     });
   } catch (err) {
     next(err);

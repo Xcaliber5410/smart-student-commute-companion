@@ -39,9 +39,9 @@ class Goal {
     const targetValue = input.target_value !== undefined && input.target_value !== null ? Number(input.target_value) : null;
     let currentValue = input.current_value !== undefined && input.current_value !== null ? Number(input.current_value) : 0;
     
-    // Auto-calculate progress percentage if target_value is provided and progress is not explicitly given
+    // Auto-calculate progress percentage if target_value is provided and progress is not explicitly given or is 0
     let progress = input.progress !== undefined ? Number(input.progress) : 0;
-    if (input.progress === undefined && targetValue && targetValue > 0) {
+    if ((input.progress === undefined || progress === 0) && targetValue && targetValue > 0 && currentValue > 0) {
       progress = Math.min(100, Math.max(0, Math.round((currentValue / targetValue) * 100)));
     }
 

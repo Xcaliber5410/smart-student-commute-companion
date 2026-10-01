@@ -63,6 +63,26 @@ class GoalRepository {
     if (options.status) {
       conditions.push('status = ?');
       params.push(options.status);
+    } else if (options.active === true) {
+      conditions.push("status = 'in_progress'");
+    } else if (options.completed === true) {
+      conditions.push("status = 'completed'");
+    }
+
+    if (options.overdue === true) {
+      const now = options.now || Date.now();
+      conditions.push("target_date IS NOT NULL AND target_date < ? AND status NOT IN ('completed', 'cancelled')");
+      params.push(now);
+    }
+
+    if (options.from !== undefined && options.from !== null && !isNaN(Number(options.from))) {
+      conditions.push('target_date >= ?');
+      params.push(Number(options.from));
+    }
+
+    if (options.to !== undefined && options.to !== null && !isNaN(Number(options.to))) {
+      conditions.push('target_date <= ?');
+      params.push(Number(options.to));
     }
 
     if (options.course_id !== undefined && options.course_id !== null && options.course_id !== '') {
