@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2, Download, HelpCircle, Smartphone, SquarePlus } from 'lucide-react';
-import { Badge } from './ui';
+import Badge from './Badge';
 
 const STATUS_META = {
   loading: {

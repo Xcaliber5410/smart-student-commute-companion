@@ -3,6 +3,7 @@ import MainLayout from './layouts/MainLayout';
 import Toast from './components/Toast';
 import NotFound from './components/NotFound';
 import MapView from './components/MapView';
+import { NAV_ITEMS } from './components/Navbar';
 import CreateReportModal from './components/CreateReportModal';
 import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
@@ -51,7 +52,25 @@ import usePwaInstall from './hooks/usePwaInstall';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('planner');
+  // Deep links (PWA app shortcuts & shared links) open a specific screen once
+  // on load via /?tab=<screenId>; unknown or missing values fall back to the
+  // planner. Navigation afterwards is the existing in-app tab switching.
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === 'undefined') return 'planner';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const requestedTab = params.get('tab');
+      if (requestedTab && NAV_ITEMS.some((item) => item.id === requestedTab)) {
+        return requestedTab;
+      }
+      // Share-Target launches land on the Install & Share hub, where shared
+      // content is reviewed before becoming a report (see shareTarget service).
+      if (params.get('share-target')) return 'installshare';
+    } catch {
+      // Malformed query string — default view is the safe fallback.
+    }
+    return 'planner';
+  });
   const [isConnected, setIsConnected] = useState(false);
   // True only AFTER a live-stream disconnect/connect failure (never on first paint)
   const [isConnectionLost, setIsConnectionLost] = useState(false);
@@ -746,6 +765,7 @@ export default function App() {
           <InstallShareHubPage
             installStatus={isInstalled ? 'installed' : canInstall ? 'available' : 'manual'}
             onInstallApp={handleInstallApp}
+            onNotify={showToast}
           />
         );
 

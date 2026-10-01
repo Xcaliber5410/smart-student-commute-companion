@@ -1,60 +1,89 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BellRing,
-  CheckCircle2,
+  ChevronDown,
   Compass,
   Download,
   Info,
-  Link2,
   Share2,
   Smartphone,
-  SquarePlus,
 } from 'lucide-react';
 import { Card, StatTile } from '../components/ui';
 import InstallStatusCard from '../components/ui/InstallStatusCard';
 import ShareableCard from '../components/ui/ShareableCard';
 
 const INSTALL_STATUS_META = {
-  installed: {
-    label: 'Installed',
-    variant: 'emerald',
-    icon: <CheckCircle2 className="h-4 w-4" />,
-    description: 'The app is installed on this device and runs in its own window.',
-  },
-  available: {
-    label: 'Ready to install',
-    variant: 'amber',
-    icon: <Download className="h-4 w-4" />,
-    description: 'Your browser can install the app right now — one tap and it lives on your home screen.',
-  },
-  manual: {
-    label: 'Manual install',
-    variant: 'slate',
-    icon: <SquarePlus className="h-4 w-4" />,
-    description: 'Install from your browser menu: look for “Install app” or “Add to Home Screen”.',
-  },
+  installed: { label: 'Installed', variant: 'emerald' },
+  available: { label: 'Ready to install', variant: 'amber' },
+  manual: { label: 'Manual install', variant: 'slate' },
 };
+
+/** Quick deep-link cards (subset most useful for sharing). */
+const QUICK_SHARE_SCREENS = [
+  { id: 'planner', label: 'Route Planner' },
+  { id: 'feed', label: 'Live Alerts' },
+];
 
 /**
  * Install & Share Hub (Day 8 feature screen)
  *
  * Presentation-only page that gathers the PWA "advanced features" from the
- * roadmap in one place: install status, app sharing, and handling of content
- * shared INTO the app (Share Target). Install state arrives from the app
- * layer; browser capabilities are feature-detected locally so unsupported
- * browsers get honest guidance instead of broken buttons.
+ * roadmap in one place: install status and manual-install guidance, sharing
+ * the app, and handling content shared INTO the app (Share Target). Install
+ * state arrives from the app layer; browser capabilities are feature-detected
+ * locally so unsupported browsers get honest guidance instead of broken
+ * buttons. Native share and clipboard actions run inside this page's
+ * ShareableCard components.
  *
  * @param {Object} props
  * @param {'installed'|'available'|'manual'} [props.installStatus='manual']
  * @param {Function} [props.onInstallApp] - Trigger the deferred browser install prompt
+ * @param {Function} [props.onNotify] - Surface user feedback via the app toast system
  */
 export default function InstallShareHubPage({
   installStatus = 'manual',
   onInstallApp,
+  onNotify,
 }) {
+  const [isManualGuideOpen, setIsManualGuideOpen] = useState(false);
   const isWebShareSupported = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const installMeta = INSTALL_STATUS_META[installStatus] || INSTALL_STATUS_META.manual;
   const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const isAppleMobile =
+    typeof navigator !== 'undefined' &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent || '') &&
+    typeof window !== 'undefined' &&
+    !window.MSStream;
+
+  const shareApp = async () => {
+    if (typeof navigator.share !== 'function' || !appUrl) return false;
+    try {
+      await navigator.share({
+        title: 'Smart Student Commute Companion',
+        text: 'Plan your college commute with me:',
+        url: appUrl,
+      });
+      return true;
+    } catch {
+      // User cancelled the share sheet (AbortError) or the share failed —
+      // both are silent no-ops for the caller.
+      return false;
+    }
+  };
+
+  const shareScreenLink = async (screen) => {
+    if (typeof navigator.share !== 'function' || !appUrl) return false;
+    try {
+      await navigator.share({
+        title: `Smart Student Commute Companion — ${screen.label}`,
+        text: `Open the ${screen.label} screen:`,
+        url: `${appUrl}/?tab=${screen.id}`,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -103,6 +132,45 @@ export default function InstallShareHubPage({
             ) : null
           }
         />
+        {installStatus !== 'installed' && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60">
+            <button
+              type="button"
+              onClick={() => setIsManualGuideOpen((open) => !open)}
+              aria-expanded={isManualGuideOpen}
+              aria-controls="manual-install-guide"
+              className="flex w-full items-center justify-between gap-2 rounded-2xl px-4 py-3 text-left text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+            >
+              <span>
+                {isAppleMobile
+                  ? 'On iPhone or iPad? Add the app from the Safari share menu.'
+                  : 'Browser not offering the one-tap install? Show manual steps.'}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${isManualGuideOpen ? 'rotate-180' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+            {isManualGuideOpen && (
+              <ol id="manual-install-guide" className="list-inside list-decimal space-y-1.5 px-6 pb-4 pt-1 text-xs leading-relaxed text-slate-400">
+                {isAppleMobile ? (
+                  <>
+                    <li>Open this site in <strong className="text-slate-200">Safari</strong>.</li>
+                    <li>Tap the <strong className="text-slate-200">Share</strong> button (square with an arrow).</li>
+                    <li>Scroll and tap <strong className="text-slate-200">Add to Home Screen</strong>.</li>
+                    <li>Tap <strong className="text-slate-200">Add</strong> — the icon appears on your home screen.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>Open the <strong className="text-slate-200">browser menu</strong> (⋮ or ⋯).</li>
+                    <li>Look for <strong className="text-slate-200">Install app</strong> / <strong className="text-slate-200">Add to Home screen</strong>.</li>
+                    <li>Confirm — the icon appears on your home screen or desktop.</li>
+                  </>
+                )}
+              </ol>
+            )}
+          </div>
+        )}
       </section>
 
       <section aria-label="Share the app" className="space-y-3">
@@ -112,8 +180,24 @@ export default function InstallShareHubPage({
           value={appUrl || 'App link unavailable'}
           description="Send classmates the address of this app so they can plan the same commute."
           shareTitle="Smart Student Commute Companion"
-          onShare={isWebShareSupported && appUrl ? () => navigator.share({ title: 'Smart Student Commute Companion', text: 'Plan your college commute with me:', url: appUrl }) : undefined}
+          onShare={isWebShareSupported && appUrl ? shareApp : undefined}
         />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {QUICK_SHARE_SCREENS.map((screen) => (
+            <ShareableCard
+              key={screen.id}
+              label={`${screen.label} link`}
+              value={appUrl ? `${appUrl}/?tab=${screen.id}` : 'App link unavailable'}
+              description={`Open straight to the ${screen.label} screen.`}
+              onShare={isWebShareSupported && appUrl ? () => shareScreenLink(screen) : undefined}
+            />
+          ))}
+        </div>
+        {!isWebShareSupported && (
+          <p className="text-xs text-slate-500">
+            Native sharing is not available in this browser — every card still offers one-tap copy.
+          </p>
+        )}
       </section>
 
       <section aria-label="Shared content" className="space-y-3">
@@ -121,7 +205,7 @@ export default function InstallShareHubPage({
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
           <Share2 className="mx-auto h-6 w-6 text-slate-600" aria-hidden="true" />
           <p className="pt-2 text-sm font-semibold text-slate-300">Nothing shared here yet</p>
-          <p className="mx-auto max-w-md pt-1 text-xs text-slate-500 leading-relaxed">
+          <p className="mx-auto max-w-md pt-1 text-xs leading-relaxed text-slate-500">
             When your device&rsquo;s share sheet targets this app, shared links or text land here and can be
             turned into a live disruption report in one tap.
           </p>

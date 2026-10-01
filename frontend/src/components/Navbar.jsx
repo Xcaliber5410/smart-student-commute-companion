@@ -20,8 +20,10 @@ import { ConfirmDialog } from './ui';
 
 /**
  * Valid application routes
+ * Exported so the app layer can validate deep-link (?tab=) requests
+ * against the same single source of truth used for rendering navigation.
  */
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   {
     id: 'planner',
     label: 'Plan Route',
