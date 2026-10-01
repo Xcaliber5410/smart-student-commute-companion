@@ -46,7 +46,8 @@ const {
   createAssignmentSchema,
   updateAssignmentSchema,
   updateAssignmentStatusSchema,
-  assignmentFilterSchema
+  assignmentFilterSchema,
+  productivityFilterSchema
 } = require('./academicValidators');
 const {
   createCalendarEventSchema,
@@ -88,6 +89,7 @@ module.exports = {
   updateAssignmentSchema,
   updateAssignmentStatusSchema,
   assignmentFilterSchema,
+  productivityFilterSchema,
   // Common
   idParamSchema,
   paginationQuerySchema,

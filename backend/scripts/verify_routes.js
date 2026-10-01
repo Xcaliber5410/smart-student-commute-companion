@@ -89,6 +89,8 @@ const expectedEndpoints = [
   { method: 'DELETE', path: '/academic/assignments/:id' },
   { method: 'GET', path: '/academic/progress' },
   { method: 'GET', path: '/academic/summary' },
+  { method: 'GET', path: '/academic/productivity' },
+  { method: 'GET', path: '/academic/statistics' },
   // Student Goal Endpoints
   { method: 'GET', path: '/academic/goals' },
   { method: 'POST', path: '/academic/goals' },

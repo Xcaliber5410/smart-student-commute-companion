@@ -43,6 +43,7 @@
     "verify:goal-models": "node scripts/verify_goal_models.js",
     "verify:goal-service": "node scripts/verify_goal_service.js",
     "verify:goal-workflows": "node scripts/verify_goal_workflows.js",
+    "verify:productivity": "node scripts/verify_productivity_analytics.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",

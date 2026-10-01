@@ -8,6 +8,7 @@ const express = require('express');
 const courseController = require('../controllers/courseController');
 const assignmentController = require('../controllers/assignmentController');
 const goalController = require('../controllers/goalController');
+const productivityController = require('../controllers/productivityController');
 const { authenticate } = require('../middleware/authMiddleware');
 const {
   validate,
@@ -24,7 +25,8 @@ const {
   updateGoalProgressSchema,
   goalFilterSchema,
   linkGoalAssignmentsSchema,
-  linkGoalStudySessionsSchema
+  linkGoalStudySessionsSchema,
+  productivityFilterSchema
 } = require('../validators');
 
 function createAcademicRoutes() {
@@ -228,10 +230,20 @@ function createAcademicRoutes() {
   );
 
   // -------------------------------------------------------------
-  // Academic Progress & Dashboard Summary Endpoints
+  // Academic Progress, Dashboard Summary & Productivity Endpoints
   // -------------------------------------------------------------
   router.get('/academic/progress', assignmentController.getAcademicSummary);
   router.get('/academic/summary', assignmentController.getAcademicSummary);
+  router.get(
+    '/academic/productivity',
+    validate(productivityFilterSchema, 'query'),
+    productivityController.getProductivityMetrics
+  );
+  router.get(
+    '/academic/statistics',
+    validate(productivityFilterSchema, 'query'),
+    productivityController.getProductivityMetrics
+  );
 
   return router;
 }

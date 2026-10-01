@@ -111,6 +111,15 @@ const assignmentFilterSchema = z.object({
   sort_by: z.enum(['due_date_asc', 'due_date_desc', 'created_at', 'priority']).optional().default('due_date_asc')
 });
 
+const productivityFilterSchema = z.object({
+  range: z.enum(['today', 'week', 'month', 'custom', 'current_week', 'current_month', 'this_week', 'this_month']).optional().default('week'),
+  from: z.coerce.number().int().positive().optional(),
+  to: z.coerce.number().int().positive().optional(),
+  start: z.coerce.number().int().positive().optional(),
+  end: z.coerce.number().int().positive().optional(),
+  now: z.coerce.number().int().positive().optional()
+});
+
 module.exports = {
   createCourseSchema,
   updateCourseSchema,
@@ -118,5 +127,6 @@ module.exports = {
   createAssignmentSchema,
   updateAssignmentSchema,
   updateAssignmentStatusSchema,
-  assignmentFilterSchema
+  assignmentFilterSchema,
+  productivityFilterSchema
 };
