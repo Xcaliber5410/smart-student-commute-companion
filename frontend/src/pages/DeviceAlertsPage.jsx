@@ -31,8 +31,8 @@ export default function DeviceAlertsPage({
     <Button
       type="button"
       variant="primary"
-      size="sm"
-      icon={<BellRing className="h-3.5 w-3.5" aria-hidden="true" />}
+      size="md"
+      icon={<BellRing className="h-4 w-4" aria-hidden="true" />}
       loading={isPermissionPending}
       disabled={isPermissionPending}
       onClick={onRequestPermission}
@@ -141,8 +141,8 @@ export default function DeviceAlertsPage({
             <Button
               type="button"
               variant="secondary"
-              size="sm"
-              icon={<Send className="h-3.5 w-3.5" aria-hidden="true" />}
+              size="md"
+              icon={<Send className="h-4 w-4" aria-hidden="true" />}
               loading={isSendingTest}
               disabled={!canSendTest}
               onClick={onSendTestAlert}
