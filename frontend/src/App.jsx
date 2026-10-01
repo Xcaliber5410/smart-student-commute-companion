@@ -8,7 +8,7 @@ import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
 import PreferencesDialog from './components/PreferencesDialog';
 import PwaStatusBanner from './components/PwaStatusBanner';
-import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage } from './pages';
+import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage, InstallShareHubPage } from './pages';
 import { 
   requestPlan, 
   sendFeedback
@@ -738,6 +738,14 @@ export default function App() {
             onToggleEnabled={(value) => handlePreferenceChange({ deviceAlerts: value })}
             onSendTestAlert={handleSendTestAlert}
             isSendingTest={isSendingTestAlert}
+          />
+        );
+
+      case 'installshare':
+        return (
+          <InstallShareHubPage
+            installStatus={isInstalled ? 'installed' : canInstall ? 'available' : 'manual'}
+            onInstallApp={handleInstallApp}
           />
         );
 

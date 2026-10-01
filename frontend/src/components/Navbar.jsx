@@ -71,6 +71,13 @@ const NAV_ITEMS = [
     shortLabel: 'Device',
     icon: BellRing,
     description: 'OS-level alerts for live disruptions'
+  },
+  {
+    id: 'installshare',
+    label: 'Install & Share',
+    shortLabel: 'Install',
+    icon: Smartphone,
+    description: 'App install status, sharing, and shortcuts'
   }
 ];
 
