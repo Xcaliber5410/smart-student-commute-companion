@@ -270,9 +270,31 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_study_sessions_user_status ON study_sessions(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_study_sessions_course_id ON study_sessions(course_id);
     CREATE INDEX IF NOT EXISTS idx_study_sessions_assignment_id ON study_sessions(assignment_id);
+
+    -- 11. Student Goals & Progress
+    CREATE TABLE IF NOT EXISTS goals (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      target_date INTEGER,
+      status TEXT NOT NULL DEFAULT 'in_progress',
+      progress INTEGER NOT NULL DEFAULT 0,
+      target_value REAL,
+      current_value REAL NOT NULL DEFAULT 0,
+      unit TEXT,
+      completed_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
+    CREATE INDEX IF NOT EXISTS idx_goals_user_status ON goals(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_goals_course_id ON goals(course_id);
+    CREATE INDEX IF NOT EXISTS idx_goals_user_target_date ON goals(user_id, target_date);
   `);
 
-  // 11. GTFS Tables
+  // 12. GTFS Tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS gtfs_agency (
       agency_id TEXT PRIMARY KEY,

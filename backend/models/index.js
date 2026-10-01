@@ -23,6 +23,9 @@ const {
   assignmentStatusEnum,
   assignmentPriorityEnum
 } = require('./Assignment');
+const { CalendarEvent, calendarEventSchema, eventTypeEnum, eventStatusEnum } = require('./CalendarEvent');
+const { StudySession, studySessionSchema, studySessionStatusEnum } = require('./StudySession');
+const { Goal, goalSchema, goalStatusEnum } = require('./Goal');
 
 module.exports = {
   LiveReport,
@@ -54,6 +57,16 @@ module.exports = {
   Assignment,
   assignmentSchema,
   assignmentStatusEnum,
-  assignmentPriorityEnum
+  assignmentPriorityEnum,
+  CalendarEvent,
+  calendarEventSchema,
+  eventTypeEnum,
+  eventStatusEnum,
+  StudySession,
+  studySessionSchema,
+  studySessionStatusEnum,
+  Goal,
+  goalSchema,
+  goalStatusEnum
 };
 
