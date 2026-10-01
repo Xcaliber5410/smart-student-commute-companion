@@ -9,6 +9,12 @@ const STATUS_META = {
     icon: <HelpCircle className="h-4 w-4" />,
     description: 'Reading the browser notification permission.',
   },
+  pending: {
+    label: 'Requesting...',
+    variant: 'sky',
+    icon: <HelpCircle className="h-4 w-4" />,
+    description: 'Waiting for your choice in the browser permission prompt.',
+  },
   granted: {
     label: 'Allowed',
     variant: 'emerald',
@@ -52,7 +58,7 @@ export default function DeviceAlertPermissionCard({
   action = null,
   isPending = false,
 }) {
-  const meta = STATUS_META[permission] || STATUS_META.default;
+  const meta = STATUS_META[isPending ? 'pending' : permission] || STATUS_META.default;
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -68,7 +74,11 @@ export default function DeviceAlertPermissionCard({
             <h3 className="text-sm font-bold text-white">Browser permission</h3>
             <Badge variant={meta.variant}>{meta.label}</Badge>
           </div>
-          <p className="pt-0.5 text-xs text-slate-400 leading-relaxed">{meta.description}</p>
+          {/* Permission changes are announced politely (e.g. when the user
+              flips the setting in browser site settings) */}
+          <p role="status" aria-live="polite" className="pt-0.5 text-xs text-slate-400 leading-relaxed">
+            {meta.description}
+          </p>
         </div>
       </div>
       {action && <div className="shrink-0 sm:pl-3">{action}</div>}

@@ -111,10 +111,10 @@ export default function App() {
   // Client-side personalization preferences (device-local, no backend sync)
   const [appPreferences, setAppPreferences] = useState(() => readAppPreferences());
 
-  // Day 7 — Device Alerts: browser notification permission state
-  const [deviceAlertPermission, setDeviceAlertPermission] = useState(() =>
-    typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'default'
-  );
+  // Day 7 — Device Alerts: browser notification permission state.
+  // Starts as 'loading' and resolves on mount (covers browsers where the
+  // Notification API is missing — the service reports 'unsupported').
+  const [deviceAlertPermission, setDeviceAlertPermission] = useState('loading');
   const [isPermissionRequestPending, setIsPermissionRequestPending] = useState(false);
   const [isSendingTestAlert, setIsSendingTestAlert] = useState(false);
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -153,9 +153,10 @@ export default function App() {
 
   const handleApplyUpdate = () => window.location.reload();
 
-  // Day 7 — keep device-alert permission state live when the user changes it
-  // in browser site settings (feature-detected; no-op when unsupported)
+  // Day 7 — resolve permission state on mount and keep it live when the user
+  // changes it in browser site settings (feature-detected; no-op when unsupported)
   useEffect(() => {
+    setDeviceAlertPermission(getDeviceAlertPermission());
     const stopWatching = watchDeviceAlertPermission(setDeviceAlertPermission);
     return stopWatching;
   }, []);

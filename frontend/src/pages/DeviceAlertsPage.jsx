@@ -131,7 +131,7 @@ export default function DeviceAlertsPage({
           <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-200">Send test alert</p>
-              <p className="text-xs text-slate-500 leading-relaxed pt-0.5">
+              <p id="device-test-hint" className="text-xs text-slate-500 leading-relaxed pt-0.5">
                 Raise a sample notification now to see how alerts appear on this device.
                 {!canSendTest && effectivePermission === 'granted' && !isEnabled
                   ? ' Turn device alerts on first.'
@@ -145,6 +145,7 @@ export default function DeviceAlertsPage({
               icon={<Send className="h-4 w-4" aria-hidden="true" />}
               loading={isSendingTest}
               disabled={!canSendTest}
+              aria-describedby="device-test-hint"
               onClick={onSendTestAlert}
             >
               Send test alert
