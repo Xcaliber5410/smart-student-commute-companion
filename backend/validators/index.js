@@ -70,6 +70,10 @@ const {
   linkGoalStudySessionsSchema,
   goalStatusEnum
 } = require('./goalValidators');
+const {
+  studentSearchQuerySchema,
+  VALID_SEARCHABLE_TYPES
+} = require('./searchValidators');
 
 module.exports = {
   validate,
@@ -136,6 +140,9 @@ module.exports = {
   goalFilterSchema,
   linkGoalAssignmentsSchema,
   linkGoalStudySessionsSchema,
-  goalStatusEnum
+  goalStatusEnum,
+  // Search
+  studentSearchQuerySchema,
+  VALID_SEARCHABLE_TYPES
 };
 

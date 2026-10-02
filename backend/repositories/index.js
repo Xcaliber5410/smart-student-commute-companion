@@ -11,6 +11,13 @@ const { GeocodingRepository, geocodingRepository } = require('./GeocodingReposit
 const { UserRepository, userRepository } = require('./UserRepository');
 const { CourseRepository, courseRepository } = require('./CourseRepository');
 const { AssignmentRepository, assignmentRepository } = require('./AssignmentRepository');
+const { GoalRepository, goalRepository } = require('./GoalRepository');
+const { CalendarEventRepository, calendarEventRepository } = require('./CalendarEventRepository');
+const { StudySessionRepository, studySessionRepository } = require('./StudySessionRepository');
+const { NotificationRepository, notificationRepository } = require('./NotificationRepository');
+const { ReminderRepository, reminderRepository } = require('./ReminderRepository');
+const { SavedRouteRepository, savedRouteRepository } = require('./SavedRouteRepository');
+const { StudentSearchRepository, studentSearchRepository } = require('./StudentSearchRepository');
 
 module.exports = {
   RideGroupRepository,
@@ -26,6 +33,21 @@ module.exports = {
   CourseRepository,
   courseRepository,
   AssignmentRepository,
-  assignmentRepository
+  assignmentRepository,
+  GoalRepository,
+  goalRepository,
+  CalendarEventRepository,
+  calendarEventRepository,
+  StudySessionRepository,
+  studySessionRepository,
+  NotificationRepository,
+  notificationRepository,
+  ReminderRepository,
+  reminderRepository,
+  SavedRouteRepository,
+  savedRouteRepository,
+  StudentSearchRepository,
+  studentSearchRepository
 };
+
 
