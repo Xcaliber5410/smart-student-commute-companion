@@ -45,6 +45,34 @@ export default function InstallPromoBanner({
   // Cross-session snooze read up front (sync localStorage, failure-safe).
   const [dismissed, setDismissed] = useState(() => isPromoSnoozed());
   const initialTabRef = useRef(activeTab);
+  // Focus restoration (C6): the component stays mounted and returns null
+  // when hidden, so a hide transition is watched instead of unmount. Focus
+  // events are deliberately not used as signals — only the visible→hidden
+  // transition plus a "focus landed on <body>" check after the DOM update.
+  const isVisible = isPromoEligible({ canInstall, isInstalled }) && !dismissed && isRevealed;
+  const wasVisibleRef = useRef(false);
+
+  useEffect(() => {
+    if (isVisible) {
+      wasVisibleRef.current = true;
+      return;
+    }
+    // Only a real visible→hidden transition may restore focus — never the
+    // initial mount (which would steal focus on page load).
+    if (!wasVisibleRef.current) return;
+    wasVisibleRef.current = false;
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      // Focus was inside the vanished banner (now <body>): hand it to the
+      // page heading so keyboard users do not restart from scratch.
+      if (active && active !== document.body) return;
+      const heading = document.querySelector('h1');
+      if (heading) {
+        heading.setAttribute('tabindex', '-1');
+        heading.focus();
+      }
+    });
+  }, [isVisible]);
 
   // Smart trigger: reveal after the first navigation OR a short idle delay —
   // never on first paint, so the promo never competes with initial content.
@@ -77,7 +105,7 @@ export default function InstallPromoBanner({
   };
 
   // Honest visibility: only promote when promotion can actually succeed.
-  if (!isPromoEligible({ canInstall, isInstalled }) || dismissed || !isRevealed) return null;
+  if (!isVisible) return null;
 
   return (
     <div
@@ -109,6 +137,7 @@ export default function InstallPromoBanner({
         <button
           type="button"
           onClick={() => setIsDialogOpen(true)}
+          aria-label="Learn more about install benefits"
           className="min-h-9 px-3.5 py-2 rounded-lg border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
         >
           Learn more
