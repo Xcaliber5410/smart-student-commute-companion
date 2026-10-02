@@ -32,6 +32,8 @@ process.env.NODE_ENV = 'test';
 const { initDb } = require('../db/database');
 const { closeConnection } = require('../db/connection');
 const { createApp } = require('../app');
+const { searchAnalyticsService } = require('../services/searchAnalyticsService');
+const { studentSearchService } = require('../services/studentSearchService');
 
 function makeRequest(server, { method, path: reqPath, headers = {}, body = null }) {
   return new Promise((resolve, reject) => {
@@ -470,6 +472,79 @@ async function run() {
       assert.ok(resAcademic.body.total >= 7);
       assert.ok(resAcademic.body.results.some(i => i.type === 'course'));
       assert.ok(resAcademic.body.results.some(i => i.type === 'assignment'));
+    });
+
+    // -----------------------------------------------------------------
+    // 12. Observability & Abuse Safeguards Tests
+    // -----------------------------------------------------------------
+    await test('Observability: search response attaches rate limit diagnostic headers', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.headers['x-searchratelimit-limit'], 'Must contain limit header');
+      assert.ok(res.headers['x-searchratelimit-remaining'] !== undefined, 'Must contain remaining header');
+      assert.ok(res.headers['x-searchratelimit-reset'] !== undefined, 'Must contain reset header');
+    });
+
+    await test('Safeguard: rejects offset exceeding 1000 with 400 Validation Error', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed&offset=1001',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 400);
+      assert.strictEqual(res.body.success, false);
+      assert.strictEqual(res.body.code, 'VALIDATION_ERROR');
+    });
+
+    await test('Abuse Safeguard: bursts exceeding rate limit receive 429 Too Many Requests', async () => {
+      searchAnalyticsService.reset();
+      searchAnalyticsService.configureSafeguards({ maxRequests: 2, windowMs: 10000 });
+      try {
+        // First request: OK
+        const res1 = await makeRequest(server, {
+          method: 'GET',
+          path: '/api/student/search?q=distributed',
+          headers: { Authorization: `Bearer ${tokenA}` }
+        });
+        assert.strictEqual(res1.statusCode, 200);
+
+        // Second request: OK (limit reached)
+        const res2 = await makeRequest(server, {
+          method: 'GET',
+          path: '/api/student/search?q=distributed',
+          headers: { Authorization: `Bearer ${tokenA}` }
+        });
+        assert.strictEqual(res2.statusCode, 200);
+
+        // Third request: Rejected with 429
+        const res3 = await makeRequest(server, {
+          method: 'GET',
+          path: '/api/student/search?q=distributed',
+          headers: { Authorization: `Bearer ${tokenA}` }
+        });
+        assert.strictEqual(res3.statusCode, 429);
+        assert.strictEqual(res3.body.code, 'TOO_MANY_REQUESTS');
+      } finally {
+        // Restore standard limits for subsequent calls
+        searchAnalyticsService.configureSafeguards({ maxRequests: 60, windowMs: 60000 });
+        searchAnalyticsService.reset();
+      }
+    });
+
+    await test('Observability Telemetry: analytics summary captures metrics without raw query text leakage', async () => {
+      const summary = studentSearchService.getAnalyticsSummary();
+      assert.ok(summary.operationalSummary);
+      assert.ok(summary.operationalSummary.totalSearches >= 0);
+      assert.ok(summary.performanceLatency);
+      assert.ok(summary.safeguardStatus.enabled);
+
+      // Verify privacy preservation: summary JSON does not leak search terms
+      const summaryStr = JSON.stringify(summary);
+      assert.equal(summaryStr.includes('distributed'), false, 'Telemetry summary must not contain raw query terms');
     });
 
     console.log('\n----------------------------------------------------');

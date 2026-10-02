@@ -11,6 +11,7 @@ const goalController = require('../controllers/goalController');
 const productivityController = require('../controllers/productivityController');
 const studentController = require('../controllers/studentController');
 const { authenticate } = require('../middleware/authMiddleware');
+const { searchAbuseSafeguard } = require('../middleware/searchSafeguard');
 const {
   validate,
   idParamSchema,
@@ -259,6 +260,7 @@ function createAcademicRoutes() {
   );
   router.get(
     '/academic/search',
+    searchAbuseSafeguard,
     validate(studentSearchQuerySchema, 'query'),
     studentController.searchStudent
   );

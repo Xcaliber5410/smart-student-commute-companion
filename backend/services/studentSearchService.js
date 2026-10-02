@@ -17,6 +17,7 @@ const { courseRepository } = require('../repositories/CourseRepository');
 const { userRepository } = require('../repositories/UserRepository');
 const { StudentSearchResult } = require('../models/StudentSearchResult');
 const { ForbiddenError, UnauthorizedError, BadRequestError } = require('../errors');
+const { searchAnalyticsService } = require('./searchAnalyticsService');
 
 const CANONICAL_ENTITY_TYPES = {
   course: 'course',
@@ -87,11 +88,21 @@ class StudentSearchService {
   constructor(
     searchRepo = studentSearchRepository,
     courseRepo = courseRepository,
-    userRepo = userRepository
+    userRepo = userRepository,
+    analyticsSvc = null
   ) {
     this.searchRepo = searchRepo;
     this.courseRepo = courseRepo;
     this.userRepo = userRepo;
+    this._analyticsSvc = analyticsSvc;
+  }
+
+  get analyticsSvc() {
+    if (!this._analyticsSvc) {
+      const { searchAnalyticsService } = require('./searchAnalyticsService');
+      this._analyticsSvc = searchAnalyticsService;
+    }
+    return this._analyticsSvc;
   }
 
   /**
@@ -162,44 +173,60 @@ class StudentSearchService {
    * @returns {object} Normalized search response payload
    */
   search(studentUserId, requestingUser, options = {}) {
-    this.assertOwnership(studentUserId, requestingUser);
+    const startTime = performance.now();
+    let resolvedTypesForTelemetry = [];
 
-    const rawQuery = options.query !== undefined ? options.query : options.q;
-    const query = typeof rawQuery === 'string' ? rawQuery.trim() : '';
-    const limit = Math.min(100, Math.max(1, Number(options.limit) || 20));
-    const offset = Math.max(0, Number(options.offset) || 0);
-    const resolvedTypes = this.resolveTypes(options.types || options.type);
-    const courseId = options.courseId || options.course_id || null;
-    const status = options.status || null;
+    try {
+      this.assertOwnership(studentUserId, requestingUser);
 
-    // Build zero-state counts map
-    const countsByType = {};
-    for (const t of ALL_SEARCHABLE_TYPES) {
-      countsByType[t] = 0;
-    }
+      const rawQuery = options.query !== undefined ? options.query : options.q;
+      const query = typeof rawQuery === 'string' ? rawQuery.trim() : '';
+      const limit = Math.min(100, Math.max(1, Number(options.limit) || 20));
+      const offset = Math.max(0, Number(options.offset) || 0);
+      const resolvedTypes = this.resolveTypes(options.types || options.type);
+      resolvedTypesForTelemetry = resolvedTypes;
+      const courseId = options.courseId || options.course_id || null;
+      const status = options.status || null;
 
-    // 1. Empty or whitespace query: Return clean empty search payload with zero database calls
-    if (!query) {
-      return {
-        query: '',
-        total: 0,
-        limit,
-        offset,
-        types: resolvedTypes,
-        results: [],
-        countsByType,
-        pagination: {
+      // Build zero-state counts map
+      const countsByType = {};
+      for (const t of ALL_SEARCHABLE_TYPES) {
+        countsByType[t] = 0;
+      }
+
+      // 1. Empty or whitespace query: Return clean empty search payload with zero database calls
+      if (!query) {
+        const durationMs = performance.now() - startTime;
+        this.analyticsSvc.recordSearchExecution({
+          studentUserId,
+          types: resolvedTypes,
+          durationMs,
+          resultCount: 0,
+          options,
+          success: true
+        });
+
+        return {
+          query: '',
           total: 0,
           limit,
           offset,
-          hasMore: false
-        }
-      };
-    }
+          types: resolvedTypes,
+          results: [],
+          countsByType,
+          executionDurationMs: Math.round(durationMs * 100) / 100,
+          pagination: {
+            total: 0,
+            limit,
+            offset,
+            hasMore: false
+          }
+        };
+      }
 
-    if (query.length > 200) {
-      throw new BadRequestError('Search query cannot exceed 200 characters');
-    }
+      if (query.length > 200) {
+        throw new BadRequestError('Search query cannot exceed 200 characters');
+      }
 
     const queryLower = query.toLowerCase();
 
@@ -303,6 +330,16 @@ class StudentSearchService {
     const total = allCandidates.length;
     const paginatedResults = allCandidates.slice(offset, offset + limit);
 
+    const durationMs = performance.now() - startTime;
+    this.analyticsSvc.recordSearchExecution({
+      studentUserId,
+      types: resolvedTypes,
+      durationMs,
+      resultCount: total,
+      options,
+      success: true
+    });
+
     return {
       query,
       total,
@@ -311,6 +348,7 @@ class StudentSearchService {
       types: resolvedTypes,
       results: paginatedResults,
       countsByType,
+      executionDurationMs: Math.round(durationMs * 100) / 100,
       pagination: {
         total,
         limit,
@@ -318,6 +356,36 @@ class StudentSearchService {
         hasMore: offset + paginatedResults.length < total
       }
     };
+  } catch (err) {
+    const durationMs = performance.now() - startTime;
+    if (err instanceof BadRequestError) {
+      this.analyticsSvc.recordValidationFailure({
+        studentUserId,
+        endpoint: '/api/student/search',
+        reason: err.message,
+        details: err.details
+      });
+    }
+    this.analyticsSvc.recordSearchExecution({
+      studentUserId,
+      types: resolvedTypesForTelemetry,
+      durationMs,
+      resultCount: 0,
+      options,
+      success: false,
+      errorCode: err.code || err.name || 'SEARCH_ERROR'
+    });
+    throw err;
+  }
+}
+
+  /**
+   * Retrieves aggregated operational search telemetry and usage statistics.
+   *
+   * @returns {object}
+   */
+  getAnalyticsSummary() {
+    return this.analyticsSvc.getAnalyticsSummary();
   }
 
   /**
@@ -350,6 +418,7 @@ const studentSearchService = new StudentSearchService();
 module.exports = {
   StudentSearchService,
   studentSearchService,
+  searchAnalyticsService,
   StudentSearchResult,
   ALL_SEARCHABLE_TYPES,
   CANONICAL_ENTITY_TYPES,

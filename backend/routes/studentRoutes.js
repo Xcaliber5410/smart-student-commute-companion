@@ -8,6 +8,7 @@
 const express = require('express');
 const studentController = require('../controllers/studentController');
 const { authenticate } = require('../middleware/authMiddleware');
+const { searchAbuseSafeguard } = require('../middleware/searchSafeguard');
 const {
   validate,
   idParamSchema,
@@ -118,6 +119,7 @@ function createStudentRoutes() {
   // 7. Unified Cross-Domain Student Search
   router.get(
     '/student/search',
+    searchAbuseSafeguard,
     validate(studentSearchQuerySchema, 'query'),
     studentController.searchStudent
   );

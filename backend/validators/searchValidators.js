@@ -60,6 +60,7 @@ const studentSearchQuerySchema = z.object({
     .number()
     .int('Offset must be an integer')
     .min(0, 'Offset cannot be negative')
+    .max(1000, 'Offset cannot exceed 1000')
     .optional()
     .default(0),
   courseId: z.string().trim().optional(),

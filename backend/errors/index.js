@@ -96,6 +96,12 @@ class ResourceNotFoundError extends NotFoundError {
   }
 }
 
+class TooManyRequestsError extends AppError {
+  constructor(message = 'Too many requests. Please slow down.', code = 'TOO_MANY_REQUESTS', details = null) {
+    super(message, 429, code, details);
+  }
+}
+
 module.exports = {
   AppError,
   BadRequestError,
@@ -109,5 +115,6 @@ module.exports = {
   BusinessRuleError,
   InvalidStateTransitionError,
   ServiceUnavailableError,
-  DatabaseError
+  DatabaseError,
+  TooManyRequestsError
 };
