@@ -52,3 +52,7 @@ export { default as ListSkeleton } from './ListSkeleton';
 // Reusable Progress & Data Visualization Components (Day 5)
 export { default as ProgressBar } from './ProgressBar';
 export { default as ComparisonBars } from './ComparisonBars';
+
+// Reusable Promotional & Benefit-explainer Components (Day 9)
+export { default as FeatureHighlight } from './FeatureHighlight';
+export { default as InstallPromoDialog } from './InstallPromoDialog';

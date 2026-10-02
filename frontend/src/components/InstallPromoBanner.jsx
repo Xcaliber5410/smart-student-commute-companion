@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Download, X } from 'lucide-react';
+import InstallPromoDialog from './ui/InstallPromoDialog';
 
 /**
  * InstallPromoBanner - Smart install promotion (Day 9 roadmap: "Install
@@ -24,16 +25,17 @@ import { Download, X } from 'lucide-react';
  * @param {boolean} props.isInstalled - App is running installed (standalone)
  * @param {Function} props.onInstallApp - Trigger the existing install flow
  * @param {Function} [props.onDismiss] - Optional notified when the user dismisses
- * @param {Function} [props.onLearnMore] - Optional "Learn more" handler (wired in C2)
+ * @param {Function} [props.onOpenHub] - Navigate to the Day 8 Install & Share screen
  */
 export default function InstallPromoBanner({
   canInstall = false,
   isInstalled = false,
   onInstallApp,
   onDismiss,
-  onLearnMore,
+  onOpenHub,
 }) {
   const [dismissed, setDismissed] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Honest visibility: only promote when promotion can actually succeed.
   if (isInstalled || !canInstall || dismissed) return null;
@@ -64,15 +66,13 @@ export default function InstallPromoBanner({
           <Download className="w-3.5 h-3.5" aria-hidden="true" />
           Install app
         </button>
-        {onLearnMore && (
-          <button
-            type="button"
-            onClick={onLearnMore}
-            className="px-3 py-1.5 rounded-lg border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
-          >
-            Learn more
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setIsDialogOpen(true)}
+          className="px-3 py-1.5 rounded-lg border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+        >
+          Learn more
+        </button>
         <button
           type="button"
           onClick={handleDismiss}
@@ -83,6 +83,17 @@ export default function InstallPromoBanner({
           <X className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       </div>
+
+      <InstallPromoDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onInstall={onInstallApp}
+        onOpenHub={() => {
+          setIsDialogOpen(false);
+          onOpenHub?.();
+        }}
+        canInstall={canInstall}
+      />
     </div>
   );
 }

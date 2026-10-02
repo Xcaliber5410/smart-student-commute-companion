@@ -870,6 +870,7 @@ export default function App() {
           canInstall={canInstall}
           isInstalled={isInstalled}
           onInstallApp={handleInstallApp}
+          onOpenHub={() => setActiveTab('installshare')}
         />
         {renderTabContent()}
       </MainLayout>
