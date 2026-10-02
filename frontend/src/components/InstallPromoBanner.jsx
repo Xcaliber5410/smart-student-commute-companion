@@ -97,7 +97,7 @@ export default function InstallPromoBanner({
           onClick={handleInstall}
           disabled={isInstalling}
           aria-busy={isInstalling || undefined}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 transition-colors disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+          className="inline-flex min-h-9 items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 transition-colors disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
         >
           {isInstalling ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
@@ -109,7 +109,7 @@ export default function InstallPromoBanner({
         <button
           type="button"
           onClick={() => setIsDialogOpen(true)}
-          className="px-3 py-1.5 rounded-lg border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+          className="min-h-9 px-3.5 py-2 rounded-lg border border-emerald-500/40 text-emerald-200 text-xs font-semibold hover:bg-emerald-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
         >
           Learn more
         </button>
@@ -118,7 +118,7 @@ export default function InstallPromoBanner({
           onClick={handleDismiss}
           aria-label="Dismiss install promotion"
           title="Dismiss install promotion"
-          className="p-1.5 rounded-lg text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+          className="min-h-9 min-w-9 p-2 inline-flex items-center justify-center rounded-lg text-emerald-300/70 hover:text-emerald-200 hover:bg-emerald-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
         >
           <X className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
