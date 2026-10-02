@@ -15,6 +15,7 @@
 const { studentSearchRepository } = require('../repositories/StudentSearchRepository');
 const { courseRepository } = require('../repositories/CourseRepository');
 const { userRepository } = require('../repositories/UserRepository');
+const { StudentSearchResult } = require('../models/StudentSearchResult');
 const { ForbiddenError, UnauthorizedError, BadRequestError } = require('../errors');
 
 const CANONICAL_ENTITY_TYPES = {
@@ -227,245 +228,63 @@ class StudentSearchService {
     if (resolvedTypes.includes('course')) {
       const courseRows = this.searchRepo.searchCourses(studentUserId, query, queryOptions);
       for (const row of courseRows) {
-        allCandidates.push({
-          id: row.id,
-          type: 'course',
-          title: row.name,
-          subtitle: [row.code, row.instructor].filter(Boolean).join(' • ') || 'Academic Course',
-          description: row.instructor ? `Instructor: ${row.instructor}` : null,
-          status: row.archived ? 'archived' : 'active',
-          url: `/academic/courses/${row.id}`,
-          course: null,
-          metadata: {
-            code: row.code || null,
-            instructor: row.instructor || null,
-            credits: row.credits,
-            color: row.color,
-            archived: !!row.archived
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        });
+        allCandidates.push(StudentSearchResult.fromCourse(row, courseMap));
       }
     }
 
     if (resolvedTypes.includes('assignment')) {
       const asgnRows = this.searchRepo.searchAssignments(studentUserId, query, queryOptions);
       for (const row of asgnRows) {
-        const enrichedCourse = courseMap.get(row.course_id) || null;
-        allCandidates.push({
-          id: row.id,
-          type: 'assignment',
-          title: row.title,
-          subtitle: [enrichedCourse?.name, row.priority ? `Priority: ${row.priority}` : null, row.status].filter(Boolean).join(' • '),
-          description: row.description || null,
-          status: row.status,
-          url: `/academic/assignments/${row.id}`,
-          course: enrichedCourse,
-          metadata: {
-            dueDate: row.due_date,
-            priority: row.priority,
-            status: row.status,
-            courseId: row.course_id || null,
-            goalId: row.goal_id || null,
-            completedAt: row.completed_at || null
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        });
+        allCandidates.push(StudentSearchResult.fromAssignment(row, courseMap));
       }
     }
 
     if (resolvedTypes.includes('calendar_event')) {
       const eventRows = this.searchRepo.searchCalendarEvents(studentUserId, query, queryOptions);
       for (const row of eventRows) {
-        const enrichedCourse = courseMap.get(row.course_id) || null;
-        allCandidates.push({
-          id: row.id,
-          type: 'calendar_event',
-          title: row.title,
-          subtitle: [row.event_type, row.location, enrichedCourse?.name].filter(Boolean).join(' • '),
-          description: row.description || null,
-          status: row.status,
-          url: `/calendar/events/${row.id}`,
-          course: enrichedCourse,
-          metadata: {
-            startTime: row.start_time,
-            endTime: row.end_time,
-            location: row.location || null,
-            eventType: row.event_type,
-            status: row.status,
-            courseId: row.course_id || null
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        });
+        allCandidates.push(StudentSearchResult.fromCalendarEvent(row, courseMap));
       }
     }
 
     if (resolvedTypes.includes('study_session')) {
       const studyRows = this.searchRepo.searchStudySessions(studentUserId, query, queryOptions);
       for (const row of studyRows) {
-        const enrichedCourse = courseMap.get(row.course_id) || null;
-        allCandidates.push({
-          id: row.id,
-          type: 'study_session',
-          title: row.title,
-          subtitle: [enrichedCourse?.name, `${row.planned_duration_minutes} min`, row.status].filter(Boolean).join(' • '),
-          description: row.notes || null,
-          status: row.status,
-          url: `/calendar/study-sessions/${row.id}`,
-          course: enrichedCourse,
-          metadata: {
-            plannedStartTime: row.planned_start_time,
-            plannedDurationMinutes: row.planned_duration_minutes,
-            actualDurationMinutes: row.actual_duration_minutes || null,
-            status: row.status,
-            courseId: row.course_id || null,
-            goalId: row.goal_id || null,
-            completedAt: row.completed_at || null
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        });
+        allCandidates.push(StudentSearchResult.fromStudySession(row, courseMap));
       }
     }
 
     if (resolvedTypes.includes('goal')) {
       const goalRows = this.searchRepo.searchGoals(studentUserId, query, queryOptions);
       for (const row of goalRows) {
-        const enrichedCourse = courseMap.get(row.course_id) || null;
-        allCandidates.push({
-          id: row.id,
-          type: 'goal',
-          title: row.title,
-          subtitle: [`${row.progress}% complete`, row.status, enrichedCourse?.name].filter(Boolean).join(' • '),
-          description: row.description || null,
-          status: row.status,
-          url: `/academic/goals/${row.id}`,
-          course: enrichedCourse,
-          metadata: {
-            progress: row.progress,
-            targetDate: row.target_date || null,
-            status: row.status,
-            targetValue: row.target_value || null,
-            currentValue: row.current_value || 0,
-            unit: row.unit || null,
-            courseId: row.course_id || null
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        });
+        allCandidates.push(StudentSearchResult.fromGoal(row, courseMap));
       }
     }
 
     if (resolvedTypes.includes('saved_route')) {
       const routeRows = this.searchRepo.searchSavedRoutes(studentUserId, query, queryOptions);
       for (const row of routeRows) {
-        allCandidates.push({
-          id: row.id,
-          type: 'saved_route',
-          title: row.name,
-          subtitle: `${row.origin} → ${row.destination}`,
-          description: row.tags ? `Tags: ${row.tags}` : null,
-          status: 'saved',
-          url: `/student/saved-routes/${row.id}`,
-          course: null,
-          metadata: {
-            origin: row.origin,
-            destination: row.destination,
-            preferredMode: row.preferred_mode || null,
-            maxBudget: row.max_budget || null,
-            tags: row.tags || null
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: null
-        });
+        allCandidates.push(StudentSearchResult.fromSavedRoute(row));
       }
     }
 
     if (resolvedTypes.includes('schedule')) {
       const schedRows = this.searchRepo.searchSchedules(studentUserId, query, queryOptions);
       for (const row of schedRows) {
-        allCandidates.push({
-          id: row.id,
-          type: 'schedule',
-          title: row.title,
-          subtitle: `${row.origin} → ${row.destination} • Arrival: ${row.target_arrival_time}`,
-          description: row.days_of_week ? `Days: ${row.days_of_week}` : null,
-          status: row.active ? 'active' : 'inactive',
-          url: `/student/schedules/${row.id}`,
-          course: null,
-          metadata: {
-            origin: row.origin,
-            destination: row.destination,
-            targetArrivalTime: row.target_arrival_time,
-            daysOfWeek: row.days_of_week,
-            reminderEnabled: !!row.reminder_enabled,
-            active: !!row.active
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        });
+        allCandidates.push(StudentSearchResult.fromSchedule(row));
       }
     }
 
     if (resolvedTypes.includes('notification')) {
       const notifRows = this.searchRepo.searchNotifications(studentUserId, query, queryOptions);
       for (const row of notifRows) {
-        allCandidates.push({
-          id: row.id,
-          type: 'notification',
-          title: row.title,
-          subtitle: [row.type, row.read ? 'Read' : 'Unread'].join(' • '),
-          description: row.message || null,
-          status: row.read ? 'read' : 'unread',
-          url: `/notifications/${row.id}`,
-          course: null,
-          metadata: {
-            type: row.type,
-            priority: row.priority,
-            read: !!row.read,
-            relatedResourceType: row.related_resource_type || null,
-            relatedResourceId: row.related_resource_id || null
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: null
-        });
+        allCandidates.push(StudentSearchResult.fromNotification(row));
       }
     }
 
     if (resolvedTypes.includes('reminder')) {
       const reminderRows = this.searchRepo.searchReminders(studentUserId, query, queryOptions);
       for (const row of reminderRows) {
-        allCandidates.push({
-          id: row.id,
-          type: 'reminder',
-          title: row.title,
-          subtitle: [row.reminder_type, row.status].join(' • '),
-          description: row.message || null,
-          status: row.status,
-          url: `/reminders/${row.id}`,
-          course: null,
-          metadata: {
-            scheduledTime: row.scheduled_time,
-            reminderType: row.reminder_type,
-            status: row.status,
-            relatedResourceType: row.related_resource_type || null,
-            relatedResourceId: row.related_resource_id || null
-          },
-          relevanceScore: 0,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        });
+        allCandidates.push(StudentSearchResult.fromReminder(row));
       }
     }
 
@@ -502,6 +321,20 @@ class StudentSearchService {
   }
 
   /**
+   * Search student entities returning rich StudentSearchResult instances.
+   * Useful helper for backend service integration (Context, Insights, Planner).
+   *
+   * @param {string} studentUserId
+   * @param {object} requestingUser
+   * @param {object} [options={}]
+   * @returns {Array<StudentSearchResult>}
+   */
+  searchEntities(studentUserId, requestingUser, options = {}) {
+    const response = this.search(studentUserId, requestingUser, options);
+    return response.results;
+  }
+
+  /**
    * Returns list of all searchable entity types and supported aliases.
    */
   getSupportedTypes() {
@@ -517,6 +350,7 @@ const studentSearchService = new StudentSearchService();
 module.exports = {
   StudentSearchService,
   studentSearchService,
+  StudentSearchResult,
   ALL_SEARCHABLE_TYPES,
   CANONICAL_ENTITY_TYPES,
   calculateRelevance,

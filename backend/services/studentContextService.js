@@ -15,9 +15,22 @@ const {
 } = require('../errors');
 
 class StudentContextService {
-  constructor(userRepo = userRepository, profileRepo = studentProfileRepository) {
+  constructor(
+    userRepo = userRepository,
+    profileRepo = studentProfileRepository,
+    searchSvc = null
+  ) {
     this.userRepo = userRepo;
     this.profileRepo = profileRepo;
+    this._searchSvc = searchSvc;
+  }
+
+  get searchSvc() {
+    if (!this._searchSvc) {
+      const { studentSearchService } = require('./studentSearchService');
+      this._searchSvc = studentSearchService;
+    }
+    return this._searchSvc;
   }
 
   /**
@@ -113,6 +126,32 @@ class StudentContextService {
     const updatedProfile = this.profileRepo.upsert(targetUserId, updates);
 
     return this.getStudentContext(targetUserId, requestingUser);
+  }
+
+  /**
+   * Performs a student-scoped cross-domain search integrated with the student's profile context.
+   * Allows backend callers to retrieve search results combined with student identity
+   * without coupling directly to individual table schemas.
+   *
+   * @param {string} targetUserId
+   * @param {object} requestingUser
+   * @param {object} [options={}] - { q, type, domain, limit, offset, sort }
+   * @returns {object} Contextual search response with student identity and typed search results
+   */
+  searchContext(targetUserId, requestingUser, options = {}) {
+    this.assertAccess(targetUserId, requestingUser);
+
+    const user = this.userRepo.findById(targetUserId);
+    if (!user) {
+      throw new NotFoundError(`Student user with id '${targetUserId}' not found`);
+    }
+
+    const searchResponse = this.searchSvc.search(targetUserId, requestingUser, options);
+
+    return {
+      student: user.toSafeObject(),
+      ...searchResponse
+    };
   }
 }
 

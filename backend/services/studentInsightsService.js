@@ -40,7 +40,8 @@ class StudentInsightsService {
     calendarRangeSvc = calendarRangeService,
     workloadSvc = workloadAnalysisService,
     productivitySvc = productivityAnalyticsService,
-    dbInstance = null
+    dbInstance = null,
+    searchSvc = null
   ) {
     this.userRepo = userRepo;
     this.courseRepo = courseRepo;
@@ -53,6 +54,15 @@ class StudentInsightsService {
     this.workloadSvc = workloadSvc;
     this.productivitySvc = productivitySvc;
     this.db = dbInstance;
+    this._searchSvc = searchSvc;
+  }
+
+  get searchSvc() {
+    if (!this._searchSvc) {
+      const { studentSearchService } = require('./studentSearchService');
+      this._searchSvc = studentSearchService;
+    }
+    return this._searchSvc;
   }
 
   get database() {
@@ -238,6 +248,54 @@ class StudentInsightsService {
       unreadNotificationsCount,
       workloadSummary,
       productivityMetrics
+    };
+  }
+
+  /**
+   * Contextual search integration for student insights:
+   * Enables backend services to search across student entities and enrich
+   * results with insight-level categorization (actionable flags, overdue checks,
+   * academic scope, and student relationship) without coupling directly to database tables.
+   *
+   * @param {string} studentUserId - Target student user ID
+   * @param {object} requestingUser - Authenticated user initiating request
+   * @param {object} [options={}] - Search options { q, type, domain, limit, offset, sort }
+   * @returns {Promise<object>} Contextualized search results for insights
+   */
+  async searchStudentInsights(studentUserId, requestingUser, options = {}) {
+    this.assertOwnership(studentUserId, requestingUser);
+
+    const user = this.userRepo.findById(studentUserId);
+    if (!user) {
+      throw new NotFoundError(`Student user with id '${studentUserId}' not found`);
+    }
+
+    // Reuse studentSearchService via searchEntities to get typed StudentSearchResult instances
+    const entities = this.searchSvc.searchEntities(studentUserId, requestingUser, options);
+
+    // Group and categorize domain results for consumption by insights/planning engines
+    const actionable = entities.filter(e => e.isActionable());
+    const overdue = entities.filter(e => e.isOverdue());
+    const academic = entities.filter(e => e.isAcademic());
+
+    return {
+      student: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        college_name: user.college_name
+      },
+      query: options.q || '',
+      totalResults: entities.length,
+      summary: {
+        total: entities.length,
+        actionableCount: actionable.length,
+        overdueCount: overdue.length,
+        academicCount: academic.length
+      },
+      results: entities.map(e => e.toJSON()),
+      actionableResults: actionable.map(e => e.toJSON()),
+      overdueResults: overdue.map(e => e.toJSON())
     };
   }
 }

@@ -26,6 +26,13 @@ const {
 const { CalendarEvent, calendarEventSchema, eventTypeEnum, eventStatusEnum } = require('./CalendarEvent');
 const { StudySession, studySessionSchema, studySessionStatusEnum } = require('./StudySession');
 const { Goal, goalSchema, goalStatusEnum } = require('./Goal');
+const {
+  StudentSearchResult,
+  studentSearchResultSchema,
+  searchResultTypeEnum,
+  searchDomainEnum,
+  studentRelationshipEnum
+} = require('./StudentSearchResult');
 
 module.exports = {
   LiveReport,
@@ -67,6 +74,11 @@ module.exports = {
   studySessionStatusEnum,
   Goal,
   goalSchema,
-  goalStatusEnum
+  goalStatusEnum,
+  StudentSearchResult,
+  studentSearchResultSchema,
+  searchResultTypeEnum,
+  searchDomainEnum,
+  studentRelationshipEnum
 };
 
