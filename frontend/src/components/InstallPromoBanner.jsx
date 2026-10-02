@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, Loader2, X } from 'lucide-react';
 import InstallPromoDialog from './ui/InstallPromoDialog';
+import { isPromoEligible, isPromoSnoozed, writePromoSnooze } from '../services/installPromotion';
 
 /**
  * InstallPromoBanner - Smart install promotion (Day 9 roadmap: "Install
@@ -14,7 +15,8 @@ import InstallPromoDialog from './ui/InstallPromoDialog';
  *
  * - Hidden entirely when the app is already installed (no nagging).
  * - Hidden when the browser never offered a deferred install prompt.
- * - Dismissible from this session (persistence/snooze arrives in C4).
+ * - Dismissing snoozes promotion for 7 days via the installPromotion
+ *   service (session-only fallback when storage is unavailable).
  *
  * The Install action is the existing app-layer handler (deferred
  * `beforeinstallprompt` prompt + toast feedback), so this component never
@@ -37,15 +39,15 @@ export default function InstallPromoBanner({
   onOpenHub,
   activeTab,
 }) {
-  const [dismissed, setDismissed] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
+  // Cross-session snooze read up front (sync localStorage, failure-safe).
+  const [dismissed, setDismissed] = useState(() => isPromoSnoozed());
   const initialTabRef = useRef(activeTab);
 
   // Smart trigger: reveal after the first navigation OR a short idle delay —
   // never on first paint, so the promo never competes with initial content.
-  // Session-only (the cross-session snooze arrives with the service in C4).
   useEffect(() => {
     const timer = setTimeout(() => setIsRevealed(true), 6000);
     return () => clearTimeout(timer);
@@ -66,13 +68,16 @@ export default function InstallPromoBanner({
     }
   };
 
-  // Honest visibility: only promote when promotion can actually succeed.
-  if (isInstalled || !canInstall || dismissed || !isRevealed) return null;
-
   const handleDismiss = () => {
     setDismissed(true);
+    // Persist the 7-day snooze; when storage is unavailable the session-only
+    // dismissal above still holds (honest degradation, never a throw).
+    writePromoSnooze();
     onDismiss?.();
   };
+
+  // Honest visibility: only promote when promotion can actually succeed.
+  if (!isPromoEligible({ canInstall, isInstalled }) || dismissed || !isRevealed) return null;
 
   return (
     <div

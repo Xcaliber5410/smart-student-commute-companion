@@ -227,6 +227,10 @@ export default function App() {
       showToast('Thanks! The app is being installed on your device.', 'success');
     } else if (outcome === 'dismissed') {
       showToast('Install dismissed — you can add the app from your browser menu anytime.', 'info');
+    } else if (outcome === 'unavailable') {
+      // Honest fallback: one-tap install cannot run here — point at the
+      // manual steps that already exist on the Day 8 Install & Share screen.
+      showToast('One-tap install is not available right now — open Install & Share for manual steps.', 'info');
     }
   };
 
