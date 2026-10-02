@@ -916,6 +916,94 @@ if (appContent && appContent.includes('watchDeviceAlertPermission')) {
 }
 
 // ============================================================
+// 17. DAY 8 INSTALL & SHARE HUB
+// ============================================================
+
+section('17. DAY 8 INSTALL & SHARE HUB');
+
+const installSharePage = readFile('src/pages/InstallShareHubPage.jsx');
+if (fileExists('src/pages/InstallShareHubPage.jsx')) pass('Install & Share hub page exists');
+else fail('Install & Share hub page is missing');
+if (
+  installSharePage &&
+  installSharePage.includes('Install the app') &&
+  installSharePage.includes('Share the app') &&
+  installSharePage.includes('Shared content')
+) {
+  pass('Hub page covers install, share, and shared-content sections');
+} else {
+  fail('Hub page is missing install, share, or shared-content sections');
+}
+if (
+  installSharePage &&
+  installSharePage.includes('Nothing shared here yet') &&
+  installSharePage.includes('isManualGuideOpen')
+) {
+  pass('Hub page provides empty and collapsible guidance states');
+} else {
+  fail('Hub page is missing empty or collapsible guidance states');
+}
+if (navContent && navContent.includes("id: 'installshare'") && appContent && appContent.includes('InstallShareHubPage')) {
+  pass('Hub page is wired into navigation and App rendering');
+} else {
+  fail('Hub page is not wired into application navigation');
+}
+
+const shareableCard = readFile('src/components/ui/ShareableCard.jsx');
+if (shareableCard && shareableCard.includes('navigator.share') && shareableCard.includes('role="status"')) {
+  pass('ShareableCard offers native share with polite copy feedback');
+} else {
+  fail('ShareableCard is missing native share or live feedback');
+}
+const installStatusCard = readFile('src/components/ui/InstallStatusCard.jsx');
+if (installStatusCard && installStatusCard.includes('Badge') && installStatusCard.includes('action')) {
+  pass('InstallStatusCard shows install status with an action slot');
+} else {
+  fail('InstallStatusCard is missing status badge or action slot');
+}
+const uiBarrelDay8 = readFile('src/components/ui/index.js');
+if (uiBarrelDay8 && uiBarrelDay8.includes("from './ShareableCard'") && uiBarrelDay8.includes("from './InstallStatusCard'")) {
+  pass('UI barrel exports the Day 8 components');
+} else {
+  fail('UI barrel is missing the Day 8 component exports');
+}
+
+const shareTargetService = readFile('src/services/shareTarget.js');
+if (shareTargetService && shareTargetService.includes('isSupported') && shareTargetService.includes('getShareTargetData')) {
+  pass('Share-target service feature-detects and reads shared data');
+} else {
+  fail('Share-target service is missing detection or data access helpers');
+}
+if (shareTargetService && shareTargetService.includes('registerShareTargetListener')) {
+  pass('Share-target service listens for service-worker messages');
+} else {
+  fail('Share-target service has no service-worker message listener');
+}
+const swContentDay8 = readFile('public/sw.js');
+if (swContentDay8 && swContentDay8.includes('share-target')) {
+  pass('Service worker handles the share-target POST route');
+} else {
+  fail('Service worker is missing share-target handling');
+}
+
+if (appContent && appContent.includes('URLSearchParams') && appContent.includes("'tab'")) {
+  pass('App reads ?tab= deep links on load');
+} else {
+  fail('App does not read ?tab= deep links');
+}
+const manifestDay8 = readFile('public/manifest.json');
+if (manifestDay8 && manifestDay8.includes('shortcuts')) {
+  pass('Manifest app shortcuts remain declared');
+} else {
+  fail('Manifest app shortcuts are missing');
+}
+if (installSharePage && installSharePage.includes('aria-label') && installSharePage.includes('aria-expanded')) {
+  pass('Hub page uses labelled regions and disclosure semantics');
+} else {
+  fail('Hub page is missing labelled regions or disclosure semantics');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
