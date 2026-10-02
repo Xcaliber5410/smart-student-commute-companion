@@ -382,6 +382,7 @@ All results are strictly scoped to the authenticated student (`req.user.id`). Fo
     "notification": 0,
     "reminder": 0
   },
+  "executionDurationMs": 4.12,
   "pagination": {
     "total": 3,
     "limit": 20,
@@ -390,7 +391,15 @@ All results are strictly scoped to the authenticated student (`req.user.id`). Fo
   }
 }
 ```
+- **Response Headers**:
+  - `X-SearchRateLimit-Limit`: Maximum requests per window (default 60).
+  - `X-SearchRateLimit-Remaining`: Remaining request quota.
+  - `X-SearchRateLimit-Reset`: Unix timestamp when quota resets.
 - **Error Responses**:
   - `401 Unauthorized`: Missing or invalid Bearer token.
-  - `400 Bad Request`: Invalid entity type, query exceeding 200 characters, or invalid pagination limits.
+  - `400 Bad Request / Validation Error`: Invalid entity type, query exceeding 200 characters, limit < 1 or > 100, or offset < 0 or > 1000.
+  - `429 Too Many Requests`: Velocity rate limit exceeded (includes `Retry-After` header).
+
+*For full architecture, ranking heuristics, and entity mappings, see [unified_search.md](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/backend/docs/unified_search.md).*
+
 

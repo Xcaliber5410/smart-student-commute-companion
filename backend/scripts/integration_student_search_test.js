@@ -34,6 +34,7 @@ const { closeConnection } = require('../db/connection');
 const { createApp } = require('../app');
 const { searchAnalyticsService } = require('../services/searchAnalyticsService');
 const { studentSearchService } = require('../services/studentSearchService');
+const { notificationRepository } = require('../repositories/NotificationRepository');
 
 function makeRequest(server, { method, path: reqPath, headers = {}, body = null }) {
   return new Promise((resolve, reject) => {
@@ -324,10 +325,40 @@ async function run() {
       assert.strictEqual(res.statusCode, 201);
     });
 
+    let notifAId;
+    await test('Data Setup: creates notification for Student A', async () => {
+      const notif = notificationRepository.create({
+        user_id: studentAId,
+        title: 'Distributed Systems Hall Pass Ready',
+        message: 'Download hall ticket for CS401 exam hall session',
+        type: 'system',
+        priority: 'high'
+      });
+      assert.ok(notif && notif.id);
+      notifAId = notif.id;
+    });
+
+    let reminderAId;
+    await test('Data Setup: creates reminder for Student A', async () => {
+      const res = await makeRequest(server, {
+        method: 'POST',
+        path: '/api/reminders',
+        headers: { Authorization: `Bearer ${tokenA}` },
+        body: {
+          title: 'Distributed Consensus Project Reminder',
+          message: 'Finish Raft leader election implementation',
+          scheduled_time: Date.now() + 3600000,
+          reminder_type: 'custom'
+        }
+      });
+      assert.strictEqual(res.statusCode, 201);
+      reminderAId = res.body.reminder.id;
+    });
+
     // -----------------------------------------------------------------
-    // 5. Valid Cross-Domain Search Endpoint Execution
+    // 5. Valid Cross-Domain Search Endpoint Execution Across All 9 Types
     // -----------------------------------------------------------------
-    await test('Search: GET /api/student/search returns matched records across multiple domains', async () => {
+    await test('Search: GET /api/student/search returns matched records across all 9 student domain types', async () => {
       const res = await makeRequest(server, {
         method: 'GET',
         path: '/api/student/search?q=distributed',
@@ -336,17 +367,19 @@ async function run() {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.body.success, true);
       assert.strictEqual(res.body.query, 'distributed');
-      assert.ok(res.body.total >= 7, `Expected at least 7 items, received ${res.body.total}`);
+      assert.ok(res.body.total >= 9, `Expected at least 9 items, received ${res.body.total}`);
       assert.ok(Array.isArray(res.body.results));
 
-      // Verify category distribution
-      assert.ok(res.body.countsByType.course >= 1);
-      assert.ok(res.body.countsByType.goal >= 1);
-      assert.ok(res.body.countsByType.assignment >= 1);
-      assert.ok(res.body.countsByType.calendar_event >= 1);
-      assert.ok(res.body.countsByType.study_session >= 1);
-      assert.ok(res.body.countsByType.saved_route >= 1);
-      assert.ok(res.body.countsByType.schedule >= 1);
+      // Verify category distribution across all 9 domains
+      assert.ok(res.body.countsByType.course >= 1, 'Should find course');
+      assert.ok(res.body.countsByType.goal >= 1, 'Should find goal');
+      assert.ok(res.body.countsByType.assignment >= 1, 'Should find assignment');
+      assert.ok(res.body.countsByType.calendar_event >= 1, 'Should find calendar event');
+      assert.ok(res.body.countsByType.study_session >= 1, 'Should find study session');
+      assert.ok(res.body.countsByType.saved_route >= 1, 'Should find saved route');
+      assert.ok(res.body.countsByType.schedule >= 1, 'Should find schedule');
+      assert.ok(res.body.countsByType.notification >= 1, 'Should find notification');
+      assert.ok(res.body.countsByType.reminder >= 1, 'Should find reminder');
 
       // Verify normalized item structure
       for (const item of res.body.results) {
@@ -360,7 +393,115 @@ async function run() {
     });
 
     // -----------------------------------------------------------------
-    // 6. Entity Type Filtering & Alias Resolution
+    // 6. Realistic Entity-Specific Searches
+    // -----------------------------------------------------------------
+    await test('Scenario: searching for a course/subject by code and title', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=CS401',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length >= 1);
+      const courseMatch = res.body.results.find(r => r.type === 'course');
+      assert.ok(courseMatch, 'Must find course by code');
+      assert.strictEqual(courseMatch.metadata.code, 'CS401');
+      assert.strictEqual(courseMatch.title, 'Distributed Systems & Cloud');
+    });
+
+    await test('Scenario: searching for an assignment/task by descriptive content', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=RPC+protocol',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length >= 1);
+      const asgnMatch = res.body.results.find(r => r.type === 'assignment');
+      assert.ok(asgnMatch, 'Must find assignment by description');
+      assert.strictEqual(asgnMatch.title, 'Distributed Consensus Lab 1');
+    });
+
+    await test('Scenario: searching for a calendar event', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Midterm+Review',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length >= 1);
+      const eventMatch = res.body.results.find(r => r.type === 'calendar_event');
+      assert.ok(eventMatch, 'Must find calendar event');
+      assert.strictEqual(eventMatch.title, 'Distributed Systems Midterm Review');
+    });
+
+    await test('Scenario: searching for a goal', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Raft+consensus+engine',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length >= 1);
+      const goalMatch = res.body.results.find(r => r.type === 'goal');
+      assert.ok(goalMatch, 'Must find goal by description');
+      assert.strictEqual(goalMatch.title, 'Distributed Systems Master Project');
+    });
+
+    await test('Scenario: searching for other student entities (study session, schedule, route, notification, reminder)', async () => {
+      // 1. Study Session
+      const sessionRes = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Paxos',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.ok(sessionRes.body.results.some(r => r.type === 'study_session'));
+
+      // 2. Saved Route
+      const routeRes = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Andheri+Station',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.ok(routeRes.body.results.some(r => r.type === 'saved_route'));
+
+      // 3. Commute Schedule
+      const schedRes = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Borivali+West',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.ok(schedRes.body.results.some(r => r.type === 'schedule'));
+
+      // 4. Notification
+      const notifRes = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Hall+Pass',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.ok(notifRes.body.results.some(r => r.type === 'notification'));
+
+      // 5. Reminder
+      const reminderRes = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Consensus+Project+Reminder',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.ok(reminderRes.body.results.some(r => r.type === 'reminder'));
+    });
+
+    await test('Scenario: partial match searching matches prefixes and tokens', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distrib',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.total >= 5, 'Prefix distrib should match multiple entities');
+    });
+
+    // -----------------------------------------------------------------
+    // 7. Scoping and Filtering Controls
     // -----------------------------------------------------------------
     await test('Filtering: GET /api/student/search?types=course,tasks returns only course and assignment', async () => {
       const res = await makeRequest(server, {
@@ -374,8 +515,42 @@ async function run() {
       assert.ok(res.body.results.some(i => i.type === 'assignment'));
     });
 
+    await test('Filtering: GET /api/student/search?types=notifications,reminders returns only alerts', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed&types=notifications,reminders',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length >= 2);
+      assert.ok(res.body.results.every(i => i.type === 'notification' || i.type === 'reminder'));
+    });
+
+    await test('Filtering: courseId scope restricts matches to course-associated records', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: `/api/student/search?q=distributed&courseId=${courseAId}`,
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length > 0);
+      // Non-course items like transit schedules and saved routes should NOT be included
+      assert.ok(res.body.results.every(i => i.type !== 'schedule' && i.type !== 'saved_route'));
+    });
+
+    await test('Filtering: status filter applies to assignments', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed&status=urgent&types=assignment',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length >= 1);
+      assert.ok(res.body.results.every(i => i.type === 'assignment'));
+    });
+
     // -----------------------------------------------------------------
-    // 7. Pagination and Limit Controls
+    // 8. Pagination and Limit Controls
     // -----------------------------------------------------------------
     await test('Pagination: respects limit and offset with consistent metadata', async () => {
       const page1 = await makeRequest(server, {
@@ -405,7 +580,7 @@ async function run() {
     });
 
     // -----------------------------------------------------------------
-    // 8. Predictable Empty-Result Behavior for Non-Existent Queries
+    // 9. Predictable Empty-Result Behavior
     // -----------------------------------------------------------------
     await test('No Results: returns empty result set for unmatched queries', async () => {
       const res = await makeRequest(server, {
@@ -417,11 +592,81 @@ async function run() {
       assert.strictEqual(res.body.total, 0);
       assert.strictEqual(res.body.results.length, 0);
       assert.strictEqual(res.body.pagination.hasMore, false);
+      for (const type of Object.keys(res.body.countsByType)) {
+        assert.strictEqual(res.body.countsByType[type], 0);
+      }
     });
 
     // -----------------------------------------------------------------
-    // 9. Input Validation & Error Handling
+    // 10. Authorization & Security Guards
     // -----------------------------------------------------------------
+    await test('Auth Guard: rejects malformed/invalid bearer token with 401 Unauthorized', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed',
+        headers: { Authorization: 'Bearer invalid.token.signature' }
+      });
+      assert.strictEqual(res.statusCode, 401);
+      assert.strictEqual(res.body.success, false);
+      assert.strictEqual(res.body.code, 'UNAUTHORIZED');
+    });
+
+    await test('Isolation: Student B searching for distributed receives zero records from Student A', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed',
+        headers: { Authorization: `Bearer ${tokenB}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.body.total, 0);
+      assert.strictEqual(res.body.results.length, 0);
+    });
+
+    await test('Isolation: Student B cannot search Student A courseId', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: `/api/student/search?q=distributed&courseId=${courseAId}`,
+        headers: { Authorization: `Bearer ${tokenB}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.body.total, 0);
+      assert.strictEqual(res.body.results.length, 0);
+    });
+
+    // -----------------------------------------------------------------
+    // 11. Malformed Requests & Boundary Validation
+    // -----------------------------------------------------------------
+    await test('Validation: rejects negative offset with 400 Validation Error', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed&offset=-1',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 400);
+      assert.strictEqual(res.body.success, false);
+      assert.strictEqual(res.body.code, 'VALIDATION_ERROR');
+    });
+
+    await test('Validation: rejects limit = 0 with 400 Validation Error', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed&limit=0',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 400);
+      assert.strictEqual(res.body.code, 'VALIDATION_ERROR');
+    });
+
+    await test('Validation: rejects limit > 100 with 400 Validation Error', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed&limit=101',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 400);
+      assert.strictEqual(res.body.code, 'VALIDATION_ERROR');
+    });
+
     await test('Validation: rejects invalid entity type filter with 400 Bad Request', async () => {
       const res = await makeRequest(server, {
         method: 'GET',
@@ -445,21 +690,41 @@ async function run() {
     });
 
     // -----------------------------------------------------------------
-    // 10. Strict Student Data Isolation
+    // 12. Deterministic Ranking & Ordering
     // -----------------------------------------------------------------
-    await test('Isolation: Student B searching for distributed receives zero records from Student A', async () => {
+    await test('Ranking: exact title match receives highest relevance score', async () => {
       const res = await makeRequest(server, {
         method: 'GET',
-        path: '/api/student/search?q=distributed',
-        headers: { Authorization: `Bearer ${tokenB}` }
+        path: '/api/student/search?q=Distributed+Systems+%26+Cloud',
+        headers: { Authorization: `Bearer ${tokenA}` }
       });
       assert.strictEqual(res.statusCode, 200);
-      assert.strictEqual(res.body.total, 0);
-      assert.strictEqual(res.body.results.length, 0);
+      assert.ok(res.body.results.length >= 1);
+      // Exact title match should be at index 0 with highest score
+      assert.strictEqual(res.body.results[0].type, 'course');
+      assert.strictEqual(res.body.results[0].title, 'Distributed Systems & Cloud');
+    });
+
+    await test('Ranking: results ordering is completely deterministic across repeated calls', async () => {
+      const run1 = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      const run2 = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(run1.statusCode, 200);
+      assert.strictEqual(run2.statusCode, 200);
+      const ids1 = run1.body.results.map(r => r.id);
+      const ids2 = run2.body.results.map(r => r.id);
+      assert.deepStrictEqual(ids1, ids2, 'Repeated searches must produce identical result ordering');
     });
 
     // -----------------------------------------------------------------
-    // 11. Route Alias Parity: /api/academic/search
+    // 13. Route Alias Parity: /api/academic/search
     // -----------------------------------------------------------------
     await test('Alias Parity: GET /api/academic/search returns identical search results to /api/student/search', async () => {
       const resAcademic = await makeRequest(server, {
@@ -469,13 +734,14 @@ async function run() {
       });
       assert.strictEqual(resAcademic.statusCode, 200);
       assert.strictEqual(resAcademic.body.success, true);
-      assert.ok(resAcademic.body.total >= 7);
+      assert.ok(resAcademic.body.total >= 9);
       assert.ok(resAcademic.body.results.some(i => i.type === 'course'));
       assert.ok(resAcademic.body.results.some(i => i.type === 'assignment'));
+      assert.ok(resAcademic.body.results.some(i => i.type === 'notification'));
     });
 
     // -----------------------------------------------------------------
-    // 12. Observability & Abuse Safeguards Tests
+    // 14. Observability & Abuse Safeguards Tests
     // -----------------------------------------------------------------
     await test('Observability: search response attaches rate limit diagnostic headers', async () => {
       const res = await makeRequest(server, {

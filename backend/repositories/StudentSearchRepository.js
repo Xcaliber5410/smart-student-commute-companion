@@ -76,6 +76,11 @@ class StudentSearchRepository {
     `;
     const queryParams = [userId, ...params];
 
+    if (options.courseId) {
+      query += ' AND id = ?';
+      queryParams.push(options.courseId);
+    }
+
     if (options.status === 'active' || options.archived === false || options.archived === 0) {
       query += ' AND archived = 0';
     } else if (options.status === 'archived' || options.archived === true || options.archived === 1) {
@@ -108,7 +113,11 @@ class StudentSearchRepository {
     const queryParams = [userId, ...params];
 
     if (options.status) {
-      query += ' AND status = ?';
+      if (['low', 'medium', 'high', 'urgent'].includes(options.status.toLowerCase())) {
+        query += ' AND priority = ?';
+      } else {
+        query += ' AND status = ?';
+      }
       queryParams.push(options.status);
     }
     if (options.courseId) {
@@ -241,7 +250,7 @@ class StudentSearchRepository {
    * @returns {Array<object>} Raw matching database rows
    */
   searchSavedRoutes(userId, searchTerm, options = {}) {
-    if (!userId) return [];
+    if (!userId || options.courseId) return [];
     const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
     const { clause, params } = buildSearchCondition(['name', 'origin', 'destination', 'tags'], searchTerm);
 
@@ -263,7 +272,7 @@ class StudentSearchRepository {
    * @returns {Array<object>} Raw matching database rows
    */
   searchSchedules(userId, searchTerm, options = {}) {
-    if (!userId) return [];
+    if (!userId || options.courseId) return [];
     const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
     const { clause, params } = buildSearchCondition(['title', 'origin', 'destination'], searchTerm);
 
@@ -294,7 +303,7 @@ class StudentSearchRepository {
    * @returns {Array<object>} Raw matching database rows
    */
   searchNotifications(userId, searchTerm, options = {}) {
-    if (!userId) return [];
+    if (!userId || options.courseId) return [];
     const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
     const { clause, params } = buildSearchCondition(['title', 'message'], searchTerm);
 
@@ -337,6 +346,10 @@ class StudentSearchRepository {
     if (options.status) {
       query += ' AND status = ?';
       queryParams.push(options.status);
+    }
+    if (options.courseId) {
+      query += ' AND related_resource_id = ?';
+      queryParams.push(options.courseId);
     }
 
     query += ' ORDER BY scheduled_time DESC LIMIT ?';
