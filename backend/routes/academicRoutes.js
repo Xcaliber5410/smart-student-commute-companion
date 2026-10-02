@@ -28,7 +28,8 @@ const {
   linkGoalAssignmentsSchema,
   linkGoalStudySessionsSchema,
   productivityFilterSchema,
-  studentInsightsFilterSchema
+  studentInsightsFilterSchema,
+  studentSearchQuerySchema
 } = require('../validators');
 
 function createAcademicRoutes() {
@@ -255,6 +256,11 @@ function createAcademicRoutes() {
     '/academic/overview',
     validate(studentInsightsFilterSchema, 'query'),
     studentController.getStudentInsights
+  );
+  router.get(
+    '/academic/search',
+    validate(studentSearchQuerySchema, 'query'),
+    studentController.searchStudent
   );
 
   return router;

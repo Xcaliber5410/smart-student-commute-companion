@@ -58,6 +58,7 @@ const expectedEndpoints = [
   { method: 'GET', path: '/student/dashboard' },
   { method: 'GET', path: '/student/insights' },
   { method: 'GET', path: '/student/overview' },
+  { method: 'GET', path: '/student/search' },
   { method: 'GET', path: '/notifications' },
   { method: 'GET', path: '/notifications/unread' },
   { method: 'GET', path: '/notifications/count' },
@@ -95,6 +96,7 @@ const expectedEndpoints = [
   { method: 'GET', path: '/academic/statistics' },
   { method: 'GET', path: '/academic/insights' },
   { method: 'GET', path: '/academic/overview' },
+  { method: 'GET', path: '/academic/search' },
   // Student Goal Endpoints
   { method: 'GET', path: '/academic/goals' },
   { method: 'POST', path: '/academic/goals' },

@@ -19,7 +19,8 @@ const {
   updateSavedRouteSchema,
   savedRouteFilterSchema,
   studentGroupFilterSchema,
-  studentInsightsFilterSchema
+  studentInsightsFilterSchema,
+  studentSearchQuerySchema
 } = require('../validators');
 
 function createStudentRoutes() {
@@ -112,6 +113,13 @@ function createStudentRoutes() {
     '/student/overview',
     validate(studentInsightsFilterSchema, 'query'),
     studentController.getStudentInsights
+  );
+
+  // 7. Unified Cross-Domain Student Search
+  router.get(
+    '/student/search',
+    validate(studentSearchQuerySchema, 'query'),
+    studentController.searchStudent
   );
 
   return router;

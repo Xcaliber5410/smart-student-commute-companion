@@ -278,7 +278,13 @@ class StudentSearchService {
         offset,
         types: resolvedTypes,
         results: [],
-        countsByType
+        countsByType,
+        pagination: {
+          total: 0,
+          limit,
+          offset,
+          hasMore: false
+        }
       };
     }
 
@@ -586,7 +592,13 @@ class StudentSearchService {
       offset,
       types: resolvedTypes,
       results: paginatedResults,
-      countsByType
+      countsByType,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + paginatedResults.length < total
+      }
     };
   }
 

@@ -11,7 +11,8 @@ const {
   savedRouteService,
   rideGroupService,
   studentDashboardService,
-  studentInsightsService
+  studentInsightsService,
+  studentSearchService
 } = require('../services');
 const { success, created } = require('../utils/apiResponse');
 
@@ -192,6 +193,17 @@ async function getStudentInsights(req, res, next) {
   }
 }
 
+// 7. Unified Cross-Domain Student Search
+function searchStudent(req, res, next) {
+  try {
+    const studentId = req.params.studentId || req.user.id;
+    const results = studentSearchService.search(studentId, req.user, req.query);
+    return success(res, results);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getStudentContext,
   updateStudentProfile,
@@ -207,6 +219,7 @@ module.exports = {
   deleteSavedRoute,
   listStudentRideGroups,
   getDashboard,
-  getStudentInsights
+  getStudentInsights,
+  searchStudent
 };
 

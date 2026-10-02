@@ -323,3 +323,74 @@ Generates multimodal student commute recommendations.
 
 ### `POST /api/demo/reset`
 Resets the demo database to initial sample dataset.
+
+---
+
+## 6. Unified Student Search
+
+### `GET /api/student/search` & `GET /api/academic/search`
+Performs unified, deterministic, relevance-ranked cross-domain search across all 9 student-scoped entities:
+- **Academic**: Courses (`course`), Assignments / Tasks (`assignment`), Goals (`goal`)
+- **Planning**: Calendar Events (`calendar_event`), Study Sessions (`study_session`)
+- **Student & Commute**: Recurring Commute Schedules (`schedule`), Saved Route Bookmarks (`saved_route`)
+- **Alerts & Reminders**: Notifications (`notification`), System Reminders (`reminder`)
+
+All results are strictly scoped to the authenticated student (`req.user.id`). Foreign student data is isolated with zero leakage.
+
+- **Authentication**: Required (`Authorization: Bearer <token>`)
+- **Query Parameters**:
+  - `q` or `query` *(optional, string, max 200 chars)*: Freeform search query. Empty query returns clean zeroed response.
+  - `types` *(optional, comma-separated string)*: Filter by entity type aliases. Supported types: `course`, `assignment` (`task`, `tasks`), `calendar_event` (`event`, `events`), `study_session` (`study`, `session`), `goal` (`goals`), `saved_route` (`routes`), `schedule` (`schedules`), `notification` (`notifications`), `reminder` (`reminders`).
+  - `limit` *(optional, integer 1–100, default 20)*: Maximum number of ranked results returned.
+  - `offset` *(optional, integer >= 0, default 0)*: Zero-based result offset for pagination.
+  - `courseId` *(optional, string)*: Filter results associated with a specific student course.
+  - `status` *(optional, string)*: Filter results by status (e.g. `pending`, `completed`, `active`).
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "timestamp": "2026-10-02T11:45:00.000Z",
+  "query": "distributed",
+  "total": 3,
+  "limit": 20,
+  "offset": 0,
+  "types": ["course", "assignment", "calendar_event", "study_session", "goal", "saved_route", "schedule", "notification", "reminder"],
+  "results": [
+    {
+      "id": "crs-101",
+      "type": "course",
+      "title": "Distributed Systems",
+      "subtitle": "CS401",
+      "snippet": "Advanced distributed algorithms and consensus protocols",
+      "status": "active",
+      "relevanceScore": 100,
+      "metadata": {
+        "courseCode": "CS401",
+        "department": "Computer Engineering",
+        "semester": 7
+      }
+    }
+  ],
+  "countsByType": {
+    "course": 1,
+    "assignment": 1,
+    "calendar_event": 0,
+    "study_session": 1,
+    "goal": 0,
+    "saved_route": 0,
+    "schedule": 0,
+    "notification": 0,
+    "reminder": 0
+  },
+  "pagination": {
+    "total": 3,
+    "limit": 20,
+    "offset": 0,
+    "hasMore": false
+  }
+}
+```
+- **Error Responses**:
+  - `401 Unauthorized`: Missing or invalid Bearer token.
+  - `400 Bad Request`: Invalid entity type, query exceeding 200 characters, or invalid pagination limits.
+
