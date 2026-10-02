@@ -35,6 +35,7 @@ const { calculateRoadRoute, calculateWalkingRoute } = require('./routingService'
 const { scoreRouteCandidates, calculateCrowdPenalty } = require('./scoringService');
 const { fetchMumbaiWeather } = require('./weatherService');
 const { explainRoutePlan } = require('./aiPlannerService');
+const searchRanker = require('./searchRanker');
 
 module.exports = {
   // Domain Services
@@ -100,5 +101,6 @@ module.exports = {
   scoreRouteCandidates,
   calculateCrowdPenalty,
   fetchMumbaiWeather,
-  explainRoutePlan
+  explainRoutePlan,
+  searchRanker
 };

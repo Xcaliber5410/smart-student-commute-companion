@@ -72,107 +72,15 @@ const ALL_SEARCHABLE_TYPES = [
   'reminder'
 ];
 
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+const {
+  RANKING_WEIGHTS,
+  calculateRelevanceScore,
+  compareRankedItems,
+  compileQueryPatterns,
+  rankSearchResults
+} = require('./searchRanker');
 
-/**
- * Calculates a deterministic relevance score for a search result item.
- *
- * @param {object} item - Normalized search result item
- * @param {string} queryLower - Lowercase search query
- * @returns {number} Deterministic integer score (>= 1)
- */
-function calculateRelevance(item, queryLower) {
-  let score = 0;
-  const titleLower = (item.title || '').toLowerCase();
-  const subtitleLower = (item.subtitle || '').toLowerCase();
-  const descLower = (item.description || '').toLowerCase();
-
-  const cleanQuery = queryLower.trim().replace(/\s+/g, ' ');
-
-  // 1. Exact match on title
-  if (titleLower === cleanQuery) {
-    score += 100;
-  } else if (titleLower.startsWith(cleanQuery)) {
-    score += 65;
-  } else {
-    try {
-      if (new RegExp(`\\b${escapeRegExp(cleanQuery)}`, 'i').test(titleLower)) {
-        score += 45;
-      } else if (titleLower.includes(cleanQuery)) {
-        score += 25;
-      }
-    } catch (_) {
-      if (titleLower.includes(cleanQuery)) {
-        score += 25;
-      }
-    }
-  }
-
-  // 2. Token-level matching for multi-word queries
-  const tokens = cleanQuery.split(' ').filter(t => t.length > 0);
-  if (tokens.length > 1) {
-    let tokensInTitle = 0;
-    let tokensInAnyField = 0;
-    for (const t of tokens) {
-      if (titleLower.includes(t)) {
-        tokensInTitle++;
-      }
-      if (titleLower.includes(t) || subtitleLower.includes(t) || descLower.includes(t)) {
-        tokensInAnyField++;
-      }
-    }
-    if (tokensInTitle === tokens.length) {
-      score += 40; // All tokens present in title
-    } else if (tokensInTitle > 0) {
-      score += tokensInTitle * 12;
-    }
-    if (tokensInAnyField === tokens.length) {
-      score += 20; // All tokens matched across fields
-    }
-  }
-
-  // 3. Secondary key match (course code, location, category)
-  if (item.metadata?.code && item.metadata.code.toLowerCase().includes(cleanQuery)) {
-    score += 40;
-  }
-  if (item.metadata?.location && item.metadata.location.toLowerCase().includes(cleanQuery)) {
-    score += 25;
-  }
-  if (item.metadata?.category && item.metadata.category.toLowerCase().includes(cleanQuery)) {
-    score += 20;
-  }
-
-  // 3. Subtitle / description / notes match
-  if (descLower.includes(queryLower)) {
-    score += 15;
-  }
-  if (subtitleLower.includes(queryLower)) {
-    score += 10;
-  }
-
-  // 4. Status boost
-  if (['active', 'pending', 'scheduled', 'unread', 'saved'].includes(item.status)) {
-    score += 10;
-  } else if (['completed', 'cancelled', 'archived', 'read'].includes(item.status)) {
-    score -= 5;
-  }
-
-  // 5. Priority boost
-  if (['high', 'urgent'].includes(item.metadata?.priority)) {
-    score += 5;
-  }
-
-  // 6. Recency boost (created or updated in the last 7 days)
-  const now = Date.now();
-  const timestamp = item.updatedAt || item.createdAt;
-  if (timestamp && now - timestamp < 7 * 24 * 60 * 60 * 1000 && now >= timestamp) {
-    score += 5;
-  }
-
-  return Math.max(1, score);
-}
+const calculateRelevance = calculateRelevanceScore;
 
 class StudentSearchService {
   constructor(
@@ -562,25 +470,16 @@ class StudentSearchService {
     }
 
     // 4. Compute deterministic relevance scores and count by type
+    const queryPatterns = compileQueryPatterns(query);
     for (const item of allCandidates) {
-      item.relevanceScore = calculateRelevance(item, queryLower);
+      item.relevanceScore = calculateRelevanceScore(item, query, queryPatterns);
       if (countsByType[item.type] !== undefined) {
         countsByType[item.type] += 1;
       }
     }
 
-    // 5. Deterministic sorting: relevanceScore DESC, then recency DESC, then title ASC
-    allCandidates.sort((a, b) => {
-      if (b.relevanceScore !== a.relevanceScore) {
-        return b.relevanceScore - a.relevanceScore;
-      }
-      const timeA = a.updatedAt || a.createdAt || 0;
-      const timeB = b.updatedAt || b.createdAt || 0;
-      if (timeB !== timeA) {
-        return timeB - timeA;
-      }
-      return (a.title || '').localeCompare(b.title || '');
-    });
+    // 5. Deterministic sorting: 5-tier comparator (score -> recency -> title -> type -> id)
+    allCandidates.sort(compareRankedItems);
 
     const total = allCandidates.length;
     const paginatedResults = allCandidates.slice(offset, offset + limit);
@@ -620,5 +519,9 @@ module.exports = {
   studentSearchService,
   ALL_SEARCHABLE_TYPES,
   CANONICAL_ENTITY_TYPES,
-  calculateRelevance
+  calculateRelevance,
+  calculateRelevanceScore,
+  compareRankedItems,
+  rankSearchResults,
+  RANKING_WEIGHTS
 };
