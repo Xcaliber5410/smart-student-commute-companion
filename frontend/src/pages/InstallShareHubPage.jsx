@@ -159,24 +159,28 @@ export default function InstallShareHubPage({
                 aria-hidden="true"
               />
             </button>
-            {isManualGuideOpen && (
-              <ol id="manual-install-guide" className="list-inside list-decimal space-y-1.5 px-6 pb-4 pt-1 text-xs leading-relaxed text-slate-400">
-                {isAppleMobile ? (
-                  <>
-                    <li>Open this site in <strong className="text-slate-200">Safari</strong>.</li>
-                    <li>Tap the <strong className="text-slate-200">Share</strong> button (square with an arrow).</li>
-                    <li>Scroll and tap <strong className="text-slate-200">Add to Home Screen</strong>.</li>
-                    <li>Tap <strong className="text-slate-200">Add</strong> — the icon appears on your home screen.</li>
-                  </>
-                ) : (
-                  <>
-                    <li>Open the <strong className="text-slate-200">browser menu</strong> (⋮ or ⋯).</li>
-                    <li>Look for <strong className="text-slate-200">Install app</strong> / <strong className="text-slate-200">Add to Home screen</strong>.</li>
-                    <li>Confirm — the icon appears on your home screen or desktop.</li>
-                  </>
-                )}
-              </ol>
-            )}
+            {/* Rendered even when collapsed so aria-controls always resolves;
+                hidden (not unmounted) keeps the association intact for AT. */}
+            <ol
+              id="manual-install-guide"
+              hidden={!isManualGuideOpen}
+              className="list-inside list-decimal space-y-1.5 px-6 pb-4 pt-1 text-xs leading-relaxed text-slate-400"
+            >
+              {isAppleMobile ? (
+                <>
+                  <li>Open this site in <strong className="text-slate-200">Safari</strong>.</li>
+                  <li>Tap the <strong className="text-slate-200">Share</strong> button (square with an arrow).</li>
+                  <li>Scroll and tap <strong className="text-slate-200">Add to Home Screen</strong>.</li>
+                  <li>Tap <strong className="text-slate-200">Add</strong> — the icon appears on your home screen.</li>
+                </>
+              ) : (
+                <>
+                  <li>Open the <strong className="text-slate-200">browser menu</strong> (⋮ or ⋯).</li>
+                  <li>Look for <strong className="text-slate-200">Install app</strong> / <strong className="text-slate-200">Add to Home screen</strong>.</li>
+                  <li>Confirm — the icon appears on your home screen or desktop.</li>
+                </>
+              )}
+            </ol>
           </div>
         )}
       </section>

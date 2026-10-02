@@ -91,7 +91,7 @@ export default function ShareableCard({
   return (
     <div className={`rounded-2xl border border-slate-800 bg-slate-900/60 p-4 ${className}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-bold text-white">{label}</h4>
+        <h3 className="text-sm font-bold text-white">{label}</h3>
         <p role="status" aria-live="polite" className="text-xs text-emerald-300">
           {copyStatusText}
         </p>
