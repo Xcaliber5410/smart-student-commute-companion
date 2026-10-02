@@ -8,6 +8,7 @@ const { assignmentRepository } = require('../repositories/AssignmentRepository')
 const { courseRepository } = require('../repositories/CourseRepository');
 const { userRepository } = require('../repositories/UserRepository');
 const { reminderRepository } = require('../repositories/ReminderRepository');
+const { goalRepository } = require('../repositories/GoalRepository');
 const { Assignment } = require('../models/Assignment');
 const {
   NotFoundError,
@@ -20,12 +21,18 @@ class AssignmentService {
     assignmentRepo = assignmentRepository,
     courseRepo = courseRepository,
     userRepo = userRepository,
-    remRepo = reminderRepository
+    remRepo = reminderRepository,
+    goalRepo = goalRepository
   ) {
     this.assignmentRepo = assignmentRepo;
     this.courseRepo = courseRepo;
     this.userRepo = userRepo;
     this.remRepo = remRepo;
+    this.goalRepo = goalRepo;
+  }
+
+  getGoalService() {
+    return require('./goalService').goalService;
   }
 
   assertOwnership(assignment, requestingUser) {
@@ -124,6 +131,17 @@ class AssignmentService {
       }
     }
 
+    // Validate goal ownership if goal_id is provided
+    if (input.goal_id) {
+      const goal = this.goalRepo.findById(input.goal_id);
+      if (!goal) {
+        throw new NotFoundError(`Goal with id '${input.goal_id}' not found`);
+      }
+      if (goal.user_id !== userId) {
+        throw new ForbiddenError('Cannot link assignment to a goal belonging to another student');
+      }
+    }
+
     const assignmentInstance = Assignment.create({
       ...input,
       title: input.title.trim(),
@@ -134,6 +152,12 @@ class AssignmentService {
     const created = this.assignmentRepo.create(assignmentInstance);
     // Sync scheduled deadline reminder
     this.syncAssignmentReminder(created);
+
+    // Sync goal progress if linked to a goal
+    if (created.goal_id) {
+      this.getGoalService().syncGoalProgressFromWork(created.goal_id, requestingUser);
+    }
+
     return created.toJSON();
   }
 
@@ -182,6 +206,16 @@ class AssignmentService {
       }
     }
 
+    if (updates.goal_id !== undefined && updates.goal_id !== null && updates.goal_id !== '') {
+      const goal = this.goalRepo.findById(updates.goal_id);
+      if (!goal) {
+        throw new NotFoundError(`Goal with id '${updates.goal_id}' not found`);
+      }
+      if (goal.user_id !== assignment.user_id) {
+        throw new ForbiddenError('Cannot link assignment to a goal belonging to another student');
+      }
+    }
+
     if (updates.due_date !== undefined) {
       if (typeof Number(updates.due_date) !== 'number' || Number(updates.due_date) <= 0) {
         throw new BadRequestError('due_date must be a valid positive timestamp');
@@ -207,6 +241,14 @@ class AssignmentService {
     // Re-sync reminder with updated deadline / status
     this.syncAssignmentReminder(updated);
 
+    // Sync goal progress if goal relationship changed or updated
+    if (assignment.goal_id) {
+      this.getGoalService().syncGoalProgressFromWork(assignment.goal_id, requestingUser);
+    }
+    if (updates.goal_id && updates.goal_id !== assignment.goal_id) {
+      this.getGoalService().syncGoalProgressFromWork(updates.goal_id, requestingUser);
+    }
+
     return updated.toJSON();
   }
 
@@ -229,6 +271,11 @@ class AssignmentService {
     // Cancel or restore reminder based on status change
     this.syncAssignmentReminder(updated);
 
+    // Sync goal progress if assignment is tied to a goal
+    if (updated.goal_id) {
+      this.getGoalService().syncGoalProgressFromWork(updated.goal_id, requestingUser);
+    }
+
     return updated.toJSON();
   }
 
@@ -240,9 +287,17 @@ class AssignmentService {
 
     this.assertOwnership(assignment, requestingUser);
 
+    const previousGoalId = assignment.goal_id;
+
     // Clean up any associated reminders
     this.remRepo.deleteByResource('assignment', id);
     this.assignmentRepo.delete(id);
+
+    // If assignment belonged to a goal, sync goal progress
+    if (previousGoalId) {
+      this.getGoalService().syncGoalProgressFromWork(previousGoalId, requestingUser);
+    }
+
     return { success: true, id };
   }
 }

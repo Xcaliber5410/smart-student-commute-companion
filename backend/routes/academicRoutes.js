@@ -7,6 +7,9 @@
 const express = require('express');
 const courseController = require('../controllers/courseController');
 const assignmentController = require('../controllers/assignmentController');
+const goalController = require('../controllers/goalController');
+const productivityController = require('../controllers/productivityController');
+const studentController = require('../controllers/studentController');
 const { authenticate } = require('../middleware/authMiddleware');
 const {
   validate,
@@ -17,7 +20,15 @@ const {
   createAssignmentSchema,
   updateAssignmentSchema,
   updateAssignmentStatusSchema,
-  assignmentFilterSchema
+  assignmentFilterSchema,
+  createGoalSchema,
+  updateGoalSchema,
+  updateGoalProgressSchema,
+  goalFilterSchema,
+  linkGoalAssignmentsSchema,
+  linkGoalStudySessionsSchema,
+  productivityFilterSchema,
+  studentInsightsFilterSchema
 } = require('../validators');
 
 function createAcademicRoutes() {
@@ -122,12 +133,132 @@ function createAcademicRoutes() {
   );
 
   // -------------------------------------------------------------
-  // Academic Progress & Dashboard Summary Endpoints
+  // Student Goal Endpoints
+  // -------------------------------------------------------------
+  router.get(
+    '/academic/goals',
+    validate(goalFilterSchema, 'query'),
+    goalController.listGoals
+  );
+
+  router.post(
+    '/academic/goals',
+    validate(createGoalSchema, 'body'),
+    goalController.createGoal
+  );
+
+  router.get(
+    '/academic/goals/:id',
+    validate(idParamSchema, 'params'),
+    goalController.getGoal
+  );
+
+  router.patch(
+    '/academic/goals/:id',
+    validate(idParamSchema, 'params'),
+    validate(updateGoalSchema, 'body'),
+    goalController.updateGoal
+  );
+
+  router.put(
+    '/academic/goals/:id',
+    validate(idParamSchema, 'params'),
+    validate(updateGoalSchema, 'body'),
+    goalController.updateGoal
+  );
+
+  router.patch(
+    '/academic/goals/:id/progress',
+    validate(idParamSchema, 'params'),
+    validate(updateGoalProgressSchema, 'body'),
+    goalController.updateProgress
+  );
+
+  router.post(
+    '/academic/goals/:id/complete',
+    validate(idParamSchema, 'params'),
+    goalController.completeGoal
+  );
+
+  router.post(
+    '/academic/goals/:id/cancel',
+    validate(idParamSchema, 'params'),
+    goalController.cancelGoal
+  );
+
+  router.delete(
+    '/academic/goals/:id',
+    validate(idParamSchema, 'params'),
+    goalController.deleteGoal
+  );
+
+  // -------------------------------------------------------------
+  // Goal Workflow & Work Integration Endpoints
+  // -------------------------------------------------------------
+  router.get(
+    '/academic/goals/:id/work',
+    validate(idParamSchema, 'params'),
+    goalController.getGoalWork
+  );
+
+  router.post(
+    '/academic/goals/:id/sync-progress',
+    validate(idParamSchema, 'params'),
+    goalController.syncGoalProgress
+  );
+
+  router.post(
+    '/academic/goals/:id/assignments',
+    validate(idParamSchema, 'params'),
+    validate(linkGoalAssignmentsSchema, 'body'),
+    goalController.linkAssignments
+  );
+
+  router.delete(
+    '/academic/goals/:id/assignments/:assignmentId',
+    goalController.unlinkAssignment
+  );
+
+  router.post(
+    '/academic/goals/:id/study-sessions',
+    validate(idParamSchema, 'params'),
+    validate(linkGoalStudySessionsSchema, 'body'),
+    goalController.linkStudySessions
+  );
+
+  router.delete(
+    '/academic/goals/:id/study-sessions/:sessionId',
+    goalController.unlinkStudySession
+  );
+
+  // -------------------------------------------------------------
+  // Academic Progress, Dashboard Summary & Productivity Endpoints
   // -------------------------------------------------------------
   router.get('/academic/progress', assignmentController.getAcademicSummary);
   router.get('/academic/summary', assignmentController.getAcademicSummary);
+  router.get(
+    '/academic/productivity',
+    validate(productivityFilterSchema, 'query'),
+    productivityController.getProductivityMetrics
+  );
+  router.get(
+    '/academic/statistics',
+    validate(productivityFilterSchema, 'query'),
+    productivityController.getProductivityMetrics
+  );
+  router.get(
+    '/academic/insights',
+    validate(studentInsightsFilterSchema, 'query'),
+    studentController.getStudentInsights
+  );
+  router.get(
+    '/academic/overview',
+    validate(studentInsightsFilterSchema, 'query'),
+    studentController.getStudentInsights
+  );
 
   return router;
 }
 
 module.exports = { createAcademicRoutes };
+

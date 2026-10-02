@@ -97,6 +97,49 @@ function getMumbaiTodayRange(baseDate = new Date()) {
   return { startOfDay, endOfDay };
 }
 
+/**
+ * Returns UTC millisecond timestamps for start of current week (Monday 00:00:00)
+ * and end of current week (Sunday 23:59:59.999) in IST.
+ */
+function getMumbaiWeekRange(baseDate = new Date()) {
+  const istNow = getMumbaiNow(baseDate);
+  const day = istNow.getDay();
+  const diffToMonday = (day + 6) % 7;
+  const mondayDate = istNow.getDate() - diffToMonday;
+  const year = istNow.getFullYear();
+  const month = istNow.getMonth();
+
+  const startOfWeek = Date.UTC(year, month, mondayDate, 0, 0, 0, 0) - IST_OFFSET_MS;
+  const endOfWeek = startOfWeek + (7 * 24 * 3600 * 1000) - 1;
+  return { startOfWeek, endOfWeek };
+}
+
+/**
+ * Returns UTC millisecond timestamps for start of current month (1st 00:00:00)
+ * and end of current month (last day 23:59:59.999) in IST.
+ */
+function getMumbaiMonthRange(baseDate = new Date()) {
+  const istNow = getMumbaiNow(baseDate);
+  const year = istNow.getFullYear();
+  const month = istNow.getMonth();
+
+  const startOfMonth = Date.UTC(year, month, 1, 0, 0, 0, 0) - IST_OFFSET_MS;
+  const nextMonthStart = Date.UTC(year, month + 1, 1, 0, 0, 0, 0) - IST_OFFSET_MS;
+  const endOfMonth = nextMonthStart - 1;
+  return { startOfMonth, endOfMonth };
+}
+
+/**
+ * Returns 'YYYY-MM-DD' date string in IST for a given epoch ms timestamp.
+ */
+function getDateKeyIST(epochMs) {
+  const ist = new Date(epochMs + IST_OFFSET_MS);
+  const yyyy = ist.getUTCFullYear();
+  const mm = String(ist.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(ist.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 module.exports = {
   DEFAULT_TIMEZONE,
   IST_OFFSET_MS,
@@ -106,5 +149,8 @@ module.exports = {
   getMumbaiTimeHHMM,
   parseMumbaiTimeToEpoch,
   formatInMumbaiTime,
-  getMumbaiTodayRange
+  getMumbaiTodayRange,
+  getMumbaiWeekRange,
+  getMumbaiMonthRange,
+  getDateKeyIST
 };

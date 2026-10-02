@@ -36,10 +36,21 @@ class AssignmentRepository {
       query += ' AND course_id = ?';
       params.push(options.course_id);
     }
+    if (options.goal_id) {
+      query += ' AND goal_id = ?';
+      params.push(options.goal_id);
+    }
 
     query += ' ORDER BY due_date ASC';
     const stmt = this.database.prepare(query);
     const rows = stmt.all(...params);
+    return rows.map(r => Assignment.fromRow(r));
+  }
+
+  findByGoalId(goalId) {
+    if (!goalId || typeof goalId !== 'string') return [];
+    const stmt = this.database.prepare('SELECT * FROM assignments WHERE goal_id = ? ORDER BY due_date ASC');
+    const rows = stmt.all(goalId);
     return rows.map(r => Assignment.fromRow(r));
   }
 
@@ -70,6 +81,11 @@ class AssignmentRepository {
     if (options.course_id) {
       conditions.push('course_id = ?');
       params.push(options.course_id);
+    }
+
+    if (options.goal_id) {
+      conditions.push('goal_id = ?');
+      params.push(options.goal_id);
     }
 
     if (options.priority) {
@@ -152,15 +168,49 @@ class AssignmentRepository {
     const row = assignmentInstance.toRow();
     const stmt = this.database.prepare(`
       INSERT INTO assignments (
-        id, user_id, course_id, title, description, due_date, priority, status,
+        id, user_id, course_id, goal_id, title, description, due_date, priority, status,
         reminder_enabled, reminder_lead_time_minutes, completed_at, created_at, updated_at
       ) VALUES (
-        @id, @user_id, @course_id, @title, @description, @due_date, @priority, @status,
+        @id, @user_id, @course_id, @goal_id, @title, @description, @due_date, @priority, @status,
         @reminder_enabled, @reminder_lead_time_minutes, @completed_at, @created_at, @updated_at
       )
     `);
     stmt.run(row);
     return this.findById(row.id);
+  }
+
+  getGoalAssignmentSummary(goalId) {
+    if (!goalId || typeof goalId !== 'string') {
+      return { total: 0, completed: 0, in_progress: 0, pending: 0, cancelled: 0, active_total: 0, completion_rate: 0 };
+    }
+    const stmt = this.database.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+      FROM assignments
+      WHERE goal_id = ?
+    `);
+    const row = stmt.get(goalId);
+    const total = Number(row?.total || 0);
+    const completed = Number(row?.completed || 0);
+    const inProgress = Number(row?.in_progress || 0);
+    const pending = Number(row?.pending || 0);
+    const cancelled = Number(row?.cancelled || 0);
+    const activeTotal = total - cancelled;
+    const completionRate = activeTotal > 0 ? Math.round((completed / activeTotal) * 100) : 0;
+
+    return {
+      total,
+      completed,
+      in_progress: inProgress,
+      pending,
+      cancelled,
+      active_total: activeTotal,
+      completion_rate: completionRate
+    };
   }
 
   update(id, updates = {}) {
@@ -169,6 +219,7 @@ class AssignmentRepository {
 
     const allowed = [
       'course_id',
+      'goal_id',
       'title',
       'description',
       'due_date',

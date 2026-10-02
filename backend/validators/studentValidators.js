@@ -89,6 +89,14 @@ const studentGroupFilterSchema = z.object({
   search: z.string().optional()
 });
 
+// 5. Student Insights / Overview
+const studentInsightsFilterSchema = z.object({
+  range: z.enum(['today', 'week', 'current_week', 'month', 'current_month', 'custom']).optional().default('week'),
+  from: z.union([z.string(), z.number()]).optional(),
+  to: z.union([z.string(), z.number()]).optional(),
+  days: z.coerce.number().int().min(1).max(30).optional().default(7)
+});
+
 module.exports = {
   studentProfileUpdateSchema,
   createScheduleSchema,
@@ -97,5 +105,7 @@ module.exports = {
   createSavedRouteSchema,
   updateSavedRouteSchema,
   savedRouteFilterSchema,
-  studentGroupFilterSchema
+  studentGroupFilterSchema,
+  studentInsightsFilterSchema
 };
+

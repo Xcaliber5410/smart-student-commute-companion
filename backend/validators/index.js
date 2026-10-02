@@ -30,7 +30,8 @@ const {
   createSavedRouteSchema,
   updateSavedRouteSchema,
   savedRouteFilterSchema,
-  studentGroupFilterSchema
+  studentGroupFilterSchema,
+  studentInsightsFilterSchema
 } = require('./studentValidators');
 const {
   notificationFilterSchema,
@@ -46,7 +47,8 @@ const {
   createAssignmentSchema,
   updateAssignmentSchema,
   updateAssignmentStatusSchema,
-  assignmentFilterSchema
+  assignmentFilterSchema,
+  productivityFilterSchema
 } = require('./academicValidators');
 const {
   createCalendarEventSchema,
@@ -59,6 +61,15 @@ const {
   updateStudySessionStatusSchema,
   studySessionFilterSchema
 } = require('./studySessionValidators');
+const {
+  createGoalSchema,
+  updateGoalSchema,
+  updateGoalProgressSchema,
+  goalFilterSchema,
+  linkGoalAssignmentsSchema,
+  linkGoalStudySessionsSchema,
+  goalStatusEnum
+} = require('./goalValidators');
 
 module.exports = {
   validate,
@@ -79,6 +90,7 @@ module.exports = {
   updateAssignmentSchema,
   updateAssignmentStatusSchema,
   assignmentFilterSchema,
+  productivityFilterSchema,
   // Common
   idParamSchema,
   paginationQuerySchema,
@@ -94,6 +106,7 @@ module.exports = {
   updateSavedRouteSchema,
   savedRouteFilterSchema,
   studentGroupFilterSchema,
+  studentInsightsFilterSchema,
   // Notifications & Reminders
   notificationFilterSchema,
   bulkReadNotificationSchema,
@@ -115,6 +128,14 @@ module.exports = {
   // Commute Plan
   planCommuteSchema,
   // Transit
-  transitSearchQuerySchema
+  transitSearchQuerySchema,
+  // Goals
+  createGoalSchema,
+  updateGoalSchema,
+  updateGoalProgressSchema,
+  goalFilterSchema,
+  linkGoalAssignmentsSchema,
+  linkGoalStudySessionsSchema,
+  goalStatusEnum
 };
 
