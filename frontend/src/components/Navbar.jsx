@@ -11,6 +11,7 @@ import {
   Bell,
   BellRing,
   SlidersHorizontal,
+  Smartphone,
   Download,
   Menu,
   X
@@ -202,14 +203,16 @@ export default function Navbar({
                 >
                   <Icon className={`w-3.5 h-3.5 ${item.id === 'feed' && !isActive ? 'text-amber-400' : ''}`} aria-hidden="true" />
                   {/*
-                    Labels scale with available width so seven tabs never
+                    Labels scale with available width so eight tabs never
                     overflow the header: icon-only below xl (tablets and
-                    small laptops), short labels at xl, full labels only when
-                    there is room (2xl). aria-label/title keep the target
-                    named when only the icon shows.
+                    small laptops), short labels at xl and up to the wide
+                    threshold, full labels only when there is real room
+                    (>=1750px, measured with the install control present).
+                    aria-label/title keep the target named when only the
+                    icon shows.
                   */}
-                  <span className="hidden 2xl:inline">{item.label}</span>
-                  <span className="hidden xl:inline 2xl:hidden">{item.shortLabel}</span>
+                  <span className="hidden min-[1750px]:inline">{item.label}</span>
+                  <span className="hidden xl:inline min-[1750px]:hidden">{item.shortLabel}</span>
                   {item.hasBadge && reportsCount > 0 && (
                     <span 
                       className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ml-0.5 ${

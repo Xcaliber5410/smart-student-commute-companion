@@ -104,7 +104,7 @@ export default function ShareableCard({
         <button
           type="button"
           onClick={handleCopy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
         >
           {copyState === 'copied' ? (
             <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
@@ -118,7 +118,7 @@ export default function ShareableCard({
             type="button"
             onClick={handleShare}
             disabled={isSharing}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3.5 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-emerald-400 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
           >
             <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
             {isSharing ? 'Sharing…' : 'Share'}
