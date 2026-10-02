@@ -1004,6 +1004,82 @@ if (installSharePage && installSharePage.includes('aria-label') && installShareP
 }
 
 // ============================================================
+// 18. DAY 9 INSTALL PROMOTION
+// ============================================================
+
+section('18. DAY 9 INSTALL PROMOTION');
+
+const promoBanner = readFile('src/components/InstallPromoBanner.jsx');
+if (fileExists('src/components/InstallPromoBanner.jsx')) pass('Install promo banner component exists');
+else fail('Install promo banner component is missing');
+if (promoBanner && promoBanner.includes('role="region"') && promoBanner.includes('aria-label="Install the app"')) {
+  pass('Promo banner is a labelled region landmark');
+} else {
+  fail('Promo banner is missing landmark semantics');
+}
+if (promoBanner && promoBanner.includes('aria-busy') && promoBanner.includes('Installing…')) {
+  pass('Promo banner exposes a pending install state');
+} else {
+  fail('Promo banner is missing its pending install state');
+}
+if (appContent && appContent.includes('<InstallPromoBanner') && appContent.includes('activeTab={activeTab}')) {
+  pass('Promo banner is rendered by the app with engagement context');
+} else {
+  fail('Promo banner is not wired into the app shell');
+}
+if (appContent && appContent.includes("outcome === 'unavailable'") && appContent.includes('Install & Share for manual steps')) {
+  pass('Unavailable install outcome falls back to honest manual guidance');
+} else {
+  fail('Install flow has no honest unavailable fallback');
+}
+
+const promoDialog = readFile('src/components/ui/InstallPromoDialog.jsx');
+if (promoDialog && promoDialog.includes('Why install?') && promoDialog.includes('Modal')) {
+  pass('Why-install dialog is built on the shared Modal');
+} else {
+  fail('Why-install dialog is missing or not using the shared Modal');
+}
+if (promoDialog && promoDialog.includes('Works offline') && promoDialog.includes('Device alerts') && promoDialog.includes('Home-screen shortcuts')) {
+  pass('Dialog explains all three install benefits');
+} else {
+  fail('Dialog is missing install benefit explanations');
+}
+const featureHighlight = readFile('src/components/ui/FeatureHighlight.jsx');
+if (featureHighlight && featureHighlight.includes('aria-hidden')) {
+  pass('FeatureHighlight renders decorative icons accessibly');
+} else {
+  fail('FeatureHighlight is missing accessible icon handling');
+}
+const uiBarrelDay9 = readFile('src/components/ui/index.js');
+if (uiBarrelDay9 && uiBarrelDay9.includes("from './FeatureHighlight'") && uiBarrelDay9.includes("from './InstallPromoDialog'")) {
+  pass('UI barrel exports the Day 9 components');
+} else {
+  fail('UI barrel is missing the Day 9 component exports');
+}
+
+const promoService = readFile('src/services/installPromotion.js');
+if (promoService && promoService.includes('isPromoEligible') && promoService.includes('isPromoSnoozed') && promoService.includes('writePromoSnooze')) {
+  pass('Install-promotion service provides eligibility and snooze helpers');
+} else {
+  fail('Install-promotion service is missing eligibility or snooze helpers');
+}
+if (promoService && promoService.includes('SNOOZE_COOLDOWN_MS') && promoService.includes('catch')) {
+  pass('Snooze uses a bounded cooldown and failure-safe storage');
+} else {
+  fail('Snooze persistence is missing cooldown bounds or failure safety');
+}
+if (promoBanner && promoBanner.includes('writePromoSnooze') && promoBanner.includes('isPromoEligible')) {
+  pass('Banner consumes the promotion service for dismissal and eligibility');
+} else {
+  fail('Banner does not use the install-promotion service');
+}
+if (appContent && appContent.includes('promptInstall()')) {
+  pass('Promotion drives the existing usePwaInstall prompt flow');
+} else {
+  fail('Promotion is not connected to the existing install flow');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
