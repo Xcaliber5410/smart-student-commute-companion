@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Download, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Download, Loader2, X } from 'lucide-react';
 import InstallPromoDialog from './ui/InstallPromoDialog';
 
 /**
@@ -26,6 +26,8 @@ import InstallPromoDialog from './ui/InstallPromoDialog';
  * @param {Function} props.onInstallApp - Trigger the existing install flow
  * @param {Function} [props.onDismiss] - Optional notified when the user dismisses
  * @param {Function} [props.onOpenHub] - Navigate to the Day 8 Install & Share screen
+ * @param {string} [props.activeTab] - Current tab id; a change reveals the banner
+ *   (promotion waits for engagement instead of competing with first paint)
  */
 export default function InstallPromoBanner({
   canInstall = false,
@@ -33,12 +35,39 @@ export default function InstallPromoBanner({
   onInstallApp,
   onDismiss,
   onOpenHub,
+  activeTab,
 }) {
   const [dismissed, setDismissed] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const initialTabRef = useRef(activeTab);
+
+  // Smart trigger: reveal after the first navigation OR a short idle delay —
+  // never on first paint, so the promo never competes with initial content.
+  // Session-only (the cross-session snooze arrives with the service in C4).
+  useEffect(() => {
+    const timer = setTimeout(() => setIsRevealed(true), 6000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab && activeTab !== initialTabRef.current) setIsRevealed(true);
+  }, [activeTab]);
+
+  const handleInstall = async () => {
+    if (isInstalling) return;
+    setIsInstalling(true);
+    setIsDialogOpen(false);
+    try {
+      await onInstallApp?.();
+    } finally {
+      setIsInstalling(false);
+    }
+  };
 
   // Honest visibility: only promote when promotion can actually succeed.
-  if (isInstalled || !canInstall || dismissed) return null;
+  if (isInstalled || !canInstall || dismissed || !isRevealed) return null;
 
   const handleDismiss = () => {
     setDismissed(true);
@@ -60,11 +89,17 @@ export default function InstallPromoBanner({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={onInstallApp}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+          onClick={handleInstall}
+          disabled={isInstalling}
+          aria-busy={isInstalling || undefined}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 transition-colors disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
         >
-          <Download className="w-3.5 h-3.5" aria-hidden="true" />
-          Install app
+          {isInstalling ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+          ) : (
+            <Download className="w-3.5 h-3.5" aria-hidden="true" />
+          )}
+          {isInstalling ? 'Installing…' : 'Install app'}
         </button>
         <button
           type="button"
@@ -87,7 +122,7 @@ export default function InstallPromoBanner({
       <InstallPromoDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
-        onInstall={onInstallApp}
+        onInstall={handleInstall}
         onOpenHub={() => {
           setIsDialogOpen(false);
           onOpenHub?.();
