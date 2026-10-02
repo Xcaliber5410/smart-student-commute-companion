@@ -48,6 +48,11 @@ const CANONICAL_ENTITY_TYPES = {
   route: 'saved_route',
   routes: 'saved_route',
 
+  schedule: 'schedule',
+  schedules: 'schedule',
+  commute_schedule: 'schedule',
+  commute_schedules: 'schedule',
+
   notification: 'notification',
   notifications: 'notification',
 
@@ -62,6 +67,7 @@ const ALL_SEARCHABLE_TYPES = [
   'study_session',
   'goal',
   'saved_route',
+  'schedule',
   'notification',
   'reminder'
 ];
@@ -83,33 +89,58 @@ function calculateRelevance(item, queryLower) {
   const subtitleLower = (item.subtitle || '').toLowerCase();
   const descLower = (item.description || '').toLowerCase();
 
+  const cleanQuery = queryLower.trim().replace(/\s+/g, ' ');
+
   // 1. Exact match on title
-  if (titleLower === queryLower) {
+  if (titleLower === cleanQuery) {
     score += 100;
-  } else if (titleLower.startsWith(queryLower)) {
-    score += 60;
+  } else if (titleLower.startsWith(cleanQuery)) {
+    score += 65;
   } else {
     try {
-      if (new RegExp(`\\b${escapeRegExp(queryLower)}`, 'i').test(titleLower)) {
-        score += 40;
-      } else if (titleLower.includes(queryLower)) {
+      if (new RegExp(`\\b${escapeRegExp(cleanQuery)}`, 'i').test(titleLower)) {
+        score += 45;
+      } else if (titleLower.includes(cleanQuery)) {
         score += 25;
       }
     } catch (_) {
-      if (titleLower.includes(queryLower)) {
+      if (titleLower.includes(cleanQuery)) {
         score += 25;
       }
     }
   }
 
-  // 2. Secondary key match (course code, location, category)
-  if (item.metadata?.code && item.metadata.code.toLowerCase().includes(queryLower)) {
+  // 2. Token-level matching for multi-word queries
+  const tokens = cleanQuery.split(' ').filter(t => t.length > 0);
+  if (tokens.length > 1) {
+    let tokensInTitle = 0;
+    let tokensInAnyField = 0;
+    for (const t of tokens) {
+      if (titleLower.includes(t)) {
+        tokensInTitle++;
+      }
+      if (titleLower.includes(t) || subtitleLower.includes(t) || descLower.includes(t)) {
+        tokensInAnyField++;
+      }
+    }
+    if (tokensInTitle === tokens.length) {
+      score += 40; // All tokens present in title
+    } else if (tokensInTitle > 0) {
+      score += tokensInTitle * 12;
+    }
+    if (tokensInAnyField === tokens.length) {
+      score += 20; // All tokens matched across fields
+    }
+  }
+
+  // 3. Secondary key match (course code, location, category)
+  if (item.metadata?.code && item.metadata.code.toLowerCase().includes(cleanQuery)) {
     score += 40;
   }
-  if (item.metadata?.location && item.metadata.location.toLowerCase().includes(queryLower)) {
+  if (item.metadata?.location && item.metadata.location.toLowerCase().includes(cleanQuery)) {
     score += 25;
   }
-  if (item.metadata?.category && item.metadata.category.toLowerCase().includes(queryLower)) {
+  if (item.metadata?.category && item.metadata.category.toLowerCase().includes(cleanQuery)) {
     score += 20;
   }
 
@@ -441,6 +472,33 @@ class StudentSearchService {
           relevanceScore: 0,
           createdAt: row.created_at,
           updatedAt: null
+        });
+      }
+    }
+
+    if (resolvedTypes.includes('schedule')) {
+      const schedRows = this.searchRepo.searchSchedules(studentUserId, query, queryOptions);
+      for (const row of schedRows) {
+        allCandidates.push({
+          id: row.id,
+          type: 'schedule',
+          title: row.title,
+          subtitle: `${row.origin} → ${row.destination} • Arrival: ${row.target_arrival_time}`,
+          description: row.days_of_week ? `Days: ${row.days_of_week}` : null,
+          status: row.active ? 'active' : 'inactive',
+          url: `/student/schedules/${row.id}`,
+          course: null,
+          metadata: {
+            origin: row.origin,
+            destination: row.destination,
+            targetArrivalTime: row.target_arrival_time,
+            daysOfWeek: row.days_of_week,
+            reminderEnabled: !!row.reminder_enabled,
+            active: !!row.active
+          },
+          relevanceScore: 0,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
         });
       }
     }
