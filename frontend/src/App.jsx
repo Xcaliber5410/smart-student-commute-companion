@@ -9,6 +9,7 @@ import CreateGroupModal from './components/CreateGroupModal';
 import FeedbackModal from './components/FeedbackModal';
 import PreferencesDialog from './components/PreferencesDialog';
 import PwaStatusBanner from './components/PwaStatusBanner';
+import InstallPromoBanner from './components/InstallPromoBanner';
 import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage, InstallShareHubPage } from './pages';
 import { 
   requestPlan, 
@@ -864,6 +865,11 @@ export default function App() {
           isOffline={isOffline}
           updateAvailable={swUpdateAvailable}
           onRefresh={handleApplyUpdate}
+        />
+        <InstallPromoBanner
+          canInstall={canInstall}
+          isInstalled={isInstalled}
+          onInstallApp={handleInstallApp}
         />
         {renderTabContent()}
       </MainLayout>
