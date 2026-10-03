@@ -1,7 +1,7 @@
 # Feature Inventory — Smart Student Companion
 
 > Replacement for the missing `completed_features.md`. Statuses verified against source
-> code and Git history at frontend Day 9 (`783ecfe`). Statuses: **IMPLEMENTED**,
+> code and Git history at frontend Day 10 (`0f5f756`). Statuses: **IMPLEMENTED**,
 > **PARTIAL**, **BLOCKED**, **PLANNED**. "Not verified from repository history" marks
 > anything unconfirmable.
 
@@ -15,7 +15,8 @@
 - **Files**: `layouts/AppShell.jsx`, `layouts/MainLayout.jsx`, `components/Navbar.jsx`
 - **API**: none (socket status indicator only)
 - **Notes**: sticky header with privacy banner, desktop nav, mobile drawer, fixed
-  8-item bottom nav; responsive label scaling (icon < xl < 1750px).
+  9-item bottom nav; responsive label scaling (icon-only <1536px, short 2xl→1919px,
+  full ≥1920px — re-tiered Day 10).
 
 ### 2. Route planner — screen structure Day 3 (planner itself dates to the hackathon MVP)
 - **Status**: IMPLEMENTED
@@ -123,8 +124,21 @@
 
 ### 16. Verification suite — Day 1, extended daily
 - **Status**: IMPLEMENTED
-- **Files**: `frontend/verify-frontend.js` (201 checks, 18 sections)
+- **Files**: `frontend/verify-frontend.js` (231 checks, 19 sections)
 - **API**: none
+
+### 17. PWA analytics & monitoring dashboard — Day 10
+- **Status**: IMPLEMENTED (device-local; completes the `PWA_SETUP.md` "Day 10:
+  Analytics & Monitoring" roadmap)
+- **Route**: `?tab=analytics`
+- **Files**: `pages/AnalyticsPage.jsx`, `ui/EventLogList.jsx`,
+  `services/pwaAnalytics.js`, `public/sw.js` (metrics store
+  `pwa-analytics-v1` + sync/reset/updated messages + error listeners), App wiring
+  (`analyticsResource`, install/offline recording)
+- **API**: none — browser APIs + localStorage/SW-cache counters only; no data leaves
+  the device (privacy stance)
+- **Notes**: install outcomes, offline periods, cache hit/miss rates, SW error
+  monitoring; refresh/reset with toasts; loading/empty/error/retry states.
 
 ---
 
@@ -152,8 +166,9 @@
 ### P3. Roadmap checkboxes in `frontend/PWA_SETUP.md`
 - **Status**: PARTIAL (doc drift)
 - The "Day 8-9: Advanced Features" items (Share Target, install promotion banner,
-  update notification UI, shortcuts) are implemented in code but the file still shows
-  `- [ ]`. The file was not modified by this documentation task.
+  update notification UI, shortcuts) **and** the "Day 10: Analytics & Monitoring"
+  items are implemented in code but the file still shows `- [ ]`. The file was not
+  modified by this documentation task.
 
 ---
 
@@ -199,22 +214,18 @@ workload analytics)
 
 Only items verifiable from project documentation/roadmap files:
 
-### R1. PWA Analytics & Monitoring ("Day 10")
-- **Status**: PLANNED
-- **Source**: `frontend/PWA_SETUP.md` → "### Day 10: Analytics & Monitoring" (all four
-  unchecked): PWA installation tracking; offline usage analytics; cache hit/miss rates;
-  service worker error monitoring.
-- **API dependency**: none evident (client-side) — but design is a product decision.
-
-### R2. Advanced offline features
+### R1. Advanced offline features
 - **Status**: PLANNED
 - **Source**: `frontend/PWA_SUMMARY.md` "Medium Term (Days 4-7)": background sync, push
   notification support, offline request queueing, enhanced offline UX.
 
-### R3. Real-device / Lighthouse PWA testing
+### R2. Real-device / Lighthouse PWA testing
 - **Status**: PLANNED
 - **Source**: `frontend/PWA_SUMMARY.md` "⏳ Requires Browser Testing" checklist
   (install prompt, real devices, Lighthouse audit — unticked).
 
-### R4. Frontend work beyond Day 10
+### R3. Frontend work beyond Day 10
 - **Status**: Not verified from repository history.
+
+(Former planned item "PWA Analytics & Monitoring (Day 10)" is now **IMPLEMENTED** as
+#17.)

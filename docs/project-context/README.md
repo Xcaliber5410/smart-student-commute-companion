@@ -25,15 +25,15 @@ side working in parallel.
 
 ## 2. Current development state (as of this documentation)
 
-- Frontend daily cycle has reached **Day 9** (last frontend commit `783ecfe`,
-  2026-10-02: `test(frontend): verify Day 9 feature`).
-- `main` and `frontfeat` were **identical at `783ecfe`** when this documentation was
-  written; working tree clean.
+- Frontend daily cycle has reached **Day 10** (last frontend commit `0f5f756`,
+  2026-10-03: `test(frontend): verify Day 10 feature`; docs commit follows).
+- `main` was at `57c5c51` (backend search work) when Day 10 started; Day-10 work was
+  merged `frontfeat` → `main` at day end per `GIT_WORKFLOW.md`.
 - Backend has progressed at least through its own "Day 10" goals/productivity suite
   (per `backend/docs/goal_and_productivity_workflows.md`, commits through `a8f8d80`,
   2026-10-01).
-- Frontend verification: `npm run verify` = **201/201 checks passing** (18 named sections),
-  `npm run build` succeeds.
+- Frontend verification: `npm run verify` = **231/231 checks passing** (19 named
+  sections), `npm run build` succeeds.
 
 ## 3. Purpose of the frontend/PWA
 
@@ -139,9 +139,10 @@ Browser (PWA)                                  Express backend (backend/)
 ## 10. Important routes (frontend "tabs")
 
 `NAV_ITEMS` in `frontend/src/components/Navbar.jsx` is the single source of truth —
-8 tabs: `planner` (Plan Route), `mycommutes`, `transit` (Transit Search), `together`
+9 tabs: `planner` (Plan Route), `mycommutes`, `transit` (Transit Search), `together`
 (Travel Together), `feed` (Live Alerts), `notifications`, `devicealerts`,
-`installshare` (Install & Share). Backend HTTP paths used by the frontend are listed in
+`installshare` (Install & Share), `analytics` (PWA Analytics). Backend HTTP paths used
+by the frontend are listed in
 `CURRENT_STATE.md`.
 
 ## 11. Important reusable components
@@ -167,6 +168,8 @@ UI kit lives in `frontend/src/components/ui/` (barrel-exported). Most reused:
 - `services/deviceAlerts.js` — Notification API wrapper + SW fallback + permission watch.
 - `services/shareTarget.js` — Share Target payload storage + SW messaging.
 - `services/installPromotion.js` — install-promo eligibility + snooze persistence.
+- `services/pwaAnalytics.js` — Day-10 device-local analytics snapshot (merged with the
+  SW metrics store) + install/offline recording + SW message watch (no network calls).
 - Browser-API-only services make **no network calls**; only `api.js`-based services do.
 
 ## 13. State management approach
@@ -186,12 +189,15 @@ exists. **Convention: prefer local state; do not introduce a global store casual
   (multipart).
 - `frontend/public/sw.js` — pre-caches static shell (`sscc-static-v1`), network-only for
   API/socket, `skipWaiting` update flow + old-cache cleanup, share-target POST handling
-  (message to window client, redirect `/`). **No** `push` event handler and **no**
+  (message to window client, redirect `/`); Day 10 added a separate `pwa-analytics-v1`
+  metrics cache (cache hit/miss + worker error counters) with
+  sync/reset/updated messages. **No** `push` event handler and **no**
   background-sync (verified by grep).
 - `frontend/src/utils/registerSW.js` — registration; SW disabled in dev by default
   (`VITE_SW_DEV=true` opt-in).
 - UI: `PwaStatusBanner` (offline + update-ready), `usePwaInstall` (deferred
-  `beforeinstallprompt`), Day 8 Install & Share hub, Day 9 install-promotion banner.
+  `beforeinstallprompt`), Day 8 Install & Share hub, Day 9 install-promotion banner,
+  Day 10 PWA analytics dashboard (`?tab=analytics`).
 - Device alerts (Day 7) use `Notification` API with `registration.showNotification`
   fallback — not Web Push.
 
@@ -217,7 +223,7 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 ## 17. Testing / lint / type-check / build
 
 - **Tests**: `cd frontend && npm run verify` (alias `npm test`) → `verify-frontend.js`,
-  a Node script performing **201 static source checks across 18 sections** (structure,
+  a Node script performing **231 static source checks across 19 sections** (structure,
   config, design system, PWA, and per-day feature checks). These are source-level
   assertions, not runtime unit tests. No Jest/Vitest/Playwright exists.
 - **Lint**: **none configured** (no eslint config or script — verified).
@@ -242,7 +248,7 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 ## 19. Known blockers
 
 - **JWT auth gap** (§16) — the only structural blocker for frontend features.
-- Missing backend capability that has *not* blocked anything so far: none; all Days 1–9
+- Missing backend capability that has *not* blocked anything so far: none; all Days 1–10
   frontend features were completable client-side.
 - Environment: browser-PWA features (install prompt, share target) can only be truly
   exercised in a real/installable browser context; headless checks approximate them.

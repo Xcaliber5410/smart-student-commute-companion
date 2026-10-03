@@ -1,7 +1,8 @@
 # Current State — Smart Student Companion
 
-> Verified against the repository working tree and Git history at frontend Day 9
-> (HEAD `783ecfe`, 2026-10-02, `main` == `frontfeat`). Anything unverifiable is marked
+> Verified against the repository working tree and Git history at frontend Day 10
+> (HEAD `0f5f756`, 2026-10-03, `frontfeat`; end-of-day merge to `main` follows this
+> docs commit). Anything unverifiable is marked
 > "Not verified from repository history."
 
 ---
@@ -10,8 +11,8 @@
 
 | Branch | State |
 |---|---|
-| `main` | At `783ecfe`; equals `origin/main`. Holds backend work (Skan) + completed frontend days. |
-| `frontfeat` | At `783ecfe`; equals `origin/frontfeat`. Xcaliber's working branch — currently identical to `main` (all 9 frontend days merged). |
+| `main` | At `57c5c51` (backend search work, 2026-10-02) before Day 10's end-of-day merge; receives completed frontend days. |
+| `frontfeat` | At Day-10 HEAD (`0f5f756` + docs). Xcaliber's working branch — Day-10 work merged to `main` at day end. |
 | `origin/day-01-foundation` | Historical Day-1 branch (tip `e8facbb`), unused now. |
 | `fix/budget-and-mode-filtering` | Local stale branch from the hackathon era; outside the daily workflow. |
 
@@ -22,33 +23,36 @@
 - **Framework**: React 18.3 + Vite 6 + Tailwind CSS 3.4 (`frontend/`), JSX only.
 - **Application shell**: `src/layouts/AppShell.jsx` → `MainLayout.jsx` (sticky
   `Navbar` header + content + optional sidebar `MapView`) with `PwaStatusBanner` and the
-  Day-9 `InstallPromoBanner` above page content; fixed 8-item mobile bottom nav.
+  Day-9 `InstallPromoBanner` above page content; fixed 9-item mobile bottom nav.
 - **Routing**: none (no react-router). `App.jsx` renders a page by switching on
   `activeTab` (default `'planner'`). `?tab=<id>` deep links initialize the tab on load
   (validated against `NAV_ITEMS`; invalid → planner). Unknown tab → `NotFound`.
-- **Pages (8)** — `src/pages/index.js`: `PlannerPage`, `MyCommutesPage`,
+- **Pages (9)** — `src/pages/index.js`: `PlannerPage`, `MyCommutesPage`,
   `TravelTogetherPage`, `LiveAlertsPage`, `TransitSearchPage`, `NotificationsPage`,
-  `DeviceAlertsPage`, `InstallShareHubPage`.
+  `DeviceAlertsPage`, `InstallShareHubPage`, `AnalyticsPage` (Day 10).
 - **Components**: feature components in `src/components/` (Navbar, PlannerForm,
   RouteResults, MapView, CreateReportModal, CreateGroupModal, FeedbackModal,
   PreferencesDialog, DashboardOverview, SavedCommutes, TransitSearchForm,
   TransitResults, LiveStudentFeed, NotificationItem, DeviceAlertPermissionCard,
   PwaStatusBanner, InstallPromoBanner, Toast, ConfirmDialog usage…); reusable kit in
-  `src/components/ui/` (~30 components, barrel `index.js`, conventions in its README).
+  `src/components/ui/` (~30 components incl. Day-10 `EventLogList`, barrel `index.js`,
+  conventions in its README).
 - **State management**: local component state + App-level `useState` prop drilling;
   `useAsyncResource` hook for loading/error/retry; no global store library.
 - **Persistence**: `src/utils/uiPreferences.js` localStorage helpers — app preferences,
   transit sort, recent searches, saved commutes, device-alert pref, install-promo
-  snooze (via `services/installPromotion.js`).
+  snooze (via `services/installPromotion.js`); Day-10 analytics snapshot in
+  `smart_commute_pwa_analytics` (via `services/pwaAnalytics.js`, merged with the SW's
+  own metrics store).
 - **Notifications (UI)**: `Toast` queue (polite `role=status`; errors `role=alert`) +
   `NotificationsPage` (client-side view over loaded live reports with search, all/unread
   view, per-item read state in memory) + Day-7 device alerts.
 - **Forms**: controlled components built on `ui/FormField` + `utils/validation.js`
   (client-side validation only; submissions go through `api.js` services).
 - **Responsive behavior**: Tailwind breakpoints; icon/short/full-label scaling in
-  `Navbar` (full labels ≥1750px), mobile drawer + fixed bottom nav, grids collapse
-  `sm:`/`md:`. Verified by local audits at 360–1920 px (tooling was session-local, not
-  committed — see "Testing" below).
+  `Navbar` (nine tabs: icon-only <1536px, short from 2xl, full labels ≥1920px), mobile
+  drawer + fixed bottom nav, grids collapse `sm:`/`md:`. Verified by local audits at
+  360–1920 px (tooling was session-local, not committed — see "Testing" below).
 
 ---
 
@@ -59,7 +63,9 @@ planning, live alerts feed (+ create/confirm/contradict reports), travel-togethe
 groups (create/join), GTFS transit search, My Commutes (saved plans), dashboard
 overview, preferences dialog, feedback modal, notifications view, device alerts,
 install & share hub (share target, deep links, shortcuts), install promotion banner
-with 7-day snooze, demo reset, offline shell + update banner, socket live sync.
+with 7-day snooze, PWA analytics & monitoring dashboard (Day 10 — install tracking,
+offline usage, cache hit/miss rates, SW error monitoring; device-local only), demo
+reset, offline shell + update banner, socket live sync.
 
 ---
 
@@ -135,9 +141,16 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
   `sscc-static-v1`; network-only for API/WebSocket; `message` → `skipWaiting`;
   activation cleans old `sscc-*` caches; fetch handler processes the share-target POST
   (payload cache `share-target-payload-v1`, message to window client, redirect `/`).
-  Verified absent: `push` event handler, Background Sync.
+  Day 10 added a **separate metrics store** — cache `pwa-analytics-v1` (URL
+  `/__pwa-analytics-store__`, intentionally not `sscc-`-prefixed so activation cleanup
+  skips it) holding cache hit/miss counters and worker error counts,
+  `recordAnalytics()` on fetch (same-origin only) + `error`/`unhandledrejection`
+  listeners, and `pwa-analytics-sync`/`pwa-analytics-reset` message branches with
+  `pwa-analytics-updated` broadcasts. Verified absent: `push` event handler,
+  Background Sync.
 - **Caching**: static shell only; no API/data caching (privacy stance documented in
-  `frontend/PWA_SUMMARY.md`).
+  `frontend/PWA_SUMMARY.md`). The Day-10 analytics cache stores numeric counters only,
+  not response content.
 - **Notifications**: `Notification` API through `services/deviceAlerts.js`
   (with `registration.showNotification` fallback for Android Chrome); raises alerts for
   `live_report_created` when the tab is unfocused, pref enabled, permission granted.
@@ -146,7 +159,8 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
   offline notice; data actions fail with retry states.
 - **Installability**: `usePwaInstall` captures `beforeinstallprompt`; install entry
   points = Navbar install button, Day-8 hub (manual steps incl. iOS), Day-9 promo
-  banner (engagement-timed, 7-day snooze on dismiss).
+  banner (engagement-timed, 7-day snooze on dismiss). Day 10 records install outcomes
+  (accepted/dismissed/unavailable, `appinstalled` timestamp) on-device.
 - **SW registration**: `utils/registerSW.js`, production-only by default
   (`VITE_SW_DEV=true` to enable in dev).
 
@@ -156,16 +170,17 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 - **Framework**: none (no Jest/Vitest/Playwright — verified no such deps).
 - **Test command**: `cd frontend && npm run verify` (= `npm test`) →
-  `frontend/verify-frontend.js`, Node script, currently **201 checks / 18 sections**,
+  `frontend/verify-frontend.js`, Node script, currently **231 checks / 19 sections**,
   all passing; exit code gates CI-less workflow. Static source assertions (files exist,
   patterns present), not runtime tests.
 - **Lint**: not configured (no eslint config/script — verified). Report as N/A.
 - **Type-check**: not configured (no TypeScript — verified). Report as N/A.
 - **Build**: `npm run build` (Vite) — passes; known warning: chunk > 500 kB.
-- **PWA checks**: section 6 of `verify-frontend.js` (manifest/SW/meta) + manual browser
-  testing documented in `frontend/PWA_TESTING.md`. Browser-based responsive/a11y audits
-  used during Days 7–9 were **session-local tools, not committed** — "Not verified from
-  repository history" as reusable repo assets.
+- **PWA checks**: section 6 of `verify-frontend.js` (manifest/SW/meta), section 19
+  (Day-10 analytics), + manual browser testing documented in `frontend/PWA_TESTING.md`.
+  Browser-based responsive/a11y audits used during Days 7–10 were **session-local
+  tools, not committed** — "Not verified from repository history" as reusable repo
+  assets.
 
 ---
 
@@ -174,21 +189,25 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 1. **JWT gap** (Authentication section) — authenticated backend domains unreachable.
 2. No lint/type-check gates — style/typo regressions rely on code review + verify.
 3. Vite build warning: bundle chunk > 500 kB (pre-existing, flagged every build).
-4. `frontend/PWA_SETUP.md` roadmap checkboxes are stale (Day 8–9 items implemented in
+4. `frontend/PWA_SETUP.md` roadmap checkboxes are stale (Day 8–10 items implemented in
    code but unchecked in the file).
 5. Day-6 empty commits anomaly (`9a43783…957a74d`) pollute history with 7 no-op commits
    carrying Day-6 messages; real Day 6 = `a1e3d78…8a3f441` (see `days/DAY-06.md`).
+6. **Pre-existing share-target messaging bug** (documented Day 10, NOT fixed):
+   `services/shareTarget.js` listens on `window` for SW messages, but SW
+   `client.postMessage()` arrives on the `navigator.serviceWorker` container — so
+   Day-8's SW→page share-target messages never reach that handler (the sessionStorage
+   fallback covers the real flow). See `days/DAY-10.md`.
 
 ---
 
 ## Next Logical Work (from repository/roadmap evidence only — no product decisions)
 
-- **Frontend Day 10** would naturally follow the same 7-commit cycle on `frontfeat`.
-- `frontend/PWA_SETUP.md` "Future PWA Roadmap" has an **unchecked** section:
-  **Day 10: Analytics & Monitoring** — "PWA installation tracking, offline usage
-  analytics, cache hit/miss rates, service worker error monitoring". These are the only
-  explicitly listed unimplemented roadmap items (the Day 8–9 advanced-feature items are
-  implemented in code despite unchecked boxes).
+- **Frontend Day 10 is complete** (PWA Analytics & Monitoring — `days/DAY-10.md`);
+  the same 7-commit cycle would continue for any Day 11+ on `frontfeat`.
+- `frontend/PWA_SETUP.md` "Future PWA Roadmap" still lists **Day 10: Analytics &
+  Monitoring** as unchecked (doc drift — implemented in code in Day 10); the file's
+  Day 8–9 boxes are likewise stale.
 - `frontend/PWA_SUMMARY.md` "Medium Term (Days 4-7)" still lists background sync, push
   notification support, offline request queueing, enhanced offline UX as planned; its
   "Requires Browser Testing" checklist (Lighthouse, real devices) is unticked.

@@ -5,7 +5,7 @@
 > 2. `docs/project-context/CURRENT_STATE.md` (what exists now, blockers)
 > 3. `docs/project-context/FEATURES.md` (status inventory)
 > 4. **Only** the latest relevant `docs/project-context/days/DAY-0X.md` when continuing
->    daily work (e.g., DAY-09.md to continue from Day 9). Older day logs = archaeology,
+>    daily work (e.g., DAY-10.md to continue from Day 10). Older day logs = archaeology,
 >    not instructions.
 
 ---
@@ -15,7 +15,7 @@
 Mumbai student commute PWA: React 18 + Vite + Tailwind frontend (`frontend/`, the
 **Xcaliber** role — client-side only) + Express/SQLite backend (`backend/`, the
 **Skan** role). Daily frontend work happens on `frontfeat` in 7 fixed-message commits
-per "Day", merged to `main` at day end. Currently at **Day 9** (HEAD `783ecfe`).
+per "Day", merged to `main` at day end. Currently at **Day 10** (HEAD `0f5f756`).
 
 ## 2. Which branch to work on
 
@@ -43,8 +43,11 @@ branch; never force-push; never delete `frontfeat`.
 
 - Install/share UX: Day 8 hub + Day 9 promo banner/dialog — don't build a third
   install surface.
+- PWA analytics: Day 10 dashboard (`?tab=analytics`) + `services/pwaAnalytics.js` + the
+  SW `pwa-analytics-v1` metrics store — extend `recordAnalytics`, don't build a second
+  monitoring surface.
 - Device alerts, notifications view, PWA banners, preferences dialog, toasts, saved
-  commutes, all 8 tabs, demo reset, share target, `?tab=` deep links.
+  commutes, all 9 tabs, demo reset, share target, `?tab=` deep links.
 - The `verify-frontend.js` suite — **extend**, never weaken; add a numbered section.
 - Any backend route/DB code (Skan's domain — off limits).
 
@@ -85,14 +88,15 @@ documented exception).
 ## 8. Verification workflow (before every commit)
 
 ```bash
-cd frontend && npm run verify    # must be 100%, currently 201 checks
+cd frontend && npm run verify    # must be 100%, currently 231 checks
 cd frontend && npm run build     # must succeed (chunk >500kB warning is pre-existing)
 ```
 
 There is no lint or type-check (absent by design so far) — report them as N/A.
-Manual/browser verification during Days 7–9 used session-local Chrome-CDP scripts that
+Manual/browser verification during Days 7–10 used session-local Chrome-CDP scripts that
 were **not committed**; recreate ad hoc if needed ("Not verified from repository
-history" as repo assets).
+history" as repo assets). SW→page messages must be read from the
+`navigator.serviceWorker` container, not `window` (see DAY-10.md Blockers).
 
 ## 9. Important warnings
 
