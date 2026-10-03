@@ -5,11 +5,13 @@ import {
   MonitorSmartphone,
   RefreshCw,
   ShieldCheck,
+  Trash2,
   Wifi,
   WifiOff,
 } from 'lucide-react';
 import {
   Button,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   EventLogList,
@@ -17,6 +19,19 @@ import {
   ProgressBar,
   StatTile,
 } from '../components/ui';
+
+// Recorded-event list interactions: rows load in steps and the time window
+// scopes the logs (cumulative counters always show all-time totals).
+const EVENT_ROWS_STEP = 5;
+const TIME_WINDOWS = [
+  { id: 'all', label: 'All time' },
+  { id: '24h', label: 'Last 24 hours' },
+  { id: '7d', label: 'Last 7 days' },
+];
+const WINDOW_MS = {
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+};
 
 /**
  * PWA Analytics (Day 10 feature screen)
@@ -45,6 +60,7 @@ import {
  * @param {boolean} [props.canInstall] - Browser currently offers one-tap install
  * @param {boolean} [props.isInstalled] - App is installed / running standalone
  * @param {boolean} [props.isOffline] - Browser reports no connectivity
+ * @param {Function} [props.onResetAnalytics] - Clears recorded metrics (with confirmation)
  */
 export default function AnalyticsPage({
   snapshot = null,
@@ -56,6 +72,7 @@ export default function AnalyticsPage({
   canInstall = false,
   isInstalled = false,
   isOffline = false,
+  onResetAnalytics,
 }) {
   // Display mode can change without a reload (Chrome opens installed PWAs
   // in standalone), so both live facts subscribe to their change events.
@@ -69,6 +86,13 @@ export default function AnalyticsPage({
   const [swControlled, setSwControlled] = useState(() =>
     Boolean(navigator.serviceWorker?.controller)
   );
+
+  // Local interaction state: event time window, per-log expansion, and the
+  // destructive-reset confirmation (the action itself lives in the caller).
+  const [timeWindow, setTimeWindow] = useState('all');
+  const [visibleInstallRows, setVisibleInstallRows] = useState(EVENT_ROWS_STEP);
+  const [visibleErrorRows, setVisibleErrorRows] = useState(EVENT_ROWS_STEP);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   useEffect(() => {
     let media;
@@ -165,12 +189,17 @@ export default function AnalyticsPage({
   };
   const storageData = snapshot?.storage ?? null;
   const recordedEvents = snapshot?.events ?? [];
-  const installEvents = recordedEvents
-    .filter((event) => event.kind === 'install')
-    .slice(0, 5);
-  const workerErrorEvents = recordedEvents
-    .filter((event) => event.kind === 'sw-error')
-    .slice(0, 5);
+  const inSelectedWindow = (event) => {
+    if (timeWindow === 'all') return true;
+    const ts = Date.parse(event?.at);
+    return Number.isFinite(ts) && ts >= Date.now() - WINDOW_MS[timeWindow];
+  };
+  const installEvents = recordedEvents.filter(
+    (event) => event.kind === 'install' && inSelectedWindow(event)
+  );
+  const workerErrorEvents = recordedEvents.filter(
+    (event) => event.kind === 'sw-error' && inSelectedWindow(event)
+  );
 
   const cacheLookups = cacheData.hits + cacheData.misses;
   const hitRate =
@@ -233,6 +262,53 @@ export default function AnalyticsPage({
         />
       )}
 
+      {/* Recorded-log controls: time window (filters the logs below) and the
+          confirmed reset action. Both belong to recorded data only. */}
+      {snapshot && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-800 bg-slate-900/60 px-3.5 py-3">
+          <div
+            className="flex flex-wrap items-center gap-2"
+            role="group"
+            aria-label="Time window for recorded event logs"
+          >
+            <span className="pr-1 text-xs font-semibold text-slate-400">
+              Event window
+            </span>
+            {TIME_WINDOWS.map((option) => {
+              const isActive = timeWindow === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setTimeWindow(option.id)}
+                  className={`min-h-9 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
+                    isActive
+                      ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {onResetAnalytics && (
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+              onClick={() => setIsResetDialogOpen(true)}
+              className="self-start sm:self-auto"
+            >
+              Reset analytics
+            </Button>
+          )}
+        </div>
+      )}
+
       <section aria-label="Installation tracking" className="space-y-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
           Installation tracking
@@ -275,11 +351,33 @@ export default function AnalyticsPage({
           </p>
         )}
         {snapshot && (
-          <EventLogList
-            label="Installation history"
-            items={installEvents}
-            emptyMessage="No install events recorded yet."
-          />
+          <div className="space-y-2">
+            <EventLogList
+              label="Installation history"
+              items={installEvents.slice(0, visibleInstallRows)}
+              emptyMessage="No install events in this window."
+            />
+            {installEvents.length > visibleInstallRows && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setVisibleInstallRows((rows) => rows + EVENT_ROWS_STEP)}
+              >
+                Show more ({installEvents.length - visibleInstallRows} more)
+              </Button>
+            )}
+            {visibleInstallRows > EVENT_ROWS_STEP && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setVisibleInstallRows(EVENT_ROWS_STEP)}
+              >
+                Show less
+              </Button>
+            )}
+          </div>
         )}
       </section>
 
@@ -395,11 +493,33 @@ export default function AnalyticsPage({
           )}
         </div>
         {snapshot && (
-          <EventLogList
-            label="Service worker error log"
-            items={workerErrorEvents}
-            emptyMessage="No service worker errors recorded — the worker has run cleanly."
-          />
+          <div className="space-y-2">
+            <EventLogList
+              label="Service worker error log"
+              items={workerErrorEvents.slice(0, visibleErrorRows)}
+              emptyMessage="No service worker errors in this window — the worker has run cleanly."
+            />
+            {workerErrorEvents.length > visibleErrorRows && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setVisibleErrorRows((rows) => rows + EVENT_ROWS_STEP)}
+              >
+                Show more ({workerErrorEvents.length - visibleErrorRows} more)
+              </Button>
+            )}
+            {visibleErrorRows > EVENT_ROWS_STEP && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setVisibleErrorRows(EVENT_ROWS_STEP)}
+              >
+                Show less
+              </Button>
+            )}
+          </div>
         )}
       </section>
 
@@ -410,6 +530,21 @@ export default function AnalyticsPage({
           uploaded to a server, and no browsing history or location leaves your browser.
         </span>
       </p>
+
+      {onResetAnalytics && (
+        <ConfirmDialog
+          isOpen={isResetDialogOpen}
+          onCancel={() => setIsResetDialogOpen(false)}
+          onConfirm={() => {
+            setIsResetDialogOpen(false);
+            onResetAnalytics();
+          }}
+          title="Reset recorded analytics?"
+          message="Every metric on this screen — install prompts, offline periods, cache statistics and worker errors — will be cleared from this device. Monitoring starts again from zero. This cannot be undone."
+          confirmLabel="Reset analytics"
+          destructive
+        />
+      )}
     </div>
   );
 }
