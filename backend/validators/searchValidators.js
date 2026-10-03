@@ -38,7 +38,15 @@ const VALID_SEARCHABLE_TYPES = [
   'notification',
   'notifications',
   'reminder',
-  'reminders'
+  'reminders',
+  'study_resource',
+  'study_resources',
+  'resource',
+  'resources',
+  'material',
+  'materials',
+  'note',
+  'notes'
 ];
 
 const studentSearchQuerySchema = z.object({

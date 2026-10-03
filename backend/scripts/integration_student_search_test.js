@@ -355,10 +355,29 @@ async function run() {
       reminderAId = res.body.reminder.id;
     });
 
+    let resourceAId;
+    await test('Data Setup: creates study resource for Student A', async () => {
+      const res = await makeRequest(server, {
+        method: 'POST',
+        path: '/api/student/resources',
+        headers: { Authorization: `Bearer ${tokenA}` },
+        body: {
+          title: 'Distributed Systems Raft Consensus Guide',
+          description: 'Comprehensive breakdown of Raft protocol RPC replication and safety properties',
+          resource_type: 'reference',
+          course_id: courseAId,
+          goal_id: goalAId,
+          tags: ['distributed', 'raft', 'consensus', 'guide']
+        }
+      });
+      assert.strictEqual(res.statusCode, 201);
+      resourceAId = res.body.resource.id;
+    });
+
     // -----------------------------------------------------------------
-    // 5. Valid Cross-Domain Search Endpoint Execution Across All 9 Types
+    // 5. Valid Cross-Domain Search Endpoint Execution Across All 10 Types
     // -----------------------------------------------------------------
-    await test('Search: GET /api/student/search returns matched records across all 9 student domain types', async () => {
+    await test('Search: GET /api/student/search returns matched records across all 10 student domain types', async () => {
       const res = await makeRequest(server, {
         method: 'GET',
         path: '/api/student/search?q=distributed',
@@ -367,15 +386,16 @@ async function run() {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.body.success, true);
       assert.strictEqual(res.body.query, 'distributed');
-      assert.ok(res.body.total >= 9, `Expected at least 9 items, received ${res.body.total}`);
+      assert.ok(res.body.total >= 10, `Expected at least 10 items, received ${res.body.total}`);
       assert.ok(Array.isArray(res.body.results));
 
-      // Verify category distribution across all 9 domains
+      // Verify category distribution across all 10 domains
       assert.ok(res.body.countsByType.course >= 1, 'Should find course');
       assert.ok(res.body.countsByType.goal >= 1, 'Should find goal');
       assert.ok(res.body.countsByType.assignment >= 1, 'Should find assignment');
       assert.ok(res.body.countsByType.calendar_event >= 1, 'Should find calendar event');
       assert.ok(res.body.countsByType.study_session >= 1, 'Should find study session');
+      assert.ok(res.body.countsByType.study_resource >= 1, 'Should find study resource');
       assert.ok(res.body.countsByType.saved_route >= 1, 'Should find saved route');
       assert.ok(res.body.countsByType.schedule >= 1, 'Should find schedule');
       assert.ok(res.body.countsByType.notification >= 1, 'Should find notification');
@@ -490,6 +510,37 @@ async function run() {
       assert.ok(reminderRes.body.results.some(r => r.type === 'reminder'));
     });
 
+    await test('Scenario: searching for a study resource by tag and description', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=RPC+replication',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length >= 1);
+      const resMatch = res.body.results.find(r => r.type === 'study_resource');
+      assert.ok(resMatch, 'Must find study resource by description');
+      assert.strictEqual(resMatch.title, 'Distributed Systems Raft Consensus Guide');
+      assert.ok(resMatch.course, 'Study resource must include course context');
+      assert.strictEqual(resMatch.course.id, courseAId);
+      assert.strictEqual(resMatch.metadata.resourceType, 'reference');
+    });
+
+    await test('Scenario: mixed resource + academic search results with ranking', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Consensus',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const types = new Set(res.body.results.map(r => r.type));
+      assert.ok(types.has('study_resource'), 'Should include study_resource');
+      assert.ok(types.has('assignment') || types.has('goal'), 'Should include academic entity');
+      for (let i = 0; i < res.body.results.length - 1; i++) {
+        assert.ok(res.body.results[i].relevanceScore >= res.body.results[i + 1].relevanceScore);
+      }
+    });
+
     await test('Scenario: partial match searching matches prefixes and tokens', async () => {
       const res = await makeRequest(server, {
         method: 'GET',
@@ -513,6 +564,17 @@ async function run() {
       assert.ok(res.body.results.every(i => i.type === 'course' || i.type === 'assignment'));
       assert.ok(res.body.results.some(i => i.type === 'course'));
       assert.ok(res.body.results.some(i => i.type === 'assignment'));
+    });
+
+    await test('Filtering: GET /api/student/search?types=resources returns only study resources', async () => {
+      const res = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=distributed&types=resources',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.body.results.length >= 1);
+      assert.ok(res.body.results.every(i => i.type === 'study_resource'));
     });
 
     await test('Filtering: GET /api/student/search?types=notifications,reminders returns only alerts', async () => {
@@ -633,6 +695,41 @@ async function run() {
       assert.strictEqual(res.body.results.length, 0);
     });
 
+    await test('Isolation: Student B study resource is isolated and not visible to Student A', async () => {
+      const createRes = await makeRequest(server, {
+        method: 'POST',
+        path: '/api/student/resources',
+        headers: { Authorization: `Bearer ${tokenB}` },
+        body: {
+          title: 'Student B Private Quantum Paper',
+          description: 'Quantum physics notes',
+          resource_type: 'note',
+          tags: ['quantum']
+        }
+      });
+      assert.strictEqual(createRes.statusCode, 201);
+      const bResId = createRes.body.resource.id;
+
+      // Student A searching for Quantum receives 0 results
+      const resA = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Quantum',
+        headers: { Authorization: `Bearer ${tokenA}` }
+      });
+      assert.strictEqual(resA.statusCode, 200);
+      assert.strictEqual(resA.body.total, 0);
+
+      // Student B searching for Quantum finds their resource
+      const resB = await makeRequest(server, {
+        method: 'GET',
+        path: '/api/student/search?q=Quantum',
+        headers: { Authorization: `Bearer ${tokenB}` }
+      });
+      assert.strictEqual(resB.statusCode, 200);
+      assert.strictEqual(resB.body.total, 1);
+      assert.strictEqual(resB.body.results[0].id, bResId);
+    });
+
     // -----------------------------------------------------------------
     // 11. Malformed Requests & Boundary Validation
     // -----------------------------------------------------------------
@@ -734,9 +831,10 @@ async function run() {
       });
       assert.strictEqual(resAcademic.statusCode, 200);
       assert.strictEqual(resAcademic.body.success, true);
-      assert.ok(resAcademic.body.total >= 9);
+      assert.ok(resAcademic.body.total >= 10);
       assert.ok(resAcademic.body.results.some(i => i.type === 'course'));
       assert.ok(resAcademic.body.results.some(i => i.type === 'assignment'));
+      assert.ok(resAcademic.body.results.some(i => i.type === 'study_resource'));
       assert.ok(resAcademic.body.results.some(i => i.type === 'notification'));
     });
 
