@@ -228,7 +228,12 @@ export default function OfflineQueuePage({
                   status={
                     item.status === 'failed' ? 'failed' : isSyncing ? 'sending' : 'pending'
                   }
-                  title={item.report?.description || item.report?.type || 'Report'}
+                  title={
+                  item.report?.message ||
+                  item.report?.description ||
+                  item.report?.type ||
+                  'Report'
+                }
                   queuedAt={item.queuedAt}
                   area={item.report?.area}
                   attempts={item.attempts}
@@ -290,7 +295,10 @@ export default function OfflineQueuePage({
           }}
           title="Discard this report?"
           message={`“${
-            discardTarget?.report?.description || discardTarget?.report?.type || 'This report'
+            discardTarget?.report?.message ||
+            discardTarget?.report?.description ||
+            discardTarget?.report?.type ||
+            'This report'
           }” will be removed from this device without being broadcast. This cannot be undone.`}
           confirmLabel="Discard report"
           destructive

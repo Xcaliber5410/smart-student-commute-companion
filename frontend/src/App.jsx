@@ -42,6 +42,13 @@ import {
 } from './utils/uiPreferences';
 import { resetDemoState } from './services/api';
 import {
+  readQueueState,
+  enqueueReport,
+  removeQueuedReport,
+  retryQueuedReport,
+  syncQueue,
+} from './services/offlineQueue';
+import {
   getPermission as getDeviceAlertPermission,
   requestPermission as requestDeviceAlertPermission,
   watchPermission as watchDeviceAlertPermission,
@@ -194,6 +201,9 @@ export default function App() {
       endOfflinePeriod();
       refreshAnalyticsSnapshot();
       showToast('Back online — live data is available again.', 'success');
+      // Day 11 — deliver reports that were queued while offline (no-op when
+      // the queue is empty; the sync ref prevents double-flush).
+      handleSyncQueue();
     };
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
@@ -518,11 +528,98 @@ export default function App() {
       setIsReportModalOpen(false);
       showToast('Live commute report broadcast to all students!');
     } catch (err) {
-      showToast(err.message, 'error');
+      if (err?.isNetwork) {
+        // Day 11 — the connection dropped: save the report locally instead of
+        // losing it; it is delivered automatically when connectivity returns.
+        const next = enqueueReport(reportData);
+        if (next) {
+          setQueue(next);
+          setIsReportModalOpen(false);
+          showToast(
+            "Saved to your Offline Queue — it will send automatically once you're back online.",
+            'warning'
+          );
+        } else {
+          showToast(`${err.message} Your report was not saved.`, 'error');
+        }
+      } else {
+        showToast(err.message, 'error');
+      }
     } finally {
       setIsSubmittingReport(false);
     }
   };
+
+  // Day 11 — offline report queue: state + delivery via the existing
+  // createReport contract (device-local until synced).
+  const [queue, setQueue] = useState(() => readQueueState());
+  const [isSyncingQueue, setIsSyncingQueue] = useState(false);
+  const queueSyncRef = useRef(false);
+
+  const handleSyncQueue = async () => {
+    if (queueSyncRef.current) return;
+    queueSyncRef.current = true;
+    setIsSyncingQueue(true);
+    try {
+      const result = await syncQueue();
+      setQueue(result.state);
+      if (result.sent > 0 && result.failed === 0) {
+        showToast(
+          result.pending > 0
+            ? `Sent ${result.sent} queued report${result.sent === 1 ? '' : 's'} — the rest follow when the connection is stable.`
+            : `Sent ${result.sent} queued report${result.sent === 1 ? '' : 's'}!`,
+          'success'
+        );
+      } else if (result.sent > 0) {
+        showToast(
+          `Sent ${result.sent} report${result.sent === 1 ? '' : 's'}; ${result.failed} could not be delivered — review them in Offline Queue.`,
+          'warning'
+        );
+      } else if (result.failed > 0) {
+        showToast(
+          `${result.failed} queued report${result.failed === 1 ? '' : 's'} could not be delivered — review them in Offline Queue.`,
+          'error'
+        );
+      } else if (result.stoppedOffline) {
+        showToast('Still offline — queued reports will send when you reconnect.', 'info');
+      }
+      // Nothing pending → stay silent (this also runs on every app load).
+    } catch {
+      showToast('Could not sync the offline queue right now.', 'error');
+    } finally {
+      queueSyncRef.current = false;
+      setIsSyncingQueue(false);
+    }
+  };
+
+  const handleDiscardQueuedReport = (id) => {
+    const next = removeQueuedReport(id);
+    if (next) {
+      setQueue(next);
+      showToast('Report discarded.');
+    } else {
+      showToast('Could not update the queue — device storage is unavailable.', 'error');
+    }
+  };
+
+  const handleRetryQueuedReport = (id) => {
+    const next = retryQueuedReport(id);
+    if (next) {
+      setQueue(next);
+      showToast('Report will try to send again on the next sync.', 'info');
+    } else {
+      showToast('Could not update the queue — device storage is unavailable.', 'error');
+    }
+  };
+
+  // Day 11 — deliver reports left over from a previous session (silent no-op
+  // when the queue is empty).
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.onLine !== false) {
+      handleSyncQueue();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleConfirmReport = async (id) => {
     try {
@@ -925,7 +1022,17 @@ export default function App() {
         );
 
       case 'offlinequeue':
-        return <OfflineQueuePage isOffline={isOffline} />;
+        return (
+          <OfflineQueuePage
+            items={queue.items}
+            isOffline={isOffline}
+            isSyncing={isSyncingQueue}
+            onSync={handleSyncQueue}
+            onDiscard={handleDiscardQueuedReport}
+            onRetryItem={handleRetryQueuedReport}
+            lastSyncedAt={queue.lastSyncedAt}
+          />
+        );
 
       default:
         return (
