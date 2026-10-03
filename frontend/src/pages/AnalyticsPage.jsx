@@ -229,7 +229,7 @@ export default function AnalyticsPage({
             loading={isRefreshing}
             disabled={isRefreshing}
             onClick={onRefresh}
-            className="shrink-0 self-start"
+            className="shrink-0 self-start min-h-9"
           >
             Refresh
           </Button>
@@ -301,7 +301,7 @@ export default function AnalyticsPage({
               size="sm"
               icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
               onClick={() => setIsResetDialogOpen(true)}
-              className="self-start sm:self-auto"
+              className="self-start sm:self-auto min-h-9"
             >
               Reset analytics
             </Button>
@@ -313,7 +313,7 @@ export default function AnalyticsPage({
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
           Installation tracking
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <StatTile
             icon={<MonitorSmartphone className="h-4 w-4" aria-hidden="true" />}
             variant={installStatus.variant}
@@ -363,6 +363,7 @@ export default function AnalyticsPage({
                 variant="secondary"
                 size="sm"
                 onClick={() => setVisibleInstallRows((rows) => rows + EVENT_ROWS_STEP)}
+                className="min-h-9"
               >
                 Show more ({installEvents.length - visibleInstallRows} more)
               </Button>
@@ -373,6 +374,7 @@ export default function AnalyticsPage({
                 variant="ghost"
                 size="sm"
                 onClick={() => setVisibleInstallRows(EVENT_ROWS_STEP)}
+                className="min-h-9"
               >
                 Show less
               </Button>
@@ -385,7 +387,7 @@ export default function AnalyticsPage({
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
           Offline usage
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <StatTile
             icon={connection.icon}
             variant={connection.variant}
@@ -436,7 +438,7 @@ export default function AnalyticsPage({
           />
         </div>
         {snapshot && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <StatTile
               variant="emerald"
               value={cacheData.hits}
@@ -467,7 +469,7 @@ export default function AnalyticsPage({
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
           Service worker monitoring
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <StatTile
             icon={<Gauge className="h-4 w-4" aria-hidden="true" />}
             variant={swStatus.variant}
@@ -505,6 +507,7 @@ export default function AnalyticsPage({
                 variant="secondary"
                 size="sm"
                 onClick={() => setVisibleErrorRows((rows) => rows + EVENT_ROWS_STEP)}
+                className="min-h-9"
               >
                 Show more ({workerErrorEvents.length - visibleErrorRows} more)
               </Button>
@@ -515,6 +518,7 @@ export default function AnalyticsPage({
                 variant="ghost"
                 size="sm"
                 onClick={() => setVisibleErrorRows(EVENT_ROWS_STEP)}
+                className="min-h-9"
               >
                 Show less
               </Button>

@@ -212,15 +212,17 @@ export default function Navbar({
                   <Icon className={`w-3.5 h-3.5 ${item.id === 'feed' && !isActive ? 'text-amber-400' : ''}`} aria-hidden="true" />
                   {/*
                     Labels scale with available width so nine tabs never
-                    overflow the header: icon-only below xl (tablets and
-                    small laptops), short labels at xl and up to the wide
-                    threshold, full labels only when there is real room
-                    (>=1750px, measured with the install control present).
+                    overflow the header (measured inside the max-w-7xl row
+                    with the install control present): icon-only below 2xl
+                    (phones, tablets, laptops, smaller desktops), short
+                    labels from 2xl, full labels only at >=1920px where the
+                    nine full labels plus the right-hand controls fit the
+                    viewport without horizontal scrolling.
                     aria-label/title keep the target named when only the
                     icon shows.
                   */}
-                  <span className="hidden min-[1750px]:inline">{item.label}</span>
-                  <span className="hidden xl:inline min-[1750px]:hidden">{item.shortLabel}</span>
+                  <span className="hidden min-[1920px]:inline">{item.label}</span>
+                  <span className="hidden 2xl:inline min-[1920px]:hidden">{item.shortLabel}</span>
                   {item.hasBadge && reportsCount > 0 && (
                     <span 
                       className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ml-0.5 ${
@@ -427,7 +429,7 @@ export default function Navbar({
 
       {/* Mobile Bottom Fixed Navigation Bar (Sticky Thumb Navigation) */}
       <nav 
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/90 px-2 py-2 flex items-center justify-around shadow-2xl"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/90 px-1 py-2 flex items-center justify-around shadow-2xl"
         role="navigation"
         aria-label="Mobile quick navigation"
       >
@@ -439,7 +441,7 @@ export default function Navbar({
               key={item.id}
               onClick={() => handleSelectTab(item.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`min-w-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all relative focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+              className={`min-w-0 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all relative focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                 isActive
                   ? 'text-emerald-400 font-bold'
                   : 'text-slate-400 hover:text-slate-200'
