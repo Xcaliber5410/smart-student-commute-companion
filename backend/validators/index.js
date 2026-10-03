@@ -78,7 +78,9 @@ const {
   resourceTypeEnum,
   createStudyResourceSchema,
   updateStudyResourceSchema,
-  studyResourceFilterSchema
+  studyResourceFilterSchema,
+  linkResourcesSchema,
+  entityAndResourceParamSchema
 } = require('./studyResourceValidators');
 
 module.exports = {
@@ -154,6 +156,9 @@ module.exports = {
   resourceTypeEnum,
   createStudyResourceSchema,
   updateStudyResourceSchema,
-  studyResourceFilterSchema
+  studyResourceFilterSchema,
+  linkResourcesSchema,
+  entityAndResourceParamSchema
 };
+
 

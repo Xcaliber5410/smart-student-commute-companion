@@ -191,9 +191,27 @@ const studyResourceFilterSchema = z.object({
   order: data.order.toLowerCase()
 }));
 
+const linkResourcesSchema = z.object({
+  resource_ids: z.array(z.string().min(1)).min(1, 'At least one resource ID must be provided').optional(),
+  resourceIds: z.array(z.string().min(1)).min(1, 'At least one resource ID must be provided').optional()
+}).refine(data => (data.resource_ids && data.resource_ids.length > 0) || (data.resourceIds && data.resourceIds.length > 0), {
+  message: 'resource_ids must contain at least one resource ID'
+}).transform(data => ({
+  resource_ids: data.resource_ids || data.resourceIds,
+  resourceIds: data.resource_ids || data.resourceIds
+}));
+
+const entityAndResourceParamSchema = z.object({
+  id: z.string().min(1, 'Entity ID is required'),
+  resourceId: z.string().min(1, 'Resource ID is required')
+});
+
 module.exports = {
   resourceTypeEnum,
   createStudyResourceSchema,
   updateStudyResourceSchema,
-  studyResourceFilterSchema
+  studyResourceFilterSchema,
+  linkResourcesSchema,
+  entityAndResourceParamSchema
 };
+

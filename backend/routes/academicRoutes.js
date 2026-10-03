@@ -30,7 +30,9 @@ const {
   linkGoalStudySessionsSchema,
   productivityFilterSchema,
   studentInsightsFilterSchema,
-  studentSearchQuerySchema
+  studentSearchQuerySchema,
+  linkResourcesSchema,
+  entityAndResourceParamSchema
 } = require('../validators');
 
 function createAcademicRoutes() {
@@ -86,6 +88,25 @@ function createAcademicRoutes() {
     courseController.deleteCourse
   );
 
+  router.get(
+    '/academic/courses/:id/resources',
+    validate(idParamSchema, 'params'),
+    courseController.getCourseResources
+  );
+
+  router.post(
+    '/academic/courses/:id/resources',
+    validate(idParamSchema, 'params'),
+    validate(linkResourcesSchema, 'body'),
+    courseController.linkResources
+  );
+
+  router.delete(
+    '/academic/courses/:id/resources/:resourceId',
+    validate(entityAndResourceParamSchema, 'params'),
+    courseController.unlinkResource
+  );
+
   // -------------------------------------------------------------
   // Assignment & Task Endpoints
   // -------------------------------------------------------------
@@ -132,6 +153,25 @@ function createAcademicRoutes() {
     '/academic/assignments/:id',
     validate(idParamSchema, 'params'),
     assignmentController.deleteAssignment
+  );
+
+  router.get(
+    '/academic/assignments/:id/resources',
+    validate(idParamSchema, 'params'),
+    assignmentController.getAssignmentResources
+  );
+
+  router.post(
+    '/academic/assignments/:id/resources',
+    validate(idParamSchema, 'params'),
+    validate(linkResourcesSchema, 'body'),
+    assignmentController.linkResources
+  );
+
+  router.delete(
+    '/academic/assignments/:id/resources/:resourceId',
+    validate(entityAndResourceParamSchema, 'params'),
+    assignmentController.unlinkResource
   );
 
   // -------------------------------------------------------------
@@ -231,6 +271,25 @@ function createAcademicRoutes() {
   router.delete(
     '/academic/goals/:id/study-sessions/:sessionId',
     goalController.unlinkStudySession
+  );
+
+  router.get(
+    '/academic/goals/:id/resources',
+    validate(idParamSchema, 'params'),
+    goalController.getGoalResources
+  );
+
+  router.post(
+    '/academic/goals/:id/resources',
+    validate(idParamSchema, 'params'),
+    validate(linkResourcesSchema, 'body'),
+    goalController.linkResources
+  );
+
+  router.delete(
+    '/academic/goals/:id/resources/:resourceId',
+    validate(entityAndResourceParamSchema, 'params'),
+    goalController.unlinkResource
   );
 
   // -------------------------------------------------------------

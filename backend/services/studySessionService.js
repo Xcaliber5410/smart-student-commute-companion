@@ -11,7 +11,9 @@ const { courseRepository } = require('../repositories/CourseRepository');
 const { assignmentRepository } = require('../repositories/AssignmentRepository');
 const { reminderRepository } = require('../repositories/ReminderRepository');
 const { goalRepository } = require('../repositories/GoalRepository');
-const { NotFoundError, ForbiddenError, ValidationError } = require('../errors');
+const { studyResourceRepository } = require('../repositories/StudyResourceRepository');
+const { getConnection } = require('../db/connection');
+const { NotFoundError, ForbiddenError, ValidationError, BadRequestError } = require('../errors');
 
 class StudySessionService {
   constructor(
@@ -19,13 +21,15 @@ class StudySessionService {
     crseRepo = courseRepository,
     asgnRepo = assignmentRepository,
     remRepo = reminderRepository,
-    goalRepo = goalRepository
+    goalRepo = goalRepository,
+    resourceRepo = studyResourceRepository
   ) {
     this.studyRepo = studyRepo;
     this.courseRepo = crseRepo;
     this.asgnRepo = asgnRepo;
     this.remRepo = remRepo;
     this.goalRepo = goalRepo;
+    this.resourceRepo = resourceRepo;
   }
 
   getGoalService() {
@@ -270,6 +274,73 @@ class StudySessionService {
     }
 
     return deleted;
+  }
+
+  async getSessionResources(userId, sessionId, requestingUser = null) {
+    const session = await this.getSessionById(userId, sessionId);
+    const resources = this.resourceRepo.findByStudySession(sessionId, session.user_id);
+    return {
+      studySession: session.toJSON(),
+      resources: resources.map(r => (r.toJSON ? r.toJSON() : r))
+    };
+  }
+
+  async linkResources(userId, sessionId, resourceIds, requestingUser = null) {
+    const session = await this.getSessionById(userId, sessionId);
+
+    if (!Array.isArray(resourceIds) || resourceIds.length === 0) {
+      throw new BadRequestError('At least one resource ID must be provided');
+    }
+
+    // Pre-flight check: verify all resources exist and belong to the same student
+    const resources = [];
+    for (const rId of resourceIds) {
+      const res = this.resourceRepo.findById(rId);
+      if (!res) {
+        throw new NotFoundError(`Study resource with id '${rId}' not found`);
+      }
+      if (res.user_id !== session.user_id) {
+        throw new ForbiddenError('Cannot link study resource belonging to another student to this study session');
+      }
+      resources.push(res);
+    }
+
+    // Execute atomic update inside transaction
+    const db = getConnection();
+    const tx = db.transaction(() => {
+      for (const res of resources) {
+        this.resourceRepo.update(res.id, session.user_id, { study_session_id: sessionId });
+      }
+    });
+    tx();
+
+    const updatedResources = this.resourceRepo.findByStudySession(sessionId, session.user_id);
+    return {
+      studySession: session.toJSON(),
+      resources: updatedResources.map(r => (r.toJSON ? r.toJSON() : r))
+    };
+  }
+
+  async unlinkResource(userId, sessionId, resourceId, requestingUser = null) {
+    const session = await this.getSessionById(userId, sessionId);
+
+    const res = this.resourceRepo.findById(resourceId);
+    if (!res) {
+      throw new NotFoundError(`Study resource with id '${resourceId}' not found`);
+    }
+    if (res.user_id !== session.user_id) {
+      throw new ForbiddenError('Cannot manage study resource belonging to another student');
+    }
+    if (res.study_session_id !== sessionId) {
+      throw new BadRequestError(`Study resource '${resourceId}' is not associated with study session '${sessionId}'`);
+    }
+
+    this.resourceRepo.update(resourceId, session.user_id, { study_session_id: null });
+
+    return {
+      studySession: session.toJSON(),
+      unlinkedResourceId: resourceId
+    };
   }
 }
 

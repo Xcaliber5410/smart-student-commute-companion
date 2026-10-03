@@ -27,6 +27,10 @@ const {
   updateStudySessionStatusSchema,
   studySessionFilterSchema
 } = require('../validators/studySessionValidators');
+const {
+  linkResourcesSchema,
+  entityAndResourceParamSchema
+} = require('../validators/studyResourceValidators');
 
 function createCalendarRoutes() {
   const router = express.Router();
@@ -153,6 +157,25 @@ function createCalendarRoutes() {
     '/calendar/study-sessions/:id',
     validate(idParamSchema, 'params'),
     studySessionController.deleteSession
+  );
+
+  router.get(
+    '/calendar/study-sessions/:id/resources',
+    validate(idParamSchema, 'params'),
+    studySessionController.getSessionResources
+  );
+
+  router.post(
+    '/calendar/study-sessions/:id/resources',
+    validate(idParamSchema, 'params'),
+    validate(linkResourcesSchema, 'body'),
+    studySessionController.linkResources
+  );
+
+  router.delete(
+    '/calendar/study-sessions/:id/resources/:resourceId',
+    validate(entityAndResourceParamSchema, 'params'),
+    studySessionController.unlinkResource
   );
 
   return router;

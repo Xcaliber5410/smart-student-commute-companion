@@ -85,11 +85,64 @@ async function deleteSession(req, res, next) {
   }
 }
 
+async function getSessionResources(req, res, next) {
+  try {
+    const result = await studySessionService.getSessionResources(
+      req.user.id,
+      req.params.id,
+      req.user
+    );
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function linkResources(req, res, next) {
+  try {
+    const resourceIds = req.body.resource_ids || req.body.resourceIds;
+    const result = await studySessionService.linkResources(
+      req.user.id,
+      req.params.id,
+      resourceIds,
+      req.user
+    );
+    return success(res, {
+      message: 'Resources linked to study session successfully',
+      linkedCount: result.resources ? result.resources.length : (resourceIds ? resourceIds.length : 0),
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function unlinkResource(req, res, next) {
+  try {
+    const result = await studySessionService.unlinkResource(
+      req.user.id,
+      req.params.id,
+      req.params.resourceId,
+      req.user
+    );
+    return success(res, {
+      message: 'Resource unlinked from study session successfully',
+      unlinked: true,
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createSession,
   listSessions,
   getSession,
   updateSession,
   updateStatus,
-  deleteSession
+  deleteSession,
+  getSessionResources,
+  linkResources,
+  unlinkResource
 };
