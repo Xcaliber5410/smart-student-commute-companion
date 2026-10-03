@@ -412,6 +412,127 @@ class StudyResourceRepository {
     const row = this.database.prepare(query).get(...params);
     return row ? row.total : 0;
   }
+
+  /**
+   * Retrieves resources associated with child deliverables of a course
+   * (assignments, goals, study sessions linked to the course).
+   *
+   * @param {string} courseId - Course ID
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}]
+   * @returns {{ assignmentResources: StudyResource[], goalResources: StudyResource[], sessionResources: StudyResource[] }}
+   */
+  findResourcesByCourseAssociations(courseId, userId, options = {}) {
+    if (!courseId || !userId) return { assignmentResources: [], goalResources: [], sessionResources: [] };
+    const db = this.database;
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+
+    // 1. Resources linked to assignments under this course
+    const asgnStmt = db.prepare(`
+      SELECT sr.* FROM study_resources sr
+      JOIN assignments a ON sr.assignment_id = a.id
+      WHERE a.course_id = ? AND sr.user_id = ? AND sr.archived = 0
+      ORDER BY sr.is_favorite DESC, sr.updated_at DESC
+      LIMIT ?
+    `);
+    const asgnRows = asgnStmt.all(courseId, userId, limit);
+
+    // 2. Resources linked to goals under this course
+    const goalStmt = db.prepare(`
+      SELECT sr.* FROM study_resources sr
+      JOIN goals g ON sr.goal_id = g.id
+      WHERE g.course_id = ? AND sr.user_id = ? AND sr.archived = 0
+      ORDER BY sr.is_favorite DESC, sr.updated_at DESC
+      LIMIT ?
+    `);
+    const goalRows = goalStmt.all(courseId, userId, limit);
+
+    // 3. Resources linked to study sessions under this course
+    const sessionStmt = db.prepare(`
+      SELECT sr.* FROM study_resources sr
+      JOIN study_sessions s ON sr.study_session_id = s.id
+      WHERE s.course_id = ? AND sr.user_id = ? AND sr.archived = 0
+      ORDER BY sr.is_favorite DESC, sr.updated_at DESC
+      LIMIT ?
+    `);
+    const sessionRows = sessionStmt.all(courseId, userId, limit);
+
+    return {
+      assignmentResources: asgnRows.map(r => StudyResource.fromRow(r)),
+      goalResources: goalRows.map(r => StudyResource.fromRow(r)),
+      sessionResources: sessionRows.map(r => StudyResource.fromRow(r))
+    };
+  }
+
+  /**
+   * Retrieves resources associated with child entities of a goal
+   * (assignments and study sessions linked to the goal).
+   *
+   * @param {string} goalId - Goal ID
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}]
+   * @returns {{ assignmentResources: StudyResource[], sessionResources: StudyResource[] }}
+   */
+  findResourcesByGoalAssociations(goalId, userId, options = {}) {
+    if (!goalId || !userId) return { assignmentResources: [], sessionResources: [] };
+    const db = this.database;
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+
+    const asgnStmt = db.prepare(`
+      SELECT sr.* FROM study_resources sr
+      JOIN assignments a ON sr.assignment_id = a.id
+      WHERE a.goal_id = ? AND sr.user_id = ? AND sr.archived = 0
+      ORDER BY sr.is_favorite DESC, sr.updated_at DESC
+      LIMIT ?
+    `);
+    const asgnRows = asgnStmt.all(goalId, userId, limit);
+
+    const sessionStmt = db.prepare(`
+      SELECT sr.* FROM study_resources sr
+      JOIN study_sessions s ON sr.study_session_id = s.id
+      WHERE s.goal_id = ? AND sr.user_id = ? AND sr.archived = 0
+      ORDER BY sr.is_favorite DESC, sr.updated_at DESC
+      LIMIT ?
+    `);
+    const sessionRows = sessionStmt.all(goalId, userId, limit);
+
+    return {
+      assignmentResources: asgnRows.map(r => StudyResource.fromRow(r)),
+      sessionResources: sessionRows.map(r => StudyResource.fromRow(r))
+    };
+  }
+
+  /**
+   * Retrieves resources currently linked to active, high-priority academic work
+   * (pending or urgent assignments, active in-progress goals, and planned study sessions).
+   *
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}]
+   * @returns {StudyResource[]}
+   */
+  findActiveWorkResources(userId, options = {}) {
+    if (!userId) return [];
+    const db = this.database;
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+
+    const stmt = db.prepare(`
+      SELECT DISTINCT sr.* FROM study_resources sr
+      LEFT JOIN assignments a ON sr.assignment_id = a.id
+      LEFT JOIN goals g ON sr.goal_id = g.id
+      LEFT JOIN study_sessions s ON sr.study_session_id = s.id
+      WHERE sr.user_id = ?
+        AND sr.archived = 0
+        AND (
+          (a.id IS NOT NULL AND a.status IN ('pending', 'in_progress', 'urgent'))
+          OR (g.id IS NOT NULL AND g.status IN ('in_progress'))
+          OR (s.id IS NOT NULL AND s.status IN ('planned', 'in_progress'))
+        )
+      ORDER BY sr.is_favorite DESC, sr.updated_at DESC
+      LIMIT ?
+    `);
+    const rows = stmt.all(userId, limit);
+    return rows.map(r => StudyResource.fromRow(r));
+  }
 }
 
 const studyResourceRepository = new StudyResourceRepository();

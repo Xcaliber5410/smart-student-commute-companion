@@ -206,12 +206,40 @@ const entityAndResourceParamSchema = z.object({
   resourceId: z.string().min(1, 'Resource ID is required')
 });
 
+const resourceContextQuerySchema = z.object({
+  course_id: z.string().trim().optional(),
+  courseId: z.string().trim().optional(),
+  assignment_id: z.string().trim().optional(),
+  assignmentId: z.string().trim().optional(),
+  goal_id: z.string().trim().optional(),
+  goalId: z.string().trim().optional(),
+  study_session_id: z.string().trim().optional(),
+  studySessionId: z.string().trim().optional(),
+  recent: z.union([
+    z.boolean(),
+    z.string().transform(v => v === 'true' || v === '1')
+  ]).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  resource_type: resourceTypeEnum.optional(),
+  resourceType: resourceTypeEnum.optional(),
+  type: resourceTypeEnum.optional()
+}).transform(data => ({
+  courseId: data.courseId || data.course_id || undefined,
+  assignmentId: data.assignmentId || data.assignment_id || undefined,
+  goalId: data.goalId || data.goal_id || undefined,
+  studySessionId: data.studySessionId || data.study_session_id || undefined,
+  recent: data.recent || false,
+  limit: data.limit,
+  resourceType: data.resourceType || data.resource_type || data.type || undefined
+}));
+
 module.exports = {
   resourceTypeEnum,
   createStudyResourceSchema,
   updateStudyResourceSchema,
   studyResourceFilterSchema,
   linkResourcesSchema,
-  entityAndResourceParamSchema
+  entityAndResourceParamSchema,
+  resourceContextQuerySchema
 };
 

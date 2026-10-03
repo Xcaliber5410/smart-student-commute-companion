@@ -147,6 +147,7 @@ const expectedEndpoints = [
   // Day 12 Study Resources Endpoints
   { method: 'GET', path: '/student/resources' },
   { method: 'POST', path: '/student/resources' },
+  { method: 'GET', path: '/student/resources/context' },
   { method: 'GET', path: '/student/resources/:id' },
   { method: 'PATCH', path: '/student/resources/:id' },
   { method: 'PUT', path: '/student/resources/:id' },
@@ -155,6 +156,7 @@ const expectedEndpoints = [
   { method: 'POST', path: '/student/resources/:id/favorite' },
   { method: 'GET', path: '/academic/resources' },
   { method: 'POST', path: '/academic/resources' },
+  { method: 'GET', path: '/academic/resources/context' },
   { method: 'GET', path: '/academic/resources/:id' },
   { method: 'PATCH', path: '/academic/resources/:id' },
   { method: 'PUT', path: '/academic/resources/:id' },

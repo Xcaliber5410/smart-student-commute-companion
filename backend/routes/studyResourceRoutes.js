@@ -14,7 +14,8 @@ const {
   idParamSchema,
   createStudyResourceSchema,
   updateStudyResourceSchema,
-  studyResourceFilterSchema
+  studyResourceFilterSchema,
+  resourceContextQuerySchema
 } = require('../validators');
 
 function createStudyResourceRoutes() {
@@ -37,6 +38,12 @@ function createStudyResourceRoutes() {
     '/student/resources',
     validate(createStudyResourceSchema, 'body'),
     studyResourceController.createResource
+  );
+
+  router.get(
+    '/student/resources/context',
+    validate(resourceContextQuerySchema, 'query'),
+    studyResourceController.getContextualResources
   );
 
   router.get(
@@ -90,6 +97,12 @@ function createStudyResourceRoutes() {
     '/academic/resources',
     validate(createStudyResourceSchema, 'body'),
     studyResourceController.createResource
+  );
+
+  router.get(
+    '/academic/resources/context',
+    validate(resourceContextQuerySchema, 'query'),
+    studyResourceController.getContextualResources
   );
 
   router.get(

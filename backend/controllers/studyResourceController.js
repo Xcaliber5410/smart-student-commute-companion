@@ -6,8 +6,21 @@
  * Guarantees strict student scoping, unified response formatting, and error handling.
  */
 
-const { studyResourceService } = require('../services');
+const { studyResourceService, resourceContextService } = require('../services');
 const { success, created } = require('../utils/apiResponse');
+
+/**
+ * Retrieves contextual study resources tailored to a student's active work
+ * (course, assignment, goal, study session, or recent/active workload).
+ */
+function getContextualResources(req, res, next) {
+  try {
+    const contextData = resourceContextService.getContextualResources(req.user, req.query);
+    return success(res, contextData);
+  } catch (err) {
+    next(err);
+  }
+}
 
 /**
  * Creates a new study resource for the authenticated student.
@@ -129,6 +142,7 @@ function toggleFavorite(req, res, next) {
 }
 
 module.exports = {
+  getContextualResources,
   createResource,
   listResources,
   getResource,

@@ -80,7 +80,8 @@ const {
   updateStudyResourceSchema,
   studyResourceFilterSchema,
   linkResourcesSchema,
-  entityAndResourceParamSchema
+  entityAndResourceParamSchema,
+  resourceContextQuerySchema
 } = require('./studyResourceValidators');
 
 module.exports = {
@@ -158,7 +159,8 @@ module.exports = {
   updateStudyResourceSchema,
   studyResourceFilterSchema,
   linkResourcesSchema,
-  entityAndResourceParamSchema
+  entityAndResourceParamSchema,
+  resourceContextQuerySchema
 };
 
 

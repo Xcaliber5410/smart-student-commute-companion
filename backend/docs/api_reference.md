@@ -518,5 +518,19 @@ Toggles favorite status between 0 and 1.
 - **Auth**: `Bearer <token>`
 - **Response**: `200 OK`
 
+### `GET /api/student/resources/context` (or `/api/academic/resources/context`)
+Retrieves contextual study resources deterministically tailored to a student's current academic work (course, assignment, goal, study session, or recent workload).
+
+- **Auth**: `Bearer <token>`
+- **Query Parameters**:
+  - `courseId` (or `course_id`): Course ID to retrieve course and deliverable materials
+  - `assignmentId` (or `assignment_id`): Assignment ID to retrieve direct, parent course, and goal materials
+  - `goalId` (or `goal_id`): Goal ID to retrieve direct, course, and child task/session materials
+  - `studySessionId` (or `study_session_id`): Study Session ID to retrieve direct, course, goal, and task materials
+  - `recent`: `boolean` (defaults to active & recent workload if no specific ID provided)
+  - `resourceType`: filter by type (`note`, `reference`, `document`, `link`, `other`)
+  - `limit`: `1-50` (default: 20)
+- **Response**: `200 OK` with contextual payload, summaries, direct resources, and deterministically ranked unified resources.
+
 
 
