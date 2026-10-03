@@ -14,7 +14,8 @@ import {
   Smartphone,
   Download,
   Menu,
-  X
+  X,
+  BarChart3
 } from 'lucide-react';
 import { ENABLE_DEMO_RESET } from '../config/index.js';
 import { ConfirmDialog } from './ui';
@@ -81,6 +82,13 @@ export const NAV_ITEMS = [
     shortLabel: 'Install',
     icon: Smartphone,
     description: 'App install status, sharing, and shortcuts'
+  },
+  {
+    id: 'analytics',
+    label: 'PWA Analytics',
+    shortLabel: 'Stats',
+    icon: BarChart3,
+    description: 'Install, offline, cache & service-worker monitoring'
   }
 ];
 
@@ -203,7 +211,7 @@ export default function Navbar({
                 >
                   <Icon className={`w-3.5 h-3.5 ${item.id === 'feed' && !isActive ? 'text-amber-400' : ''}`} aria-hidden="true" />
                   {/*
-                    Labels scale with available width so eight tabs never
+                    Labels scale with available width so nine tabs never
                     overflow the header: icon-only below xl (tablets and
                     small laptops), short labels at xl and up to the wide
                     threshold, full labels only when there is real room

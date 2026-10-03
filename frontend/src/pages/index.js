@@ -17,3 +17,4 @@ export { default as TransitSearchPage } from './TransitSearchPage';
 export { default as NotificationsPage } from './NotificationsPage';
 export { default as DeviceAlertsPage } from './DeviceAlertsPage';
 export { default as InstallShareHubPage } from './InstallShareHubPage';
+export { default as AnalyticsPage } from './AnalyticsPage';

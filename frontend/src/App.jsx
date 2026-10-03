@@ -10,7 +10,7 @@ import FeedbackModal from './components/FeedbackModal';
 import PreferencesDialog from './components/PreferencesDialog';
 import PwaStatusBanner from './components/PwaStatusBanner';
 import InstallPromoBanner from './components/InstallPromoBanner';
-import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage, InstallShareHubPage } from './pages';
+import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage, InstallShareHubPage, AnalyticsPage } from './pages';
 import { 
   requestPlan, 
   sendFeedback
@@ -827,6 +827,15 @@ export default function App() {
             sharedReport={sharedReportPrefill}
             onUseSharedInReport={handleUseSharedInReport}
             onDismissShared={handleDismissSharedReport}
+          />
+        );
+
+      case 'analytics':
+        return (
+          <AnalyticsPage
+            canInstall={canInstall}
+            isInstalled={isInstalled}
+            isOffline={isOffline}
           />
         );
 
