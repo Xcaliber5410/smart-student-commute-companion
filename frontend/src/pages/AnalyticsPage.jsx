@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   BarChart3,
   Gauge,
@@ -93,6 +93,22 @@ export default function AnalyticsPage({
   const [visibleInstallRows, setVisibleInstallRows] = useState(EVENT_ROWS_STEP);
   const [visibleErrorRows, setVisibleErrorRows] = useState(EVENT_ROWS_STEP);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  // Manual-refresh feedback: announced politely and rendered under the
+  // control so screen-reader users learn when a re-read finishes — the
+  // button spinner alone is visual-only feedback.
+  const [refreshStatus, setRefreshStatus] = useState('');
+  const wasRefreshing = useRef(false);
+
+  useEffect(() => {
+    if (isRefreshing) {
+      wasRefreshing.current = true;
+      setRefreshStatus('Refreshing metrics…');
+    } else if (wasRefreshing.current) {
+      wasRefreshing.current = false;
+      setRefreshStatus('Metrics refreshed.');
+    }
+  }, [isRefreshing]);
 
   useEffect(() => {
     let media;
@@ -189,6 +205,8 @@ export default function AnalyticsPage({
   };
   const storageData = snapshot?.storage ?? null;
   const recordedEvents = snapshot?.events ?? [];
+  const activeWindowLabel =
+    TIME_WINDOWS.find((window) => window.id === timeWindow)?.label ?? TIME_WINDOWS[0].label;
   const inSelectedWindow = (event) => {
     if (timeWindow === 'all') return true;
     const ts = Date.parse(event?.at);
@@ -221,18 +239,27 @@ export default function AnalyticsPage({
           </p>
         </div>
         {onRefresh && (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />}
-            loading={isRefreshing}
-            disabled={isRefreshing}
-            onClick={onRefresh}
-            className="shrink-0 self-start min-h-9"
-          >
-            Refresh
-          </Button>
+          <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />}
+              loading={isRefreshing}
+              disabled={isRefreshing}
+              onClick={onRefresh}
+              className="min-h-9"
+            >
+              Refresh
+            </Button>
+            <p
+              role="status"
+              aria-live="polite"
+              className="min-h-[1rem] text-xs text-slate-500"
+            >
+              {refreshStatus}
+            </p>
+          </div>
         )}
       </header>
 
@@ -357,11 +384,19 @@ export default function AnalyticsPage({
               items={installEvents.slice(0, visibleInstallRows)}
               emptyMessage="No install events in this window."
             />
+            {installEvents.length > 0 && (
+              <p role="status" aria-live="polite" className="px-1 text-xs text-slate-500">
+                Showing {Math.min(visibleInstallRows, installEvents.length)} of{' '}
+                {installEvents.length} install {installEvents.length === 1 ? 'event' : 'events'}{' '}
+                ({activeWindowLabel}).
+              </p>
+            )}
             {installEvents.length > visibleInstallRows && (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
+                id="analytics-install-show-more"
                 onClick={() => setVisibleInstallRows((rows) => rows + EVENT_ROWS_STEP)}
                 className="min-h-9"
               >
@@ -373,7 +408,15 @@ export default function AnalyticsPage({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setVisibleInstallRows(EVENT_ROWS_STEP)}
+                onClick={() => {
+                  setVisibleInstallRows(EVENT_ROWS_STEP);
+                  // "Show less" unmounts here — hand focus to the "Show
+                  // more" control that reappears so keyboard focus is not
+                  // dropped back to the top of the document.
+                  requestAnimationFrame(() =>
+                    document.getElementById('analytics-install-show-more')?.focus()
+                  );
+                }}
                 className="min-h-9"
               >
                 Show less
@@ -501,11 +544,19 @@ export default function AnalyticsPage({
               items={workerErrorEvents.slice(0, visibleErrorRows)}
               emptyMessage="No service worker errors in this window — the worker has run cleanly."
             />
+            {workerErrorEvents.length > 0 && (
+              <p role="status" aria-live="polite" className="px-1 text-xs text-slate-500">
+                Showing {Math.min(visibleErrorRows, workerErrorEvents.length)} of{' '}
+                {workerErrorEvents.length} worker{' '}
+                {workerErrorEvents.length === 1 ? 'error' : 'errors'} ({activeWindowLabel}).
+              </p>
+            )}
             {workerErrorEvents.length > visibleErrorRows && (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
+                id="analytics-error-show-more"
                 onClick={() => setVisibleErrorRows((rows) => rows + EVENT_ROWS_STEP)}
                 className="min-h-9"
               >
@@ -517,7 +568,14 @@ export default function AnalyticsPage({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setVisibleErrorRows(EVENT_ROWS_STEP)}
+                onClick={() => {
+                  setVisibleErrorRows(EVENT_ROWS_STEP);
+                  // Focus hands back to the reappearing "Show more" control
+                  // (same reason as the installation log above).
+                  requestAnimationFrame(() =>
+                    document.getElementById('analytics-error-show-more')?.focus()
+                  );
+                }}
                 className="min-h-9"
               >
                 Show less
