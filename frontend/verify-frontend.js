@@ -1137,8 +1137,8 @@ if (
 } else {
   fail('Navigation is missing the analytics tab entry');
 }
-if (navContent && navContent.includes('min-[1920px]')) {
-  pass('Nine desktop nav labels scale to prevent header overflow');
+if (navContent && navContent.includes('min-[2200px]') && navContent.includes('2xl:inline')) {
+  pass('Ten desktop nav labels scale to prevent header overflow');
 } else {
   fail('Desktop nav labels have no overflow-safe scaling breakpoint');
 }

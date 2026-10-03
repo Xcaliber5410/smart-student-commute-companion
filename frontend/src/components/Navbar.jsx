@@ -219,18 +219,19 @@ export default function Navbar({
                 >
                   <Icon className={`w-3.5 h-3.5 ${item.id === 'feed' && !isActive ? 'text-amber-400' : ''}`} aria-hidden="true" />
                   {/*
-                    Labels scale with available width so nine tabs never
-                    overflow the header (measured inside the max-w-7xl row
-                    with the install control present): icon-only below 2xl
-                    (phones, tablets, laptops, smaller desktops), short
-                    labels from 2xl, full labels only at >=1920px where the
-                    nine full labels plus the right-hand controls fit the
-                    viewport without horizontal scrolling.
+                    Labels scale with available width so ten tabs never
+                    overflow the header (measured with the install control
+                    present): icon-only below 2xl (phones, tablets, laptops,
+                    smaller desktops), short labels from 2xl up to 2199px,
+                    full labels only at >=2200px where the ten full labels
+                    plus the right-hand controls fit the viewport without
+                    horizontal scrolling (Day-11 re-measured: 9 labels fit
+                    at 1920, ten do not — crossover ~2110px).
                     aria-label/title keep the target named when only the
                     icon shows.
                   */}
-                  <span className="hidden min-[1920px]:inline">{item.label}</span>
-                  <span className="hidden 2xl:inline min-[1920px]:hidden">{item.shortLabel}</span>
+                  <span className="hidden min-[2200px]:inline">{item.label}</span>
+                  <span className="hidden 2xl:inline min-[2200px]:hidden">{item.shortLabel}</span>
                   {item.hasBadge && reportsCount > 0 && (
                     <span 
                       className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ml-0.5 ${
@@ -437,7 +438,7 @@ export default function Navbar({
 
       {/* Mobile Bottom Fixed Navigation Bar (Sticky Thumb Navigation) */}
       <nav 
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/90 px-1 py-2 flex items-center justify-around shadow-2xl"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/90 px-0.5 py-2 flex items-center justify-around shadow-2xl"
         role="navigation"
         aria-label="Mobile quick navigation"
       >
@@ -449,7 +450,7 @@ export default function Navbar({
               key={item.id}
               onClick={() => handleSelectTab(item.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`min-w-0 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all relative focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+              className={`min-w-0 flex flex-col items-center justify-center py-1 px-0 rounded-xl transition-all relative focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                 isActive
                   ? 'text-emerald-400 font-bold'
                   : 'text-slate-400 hover:text-slate-200'
@@ -463,7 +464,7 @@ export default function Navbar({
                   </span>
                 )}
               </div>
-              <span className="text-[11px] mt-1 tracking-tight max-w-full truncate">
+              <span className="text-[10px] mt-1 tracking-tight max-w-full truncate">
                 {item.shortLabel}
               </span>
               {isActive && (
