@@ -54,6 +54,16 @@ import {
   isShareTargetLaunch,
   watchShareTargetDeliveries,
 } from './services/shareTarget';
+import {
+  readAnalyticsSnapshot,
+  recordInstallOutcome,
+  markInstalled,
+  beginAnalyticsSession,
+  beginOfflinePeriod,
+  endOfflinePeriod,
+  resetAnalytics,
+  watchAnalytics,
+} from './services/pwaAnalytics';
 import useAsyncResource from './hooks/useAsyncResource';
 import usePwaInstall from './hooks/usePwaInstall';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -134,6 +144,14 @@ export default function App() {
     { errorMessage: 'Unable to search the transit network. Please check your connection and try again.' }
   );
 
+  // Day 10 — PWA analytics: device-local metrics (install prompts, offline
+  // periods, cache hit/miss rates, service-worker errors) for the Analytics
+  // screen. Reads come from services/pwaAnalytics — no backend involved.
+  const analyticsResource = useAsyncResource(
+    () => readAnalyticsSnapshot(),
+    { errorMessage: 'Unable to read the metrics stored on this device. Check that site storage is allowed and try again.' }
+  );
+
   // Client-side personalization preferences (device-local, no backend sync)
   const [appPreferences, setAppPreferences] = useState(() => readAppPreferences());
 
@@ -159,12 +177,22 @@ export default function App() {
 
   // Browser connectivity transitions (online/offline events)
   useEffect(() => {
+    // Day 10 — drop any offline period left open by a previous session (its
+    // duration is unknowable) and start counting when launching offline.
+    beginAnalyticsSession({
+      isOffline: typeof navigator !== 'undefined' ? !navigator.onLine : false,
+    });
+
     const handleOffline = () => {
       setIsOffline(true);
+      beginOfflinePeriod();
+      refreshAnalyticsSnapshot();
       showToast('You are offline — live data is unavailable until you reconnect.', 'warning');
     };
     const handleOnline = () => {
       setIsOffline(false);
+      endOfflinePeriod();
+      refreshAnalyticsSnapshot();
       showToast('Back online — live data is available again.', 'success');
     };
     window.addEventListener('offline', handleOffline);
@@ -172,6 +200,22 @@ export default function App() {
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
+  // Day 10 — PWA analytics: consume service-worker metric messages (cache
+  // lookups, worker errors) and the browser's install confirmation, then
+  // refresh the Analytics snapshot. Coalesced inside watchAnalytics.
+  useEffect(() => {
+    const stopWatching = watchAnalytics(() => refreshAnalyticsSnapshot());
+    const handleInstalled = () => {
+      markInstalled();
+      refreshAnalyticsSnapshot();
+    };
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => {
+      stopWatching();
+      window.removeEventListener('appinstalled', handleInstalled);
     };
   }, []);
 
@@ -223,6 +267,9 @@ export default function App() {
 
   const handleInstallApp = async () => {
     const outcome = await promptInstall();
+    // Day 10 — record the outcome for PWA Analytics (device-local only).
+    recordInstallOutcome(outcome);
+    refreshAnalyticsSnapshot();
     if (outcome === 'accepted') {
       showToast('Thanks! The app is being installed on your device.', 'success');
     } else if (outcome === 'dismissed') {
@@ -360,6 +407,7 @@ export default function App() {
     reportsResource.load();
     groupsResource.load();
     savedCommutesResource.load();
+    analyticsResource.load();
 
     // 2. Setup Socket.IO
     const socket = getSocket();
@@ -536,6 +584,36 @@ export default function App() {
       showToast('Could not refresh commute groups — showing the previously loaded groups.', 'warning');
     }
     return result;
+  };
+
+  // Day 10 — re-read device-local analytics after recording an event
+  const refreshAnalyticsSnapshot = async () => {
+    try {
+      analyticsResource.setData(await readAnalyticsSnapshot());
+    } catch {
+      // Storage became unavailable mid-session — keep the last snapshot.
+    }
+  };
+
+  // Day 10 — manual refresh from the Analytics screen
+  const handleRefreshAnalytics = async () => {
+    const result = await analyticsResource.load();
+    if (!result?.ok && result?.keptData) {
+      showToast('Could not re-read analytics — showing the last recorded metrics.', 'warning');
+    }
+    return result;
+  };
+
+  // Day 10 — clear recorded analytics after the screen's confirmation dialog
+  const handleResetAnalytics = () => {
+    const didReset = resetAnalytics();
+    if (didReset) {
+      analyticsResource.setData(null);
+      analyticsResource.load(); // re-read and supersede any in-flight load
+      showToast('Analytics cleared from this device.', 'success');
+    } else {
+      showToast('Could not clear analytics — site storage is unavailable.', 'error');
+    }
   };
 
   // Reconnect the live stream after a dropped/failed socket connection
@@ -833,9 +911,16 @@ export default function App() {
       case 'analytics':
         return (
           <AnalyticsPage
+            snapshot={analyticsResource.data}
+            isLoading={analyticsResource.isLoading}
+            loadError={analyticsResource.loadError}
+            onRetry={analyticsResource.load}
+            isRefreshing={analyticsResource.isRefreshing}
+            onRefresh={handleRefreshAnalytics}
             canInstall={canInstall}
             isInstalled={isInstalled}
             isOffline={isOffline}
+            onResetAnalytics={handleResetAnalytics}
           />
         );
 

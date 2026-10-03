@@ -65,6 +65,88 @@ const EXCLUDED_PATHS = [
   'chrome-extension' // Browser extensions
 ];
 
+// Day 10: PWA analytics — cache hit/miss rates and genuine worker-side
+// failures are recorded by the worker itself. The service worker has no
+// localStorage, so counts live in a dedicated cache (deliberately NOT
+// 'sscc-' prefixed, so activate cleanup never wipes them — same rule as the
+// share-target cache). Windows pull the store on load/refresh and get a
+// broadcast whenever it changes, so observations made before a page's JS
+// mounts are never lost. Best-effort and privacy-safe: payloads carry
+// counts and error text only (no URLs, no queries, no content), and
+// recording never alters caching or request handling.
+const ANALYTICS_CACHE = 'pwa-analytics-v1';
+const ANALYTICS_STORE_URL = '/__pwa-analytics-store__';
+const MAX_SW_ERROR_EVENTS = 50;
+
+function defaultAnalyticsStore() {
+  return { hits: 0, misses: 0, errorCount: 0, errors: [] };
+}
+
+function readAnalyticsStore() {
+  return caches
+    .open(ANALYTICS_CACHE)
+    .then((cache) => cache.match(ANALYTICS_STORE_URL))
+    .then((response) => (response ? response.json() : null))
+    .then((store) =>
+      store && typeof store === 'object' ? store : defaultAnalyticsStore()
+    )
+    .catch(() => defaultAnalyticsStore());
+}
+
+function writeAnalyticsStore(store) {
+  return caches
+    .open(ANALYTICS_CACHE)
+    .then((cache) =>
+      cache.put(
+        ANALYTICS_STORE_URL,
+        new Response(JSON.stringify(store), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+    );
+}
+
+function broadcastAnalytics(message) {
+  self.clients
+    .matchAll({ includeUncontrolled: true, type: 'window' })
+    .then((windowClients) => {
+      windowClients.forEach((client) => client.postMessage(message));
+    })
+    .catch(() => {
+      // No window clients or messaging failed — analytics are optional.
+    });
+}
+
+// Serialize read-modify-write cycles so parallel fetches never lose a count.
+let analyticsTx = Promise.resolve();
+
+function recordAnalytics(payload) {
+  analyticsTx = analyticsTx
+    .then(async () => {
+      const store = await readAnalyticsStore();
+      if (payload.event === 'cache-hit') {
+        store.hits = (store.hits || 0) + 1;
+      } else if (payload.event === 'cache-miss') {
+        store.misses = (store.misses || 0) + 1;
+      } else if (payload.event === 'sw-error') {
+        store.errorCount = (store.errorCount || 0) + 1;
+        store.errors = [
+          {
+            id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+            at: new Date().toISOString(),
+            message: String(payload.message || 'Service worker error').slice(0, 200)
+          },
+          ...(Array.isArray(store.errors) ? store.errors : [])
+        ].slice(0, MAX_SW_ERROR_EVENTS);
+      }
+      await writeAnalyticsStore(store);
+      broadcastAnalytics({ type: 'pwa-analytics-updated' });
+    })
+    .catch(() => {
+      // Recording must never break caching or request handling.
+    });
+}
+
 /**
  * Install Event - Cache critical static assets
  */
@@ -198,9 +280,18 @@ self.addEventListener('fetch', (event) => {
         // If we have a cached response, return it
         if (cachedResponse) {
           console.log('[SW] Serving from cache:', url.pathname);
+          if (url.origin === self.location.origin) {
+            recordAnalytics({ event: 'cache-hit' });
+          }
           return cachedResponse;
         }
-        
+
+        // Lookup missed — count same-origin lookups only (cross-origin
+        // resources are never cached and would skew the rate).
+        if (url.origin === self.location.origin) {
+          recordAnalytics({ event: 'cache-miss' });
+        }
+
         // Otherwise, fetch from network
         return fetch(request)
           .then((networkResponse) => {
@@ -226,6 +317,10 @@ self.addEventListener('fetch', (event) => {
                   })
                   .catch((error) => {
                     console.warn('[SW] Failed to cache resource:', error);
+                    recordAnalytics({
+                      event: 'sw-error',
+                      message: `Cache write failed for ${url.pathname}`
+                    });
                   });
               }
             }
@@ -281,6 +376,48 @@ self.addEventListener('message', (event) => {
         event.ports[0].postMessage({ success: false, error: error.message });
       });
   }
+
+  // Day 10: the Analytics screen pulls the recorded store on load, refresh
+  // and retry (observations made before the page's JS mounted live here).
+  if (event.data && event.data.type === 'pwa-analytics-sync') {
+    readAnalyticsStore().then((store) => {
+      const reply = { type: 'pwa-analytics-store', store };
+      if (event.source) {
+        event.source.postMessage(reply);
+      } else {
+        broadcastAnalytics(reply);
+      }
+    });
+    return;
+  }
+
+  // Day 10: clearing the metrics clears the worker's own counters too.
+  if (event.data && event.data.type === 'pwa-analytics-reset') {
+    analyticsTx = analyticsTx
+      .then(() => writeAnalyticsStore(defaultAnalyticsStore()))
+      .then(() => broadcastAnalytics({ type: 'pwa-analytics-updated' }))
+      .catch(() => {});
+  }
+});
+
+// Day 10: genuine worker-side failures (script errors and unhandled
+// rejections) are recorded for error monitoring on the Analytics screen.
+self.addEventListener('error', (event) => {
+  recordAnalytics({
+    event: 'sw-error',
+    message: event.message || 'Service worker script error'
+  });
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason;
+  recordAnalytics({
+    event: 'sw-error',
+    message:
+      (reason && reason.message) ||
+      (typeof reason === 'string' && reason) ||
+      'Unhandled rejection in the service worker'
+  });
 });
 
 console.log('[SW] Service worker script loaded');
