@@ -256,6 +256,27 @@ import { EventLogList } from '@/components/ui';
 **Kinds**: `install`, `offline`, `online`, `cache`, `sw-error`, `sw-update`  
 **Levels**: `info`, `success`, `warning`, `error`
 
+### QueueReportItem
+Row for one pending submission waiting to reach the server (Day 11 offline queue). Renders as an `<li>` inside a caller-owned list; status is a visible text badge (never color alone), messages wrap in full, and an actions slot lets the caller add row buttons. The caller owns ordering, filtering and wiring.
+
+```jsx
+import { QueueReportItem } from '@/components/ui';
+
+<ul>
+  <QueueReportItem
+    status="pending"
+    title="Road closed near campus gate"
+    queuedAt={item.queuedAt}
+    area="Andheri"
+    attempts={0}
+  >
+    <button type="button">Discard</button>
+  </QueueReportItem>
+</ul>
+```
+
+**Statuses**: `pending` (Waiting), `sending` (Sending), `failed` (Rejected)
+
 ## Import Patterns
 
 **Recommended** (barrel import):

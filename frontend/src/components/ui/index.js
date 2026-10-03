@@ -59,3 +59,6 @@ export { default as InstallPromoDialog } from './InstallPromoDialog';
 
 // Reusable Analytics Event Log (Day 10)
 export { default as EventLogList } from './EventLogList';
+
+// Reusable Offline Queue Row (Day 11)
+export { default as QueueReportItem } from './QueueReportItem';

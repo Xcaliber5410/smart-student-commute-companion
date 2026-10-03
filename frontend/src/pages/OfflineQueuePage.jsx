@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   CloudOff,
-  Clock,
   UploadCloud,
   Wifi,
   WifiOff,
@@ -11,6 +10,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  QueueReportItem,
   StatTile,
 } from '../components/ui';
 
@@ -160,38 +160,17 @@ export default function OfflineQueuePage({
           </h2>
           <ul className="space-y-2">
             {items.map((item) => (
-              <li
+              <QueueReportItem
                 key={item.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span
-                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                      item.status === 'failed'
-                        ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                        : isSyncing
-                          ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
-                          : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                    }`}
-                  >
-                    {item.status === 'failed' ? 'Rejected' : isSyncing ? 'Sending' : 'Waiting'}
-                  </span>
-                  <span className="min-w-0 text-sm text-slate-200 break-words">
-                    {item.report?.description || item.report?.type || 'Report'}
-                  </span>
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3 w-3" aria-hidden="true" />
-                    Queued {formatRelativeTime(item.queuedAt)}
-                  </span>
-                  {item.report?.area && <span>{item.report.area}</span>}
-                  {item.attempts > 0 && <span>{item.attempts} send attempt(s)</span>}
-                </div>
-                {item.lastError && (
-                  <p className="mt-1 text-xs text-rose-300/90 break-words">{item.lastError}</p>
-                )}
-              </li>
+                status={
+                  item.status === 'failed' ? 'failed' : isSyncing ? 'sending' : 'pending'
+                }
+                title={item.report?.description || item.report?.type || 'Report'}
+                queuedAt={item.queuedAt}
+                area={item.report?.area}
+                attempts={item.attempts}
+                error={item.lastError}
+              />
             ))}
           </ul>
         </section>
