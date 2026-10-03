@@ -402,4 +402,121 @@ All results are strictly scoped to the authenticated student (`req.user.id`). Fo
 
 *For full architecture, ranking heuristics, and entity mappings, see [unified_search.md](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/backend/docs/unified_search.md).*
 
+---
+
+## 11. Student Study Resources (Day 12)
+
+Authenticated endpoints for student-owned study materials (notes, references, links, documents, and lightweight study resources). Supports relational bindings to courses, assignments, goals, and study sessions with student ownership isolation.
+
+### `GET /api/student/resources` (or `/api/academic/resources`)
+Lists authenticated student's study resources with multi-attribute filtering, search, and pagination.
+
+- **Auth**: `Bearer <token>`
+- **Query Parameters**:
+  - `page` *(optional, integer >= 1, default: 1)*
+  - `limit` *(optional, integer 1..50, default: 20)*
+  - `resource_type` / `type` *(optional, enum: `'note'`, `'link'`, `'reference'`, `'document'`, `'other'`)*
+  - `course_id` *(optional, string ID)*: Filter by associated course
+  - `assignment_id` *(optional, string ID)*: Filter by associated assignment
+  - `goal_id` *(optional, string ID)*: Filter by associated goal
+  - `study_session_id` *(optional, string ID)*: Filter by associated study session
+  - `tag` *(optional, string)*: Filter by tag
+  - `q` / `searchTerm` *(optional, string)*: Search title, description, content, tags, url, or file_name
+  - `is_favorite` *(optional, boolean or 0/1)*: Filter by favorite status
+  - `archived` *(optional, boolean or 0/1)*: Filter by archive status
+  - `sort` *(optional, `'created_at'` | `'updated_at'` | `'title'`, default: `'created_at'`)*
+  - `order` *(optional, `'asc'` | `'desc'`, default: `'desc'`)*
+- **Response**: `200 OK`
+```json
+{
+  "success": true,
+  "timestamp": "2026-10-03T10:00:00.000Z",
+  "resources": [
+    {
+      "id": "res-101",
+      "user_id": "usr-1",
+      "course_id": "crs-101",
+      "assignment_id": "asgn-101",
+      "goal_id": "goal-101",
+      "study_session_id": "sess-101",
+      "title": "Raft Consensus Protocol Notes",
+      "description": "Summary of paper",
+      "resource_type": "note",
+      "url": "https://raft.github.io/",
+      "content": "# Notes...",
+      "tags": ["raft", "consensus"],
+      "is_favorite": 1,
+      "archived": 0,
+      "created_at": 1727950000000,
+      "updated_at": 1727950000000
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+### `POST /api/student/resources` (or `/api/academic/resources`)
+Creates a new study resource for the authenticated student.
+
+- **Auth**: `Bearer <token>`
+- **Body**:
+  - `title` *(required, string 1..200 chars)*
+  - `resource_type` *(optional, enum: `'note'`, `'link'`, `'reference'`, `'document'`, `'other'`, default: `'note'`)*
+  - `description` *(optional, string <= 1000 chars)*
+  - `content` *(optional, string <= 50000 chars)*
+  - `url` *(optional, valid URL string <= 1000 chars)*
+  - `file_name` *(optional, string <= 255 chars)*
+  - `file_size` *(optional, non-negative integer)*
+  - `mime_type` *(optional, string <= 100 chars)*
+  - `tags` *(optional, array of strings or comma-separated string)*
+  - `is_favorite` *(optional, boolean or 0/1, default: 0)*
+  - `course_id` *(optional, string ID)*: Must belong to authenticated student
+  - `assignment_id` *(optional, string ID)*: Must belong to authenticated student
+  - `goal_id` *(optional, string ID)*: Must belong to authenticated student
+  - `study_session_id` *(optional, string ID)*: Must belong to authenticated student
+- **Response**: `201 Created`
+
+### `GET /api/student/resources/:id` (or `/api/academic/resources/:id`)
+Retrieves an individual study resource with student ownership verification.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK`
+
+### `PATCH /api/student/resources/:id` (or `/api/academic/resources/:id`)
+Partially updates fields of an existing study resource.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK`
+
+### `PUT /api/student/resources/:id` (or `/api/academic/resources/:id`)
+Replaces or updates fields of an existing study resource.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK`
+
+### `DELETE /api/student/resources/:id` (or `/api/academic/resources/:id`)
+Deletes a study resource. Does not delete or alter associated courses, assignments, goals, or study sessions.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK` with `{ "success": true, "message": "Study resource deleted successfully", "id": "..." }`
+
+### `POST /api/student/resources/:id/archive` (or `/api/academic/resources/:id/archive`)
+Archives or unarchives a study resource.
+
+- **Auth**: `Bearer <token>`
+- **Body**: `{ "archived": boolean }` *(optional, defaults to true)*
+- **Response**: `200 OK`
+
+### `POST /api/student/resources/:id/favorite` (or `/api/academic/resources/:id/favorite`)
+Toggles favorite status between 0 and 1.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK`
+
+
 
