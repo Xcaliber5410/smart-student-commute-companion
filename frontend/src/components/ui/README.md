@@ -238,6 +238,24 @@ import { ListSkeleton } from '@/components/ui';
 <ListSkeleton rows={3} label="Searching the transit network" />
 ```
 
+### EventLogList
+Chronological log of timestamped, device-local events (install outcomes, connectivity transitions, cache activity, service-worker errors) rendered as a real ordered list. Severity is carried by a visible kind badge alongside the dot — never color alone — and messages wrap in full. The caller owns slicing/filtering, so the component stays purely presentational.
+
+```jsx
+import { EventLogList } from '@/components/ui';
+
+<EventLogList
+  label="Service worker error log"
+  items={[
+    { id: 1, kind: 'sw-error', level: 'error', message: 'Cache write failed', at: new Date().toISOString() },
+  ]}
+  emptyMessage="No worker errors recorded."
+/>
+```
+
+**Kinds**: `install`, `offline`, `online`, `cache`, `sw-error`, `sw-update`  
+**Levels**: `info`, `success`, `warning`, `error`
+
 ## Import Patterns
 
 **Recommended** (barrel import):

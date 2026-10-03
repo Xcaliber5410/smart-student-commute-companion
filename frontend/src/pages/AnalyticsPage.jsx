@@ -12,6 +12,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  EventLogList,
   LoadingState,
   ProgressBar,
   StatTile,
@@ -163,6 +164,13 @@ export default function AnalyticsPage({
     lastErrorAt: snapshot?.sw?.lastErrorAt ?? null,
   };
   const storageData = snapshot?.storage ?? null;
+  const recordedEvents = snapshot?.events ?? [];
+  const installEvents = recordedEvents
+    .filter((event) => event.kind === 'install')
+    .slice(0, 5);
+  const workerErrorEvents = recordedEvents
+    .filter((event) => event.kind === 'sw-error')
+    .slice(0, 5);
 
   const cacheLookups = cacheData.hits + cacheData.misses;
   const hitRate =
@@ -265,6 +273,13 @@ export default function AnalyticsPage({
           <p className="text-xs text-slate-500">
             Installed on {formatDate(installData.installedAt)}.
           </p>
+        )}
+        {snapshot && (
+          <EventLogList
+            label="Installation history"
+            items={installEvents}
+            emptyMessage="No install events recorded yet."
+          />
         )}
       </section>
 
@@ -379,6 +394,13 @@ export default function AnalyticsPage({
             </>
           )}
         </div>
+        {snapshot && (
+          <EventLogList
+            label="Service worker error log"
+            items={workerErrorEvents}
+            emptyMessage="No service worker errors recorded — the worker has run cleanly."
+          />
+        )}
       </section>
 
       <p className="flex items-start gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5 text-xs text-slate-400">

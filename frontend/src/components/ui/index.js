@@ -56,3 +56,6 @@ export { default as ComparisonBars } from './ComparisonBars';
 // Reusable Promotional & Benefit-explainer Components (Day 9)
 export { default as FeatureHighlight } from './FeatureHighlight';
 export { default as InstallPromoDialog } from './InstallPromoDialog';
+
+// Reusable Analytics Event Log (Day 10)
+export { default as EventLogList } from './EventLogList';
