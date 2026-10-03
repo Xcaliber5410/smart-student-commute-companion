@@ -74,6 +74,12 @@ const {
   studentSearchQuerySchema,
   VALID_SEARCHABLE_TYPES
 } = require('./searchValidators');
+const {
+  resourceTypeEnum,
+  createStudyResourceSchema,
+  updateStudyResourceSchema,
+  studyResourceFilterSchema
+} = require('./studyResourceValidators');
 
 module.exports = {
   validate,
@@ -143,6 +149,11 @@ module.exports = {
   goalStatusEnum,
   // Search
   studentSearchQuerySchema,
-  VALID_SEARCHABLE_TYPES
+  VALID_SEARCHABLE_TYPES,
+  // Study Resources
+  resourceTypeEnum,
+  createStudyResourceSchema,
+  updateStudyResourceSchema,
+  studyResourceFilterSchema
 };
 

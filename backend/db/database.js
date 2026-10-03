@@ -296,9 +296,41 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_goals_user_status ON goals(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_goals_course_id ON goals(course_id);
     CREATE INDEX IF NOT EXISTS idx_goals_user_target_date ON goals(user_id, target_date);
+
+    -- 12. Student Study Resources (Day 12)
+    CREATE TABLE IF NOT EXISTS study_resources (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      assignment_id TEXT REFERENCES assignments(id) ON DELETE SET NULL,
+      goal_id TEXT REFERENCES goals(id) ON DELETE SET NULL,
+      study_session_id TEXT REFERENCES study_sessions(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      resource_type TEXT NOT NULL DEFAULT 'note',
+      url TEXT,
+      content TEXT,
+      file_name TEXT,
+      file_size INTEGER,
+      mime_type TEXT,
+      tags TEXT,
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      archived INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_study_resources_user_id ON study_resources(user_id);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_user_type ON study_resources(user_id, resource_type);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_user_archived ON study_resources(user_id, archived);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_user_favorite ON study_resources(user_id, is_favorite);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_course_id ON study_resources(course_id);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_assignment_id ON study_resources(assignment_id);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_goal_id ON study_resources(goal_id);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_study_session_id ON study_resources(study_session_id);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_user_created ON study_resources(user_id, created_at DESC);
   `);
 
-  // 12. GTFS Tables
+  // 13. GTFS Tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS gtfs_agency (
       agency_id TEXT PRIMARY KEY,

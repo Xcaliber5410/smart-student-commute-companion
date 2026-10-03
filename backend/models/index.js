@@ -33,6 +33,7 @@ const {
   searchDomainEnum,
   studentRelationshipEnum
 } = require('./StudentSearchResult');
+const { StudyResource, studyResourceSchema, resourceTypeEnum } = require('./StudyResource');
 
 module.exports = {
   LiveReport,
@@ -79,6 +80,9 @@ module.exports = {
   studentSearchResultSchema,
   searchResultTypeEnum,
   searchDomainEnum,
-  studentRelationshipEnum
+  studentRelationshipEnum,
+  StudyResource,
+  studyResourceSchema,
+  resourceTypeEnum
 };
 
