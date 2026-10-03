@@ -1080,6 +1080,233 @@ if (appContent && appContent.includes('promptInstall()')) {
 }
 
 // ============================================================
+// 19. DAY 10 PWA ANALYTICS & MONITORING
+// ============================================================
+
+section('19. DAY 10 PWA ANALYTICS & MONITORING');
+
+const analyticsPage = readFile('src/pages/AnalyticsPage.jsx');
+if (fileExists('src/pages/AnalyticsPage.jsx')) pass('Analytics feature screen exists');
+else fail('Analytics feature screen is missing');
+if (
+  analyticsPage &&
+  analyticsPage.includes('PWA Analytics') &&
+  analyticsPage.includes('Installation tracking') &&
+  analyticsPage.includes('Offline usage') &&
+  analyticsPage.includes('Cache performance') &&
+  analyticsPage.includes('Service worker monitoring')
+) {
+  pass('Analytics screen covers all four Day 10 roadmap areas');
+} else {
+  fail('Analytics screen is missing one of the four Day 10 roadmap areas');
+}
+if (
+  analyticsPage &&
+  analyticsPage.includes('<LoadingState') &&
+  analyticsPage.includes('<EmptyState') &&
+  analyticsPage.includes('<ErrorState')
+) {
+  pass('Analytics screen renders loading, empty and error states');
+} else {
+  fail('Analytics screen is missing loading, empty or error states');
+}
+
+const pagesBarrelDay10 = readFile('src/pages/index.js');
+if (pagesBarrelDay10 && pagesBarrelDay10.includes('AnalyticsPage')) {
+  pass('Pages barrel exports the analytics screen');
+} else {
+  fail('Pages barrel is missing the analytics screen export');
+}
+if (
+  appContent &&
+  appContent.includes("case 'analytics':") &&
+  appContent.includes('<AnalyticsPage') &&
+  appContent.includes('analyticsResource')
+) {
+  pass('App routes the analytics tab to the feature screen via its resource');
+} else {
+  fail('App does not route the analytics tab to the feature screen');
+}
+if (
+  navContent &&
+  navContent.includes("id: 'analytics'") &&
+  navContent.includes("shortLabel: 'Stats'") &&
+  navContent.includes('BarChart3')
+) {
+  pass('Navigation exposes the analytics tab with full and short labels');
+} else {
+  fail('Navigation is missing the analytics tab entry');
+}
+if (navContent && navContent.includes('min-[1920px]')) {
+  pass('Nine desktop nav labels scale to prevent header overflow');
+} else {
+  fail('Desktop nav labels have no overflow-safe scaling breakpoint');
+}
+
+const eventLogList = readFile('src/components/ui/EventLogList.jsx');
+if (fileExists('src/components/ui/EventLogList.jsx')) pass('Event log list component exists');
+else fail('Event log list component is missing');
+if (eventLogList && eventLogList.includes('<ol') && eventLogList.includes('role="status"')) {
+  pass('Event log uses an ordered list and announces its empty state');
+} else {
+  fail('Event log is missing list semantics or empty-state announcement');
+}
+const uiBarrelDay10 = readFile('src/components/ui/index.js');
+if (uiBarrelDay10 && uiBarrelDay10.includes("from './EventLogList'")) {
+  pass('UI barrel exports the event log component');
+} else {
+  fail('UI barrel is missing the event log export');
+}
+const uiReadmeDay10 = readFile('src/components/ui/README.md');
+if (uiReadmeDay10 && uiReadmeDay10.includes('EventLogList')) {
+  pass('UI component docs cover the event log component');
+} else {
+  fail('UI component docs are missing the event log component');
+}
+
+if (
+  analyticsPage &&
+  analyticsPage.includes('aria-pressed={isActive}') &&
+  analyticsPage.includes('role="group"')
+) {
+  pass('Time-window filter exposes pressed state in a labelled group');
+} else {
+  fail('Time-window filter is missing pressed state or its group label');
+}
+if (analyticsPage && analyticsPage.includes('role="status"') && analyticsPage.includes('aria-live="polite"')) {
+  pass('Analytics screen announces refresh and event-count status politely');
+} else {
+  fail('Analytics screen has no polite status announcements');
+}
+if (analyticsPage && analyticsPage.includes('<ConfirmDialog') && analyticsPage.includes('onResetAnalytics')) {
+  pass('Analytics reset is guarded by the shared confirmation dialog');
+} else {
+  fail('Analytics reset is not guarded by a confirmation dialog');
+}
+if (
+  analyticsPage &&
+  analyticsPage.includes('EVENT_ROWS_STEP = 5') &&
+  analyticsPage.includes('Show more') &&
+  analyticsPage.includes('Show less')
+) {
+  pass('Event logs expand and collapse in bounded steps');
+} else {
+  fail('Event logs are missing bounded show more/less interactions');
+}
+if (analyticsPage && analyticsPage.includes('analytics-install-show-more')) {
+  pass('Collapsing a log hands keyboard focus back to its control');
+} else {
+  fail('Log collapse has no focus-handoff target');
+}
+if (analyticsPage && analyticsPage.includes('min-h-9')) {
+  pass('Analytics controls keep 36px touch targets');
+} else {
+  fail('Analytics controls are missing minimum touch-target heights');
+}
+if (analyticsPage && analyticsPage.includes('sm:grid-cols-2') && analyticsPage.includes('md:grid-cols-3')) {
+  pass('Analytics tiles reflow across breakpoints without clipping');
+} else {
+  fail('Analytics tiles have no responsive grid reflow');
+}
+
+const analyticsService = readFile('src/services/pwaAnalytics.js');
+if (fileExists('src/services/pwaAnalytics.js')) pass('PWA analytics service exists');
+else fail('PWA analytics service is missing');
+if (
+  analyticsService &&
+  analyticsService.includes('readAnalyticsSnapshot') &&
+  analyticsService.includes('recordInstallOutcome') &&
+  analyticsService.includes('resetAnalytics') &&
+  analyticsService.includes('watchAnalytics')
+) {
+  pass('Service exposes snapshot, recording, reset and watch helpers');
+} else {
+  fail('Analytics service is missing core helper exports');
+}
+if (analyticsService && analyticsService.includes('smart_commute_pwa_analytics')) {
+  pass('Service persists metrics in device-local storage');
+} else {
+  fail('Analytics service has no device-local storage key');
+}
+if (
+  analyticsService &&
+  analyticsService.includes('navigator.serviceWorker') &&
+  analyticsService.includes("addEventListener('message'")
+) {
+  pass('Service listens on the service-worker container for metric messages');
+} else {
+  fail('Analytics service does not listen on the service-worker container');
+}
+
+const swContentDay10 = readFile('public/sw.js');
+if (
+  swContentDay10 &&
+  swContentDay10.includes('pwa-analytics-v1') &&
+  swContentDay10.includes('__pwa-analytics-store__')
+) {
+  pass('Service worker keeps a dedicated analytics store outside app caches');
+} else {
+  fail('Service worker is missing the dedicated analytics store');
+}
+if (
+  swContentDay10 &&
+  swContentDay10.includes('pwa-analytics-sync') &&
+  swContentDay10.includes('pwa-analytics-reset') &&
+  swContentDay10.includes('pwa-analytics-updated')
+) {
+  pass('Service worker answers sync/reset messages and broadcasts updates');
+} else {
+  fail('Service worker analytics messaging is incomplete');
+}
+if (
+  swContentDay10 &&
+  swContentDay10.includes("event: 'cache-hit'") &&
+  swContentDay10.includes("event: 'cache-miss'")
+) {
+  pass('Service worker records cache hit and miss rates');
+} else {
+  fail('Service worker does not record cache hit/miss rates');
+}
+if (
+  swContentDay10 &&
+  swContentDay10.includes("addEventListener('error'") &&
+  swContentDay10.includes("addEventListener('unhandledrejection'")
+) {
+  pass('Service worker captures worker errors and unhandled rejections');
+} else {
+  fail('Service worker error capture listeners are missing');
+}
+
+if (appContent && appContent.includes('analyticsResource.load()')) {
+  pass('App loads the analytics snapshot through useAsyncResource');
+} else {
+  fail('App does not load the analytics snapshot');
+}
+if (
+  appContent &&
+  appContent.includes('recordInstallOutcome(') &&
+  appContent.includes("addEventListener('appinstalled'")
+) {
+  pass('Install outcomes and appinstalled events are recorded');
+} else {
+  fail('Install outcomes are not recorded');
+}
+if (appContent && appContent.includes('beginOfflinePeriod') && appContent.includes('endOfflinePeriod')) {
+  pass('Offline transitions feed the offline-usage metrics');
+} else {
+  fail('Offline transitions are not recorded');
+}
+if (
+  appContent &&
+  appContent.includes('handleRefreshAnalytics') &&
+  appContent.includes('handleResetAnalytics')
+) {
+  pass('App wires refresh and confirmed reset handlers to the screen');
+} else {
+  fail('App is missing analytics refresh/reset handlers');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
