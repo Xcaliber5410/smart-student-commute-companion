@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CloudOff,
   UploadCloud,
@@ -7,12 +7,21 @@ import {
 } from 'lucide-react';
 import {
   Button,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   LoadingState,
   QueueReportItem,
   StatTile,
 } from '../components/ui';
+
+// Queue filters: the list below shows a subset; counts in the Status section
+// always reflect the full queue.
+const QUEUE_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'waiting', label: 'Waiting' },
+  { id: 'failed', label: 'Rejected' },
+];
 
 /**
  * Offline Queue (Day 11 feature screen)
@@ -40,6 +49,8 @@ import {
  * @param {boolean} [props.isOffline] - Browser reports no connectivity
  * @param {boolean} [props.isSyncing] - A queue flush is in progress
  * @param {Function} [props.onSync] - Manually flush the queue now
+ * @param {Function} [props.onDiscard] - Discard one queued report (id)
+ * @param {Function} [props.onRetryItem] - Re-queue one rejected report (id)
  * @param {string|null} [props.lastSyncedAt] - ISO time of the last successful flush
  */
 export default function OfflineQueuePage({
@@ -50,10 +61,24 @@ export default function OfflineQueuePage({
   isOffline = false,
   isSyncing = false,
   onSync,
+  onDiscard,
+  onRetryItem,
   lastSyncedAt = null,
 }) {
+  // Local interaction state: list filter + the report pending confirmation
+  // (the discard action itself lives in the caller).
+  const [filter, setFilter] = useState('all');
+  const [discardTarget, setDiscardTarget] = useState(null);
+
   const pending = items.filter((item) => item.status !== 'failed');
   const failed = items.filter((item) => item.status === 'failed');
+  const visibleItems = items.filter((item) =>
+    filter === 'failed'
+      ? item.status === 'failed'
+      : filter === 'waiting'
+        ? item.status !== 'failed'
+        : true
+  );
 
   const connection = isOffline
     ? {
@@ -115,7 +140,13 @@ export default function OfflineQueuePage({
             variant={pending.length > 0 ? 'sky' : 'slate'}
             value={pending.length}
             label="Waiting to send"
-            hint={pending.length > 0 ? 'Broadcasts on reconnect' : 'Nothing pending'}
+            hint={
+              failed.length > 0
+                ? `${failed.length} rejected — review below`
+                : pending.length > 0
+                  ? 'Broadcasts on reconnect'
+                  : 'Nothing pending'
+            }
           />
           <StatTile
             variant={lastSyncedAt ? 'emerald' : 'slate'}
@@ -155,24 +186,86 @@ export default function OfflineQueuePage({
       {/* Queued reports */}
       {items.length > 0 && (
         <section aria-label="Queued reports" className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
-            {pending.length > 0 ? 'Waiting to send' : 'Previously queued'}
-          </h2>
-          <ul className="space-y-2">
-            {items.map((item) => (
-              <QueueReportItem
-                key={item.id}
-                status={
-                  item.status === 'failed' ? 'failed' : isSyncing ? 'sending' : 'pending'
-                }
-                title={item.report?.description || item.report?.type || 'Report'}
-                queuedAt={item.queuedAt}
-                area={item.report?.area}
-                attempts={item.attempts}
-                error={item.lastError}
-              />
-            ))}
-          </ul>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
+              {filter === 'failed'
+                ? 'Rejected reports'
+                : pending.length > 0
+                  ? 'Waiting to send'
+                  : 'Previously queued'}
+            </h2>
+            <div
+              className="flex flex-wrap items-center gap-2"
+              role="group"
+              aria-label="Filter queued reports"
+            >
+              {QUEUE_FILTERS.map((option) => {
+                const isActive = filter === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setFilter(option.id)}
+                    className={`min-h-9 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
+                      isActive
+                        ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {visibleItems.length > 0 ? (
+            <ul className="space-y-2">
+              {visibleItems.map((item) => (
+                <QueueReportItem
+                  key={item.id}
+                  status={
+                    item.status === 'failed' ? 'failed' : isSyncing ? 'sending' : 'pending'
+                  }
+                  title={item.report?.description || item.report?.type || 'Report'}
+                  queuedAt={item.queuedAt}
+                  area={item.report?.area}
+                  attempts={item.attempts}
+                  error={item.lastError}
+                >
+                  {onRetryItem && item.status === 'failed' && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onRetryItem(item.id)}
+                      className="min-h-9"
+                    >
+                      Try again
+                    </Button>
+                  )}
+                  {onDiscard && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDiscardTarget(item)}
+                      className="min-h-9"
+                    >
+                      Discard
+                    </Button>
+                  )}
+                </QueueReportItem>
+              ))}
+            </ul>
+          ) : (
+            <p role="status" className="px-1 text-xs text-slate-500">
+              {filter === 'failed'
+                ? 'No rejected reports — everything either went out or is still waiting.'
+                : 'No reports waiting to send.'}
+            </p>
+          )}
         </section>
       )}
 
@@ -185,6 +278,24 @@ export default function OfflineQueuePage({
           the background. Discard a report here at any time before it goes out.
         </span>
       </p>
+
+      {/* Discard confirmation (UI only; the caller performs the removal) */}
+      {onDiscard && (
+        <ConfirmDialog
+          isOpen={Boolean(discardTarget)}
+          onCancel={() => setDiscardTarget(null)}
+          onConfirm={() => {
+            if (discardTarget) onDiscard(discardTarget.id);
+            setDiscardTarget(null);
+          }}
+          title="Discard this report?"
+          message={`“${
+            discardTarget?.report?.description || discardTarget?.report?.type || 'This report'
+          }” will be removed from this device without being broadcast. This cannot be undone.`}
+          confirmLabel="Discard report"
+          destructive
+        />
+      )}
     </div>
   );
 }
