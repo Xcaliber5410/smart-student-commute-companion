@@ -48,6 +48,7 @@
     "verify:search-ranking": "node scripts/verify_search_ranking.js",
     "verify:search-analytics": "node scripts/verify_search_analytics.js",
     "verify:study-resources": "node scripts/verify_study_resources.js",
+    "test:study-resource-service": "node scripts/test_study_resource_service.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",

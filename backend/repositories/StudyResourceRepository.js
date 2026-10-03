@@ -92,10 +92,10 @@ class StudyResourceRepository {
       params.push(options.archived ? 1 : 0);
     }
 
-    if (options.searchTerm || options.query) {
-      const term = `%${String(options.searchTerm || options.query).trim().toLowerCase()}%`;
-      query += ' AND (LOWER(title) LIKE ? OR LOWER(COALESCE(description, \'\')) LIKE ? OR LOWER(COALESCE(content, \'\')) LIKE ?)';
-      params.push(term, term, term);
+    if (options.searchTerm || options.query || options.q) {
+      const term = `%${String(options.searchTerm || options.query || options.q).trim().toLowerCase()}%`;
+      query += ' AND (LOWER(title) LIKE ? OR LOWER(COALESCE(description, \'\')) LIKE ? OR LOWER(COALESCE(content, \'\')) LIKE ? OR LOWER(COALESCE(tags, \'\')) LIKE ? OR LOWER(COALESCE(url, \'\')) LIKE ? OR LOWER(COALESCE(file_name, \'\')) LIKE ?)';
+      params.push(term, term, term, term, term, term);
     }
 
     if (options.tag) {
@@ -192,8 +192,8 @@ class StudyResourceRepository {
 
     if (options.searchTerm || options.query || options.q) {
       const term = `%${String(options.searchTerm || options.query || options.q).trim().toLowerCase()}%`;
-      conditions.push('(LOWER(title) LIKE ? OR LOWER(COALESCE(description, \'\')) LIKE ? OR LOWER(COALESCE(content, \'\')) LIKE ?)');
-      params.push(term, term, term);
+      conditions.push('(LOWER(title) LIKE ? OR LOWER(COALESCE(description, \'\')) LIKE ? OR LOWER(COALESCE(content, \'\')) LIKE ? OR LOWER(COALESCE(tags, \'\')) LIKE ? OR LOWER(COALESCE(url, \'\')) LIKE ? OR LOWER(COALESCE(file_name, \'\')) LIKE ?)');
+      params.push(term, term, term, term, term, term);
     }
 
     if (options.tag) {
