@@ -15,7 +15,8 @@ import {
   Download,
   Menu,
   X,
-  BarChart3
+  BarChart3,
+  UploadCloud
 } from 'lucide-react';
 import { ENABLE_DEMO_RESET } from '../config/index.js';
 import { ConfirmDialog } from './ui';
@@ -89,6 +90,13 @@ export const NAV_ITEMS = [
     shortLabel: 'Stats',
     icon: BarChart3,
     description: 'Install, offline, cache & service-worker monitoring'
+  },
+  {
+    id: 'offlinequeue',
+    label: 'Offline Queue',
+    shortLabel: 'Queue',
+    icon: UploadCloud,
+    description: 'Reports saved to send when you reconnect'
   }
 ];
 

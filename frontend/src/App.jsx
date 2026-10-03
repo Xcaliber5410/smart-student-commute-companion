@@ -10,7 +10,7 @@ import FeedbackModal from './components/FeedbackModal';
 import PreferencesDialog from './components/PreferencesDialog';
 import PwaStatusBanner from './components/PwaStatusBanner';
 import InstallPromoBanner from './components/InstallPromoBanner';
-import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage, InstallShareHubPage, AnalyticsPage } from './pages';
+import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage, InstallShareHubPage, AnalyticsPage, OfflineQueuePage } from './pages';
 import { 
   requestPlan, 
   sendFeedback
@@ -923,6 +923,9 @@ export default function App() {
             onResetAnalytics={handleResetAnalytics}
           />
         );
+
+      case 'offlinequeue':
+        return <OfflineQueuePage isOffline={isOffline} />;
 
       default:
         return (
