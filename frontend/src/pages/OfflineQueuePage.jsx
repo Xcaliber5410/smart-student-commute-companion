@@ -98,13 +98,33 @@ export default function OfflineQueuePage({
     <div className="space-y-5">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+          <h1
+            id="offline-queue-title"
+            className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2"
+          >
             <UploadCloud className="h-5 w-5 text-emerald-400 shrink-0" aria-hidden="true" />
             Offline Queue
           </h1>
           <p className="text-sm text-slate-400">
             Reports you file while offline wait here and are broadcast to the feed as soon
             as your connection returns — a flaky signal never loses a report.
+          </p>
+          {/* Queue summary + sync progress, announced politely whenever the
+              queue changes (enqueue, discard, delivery) so screen-reader
+              users hear what happened without watching the list. */}
+          <p
+            id="offline-queue-status"
+            role="status"
+            aria-live="polite"
+            className="min-h-[1rem] text-xs text-slate-500"
+          >
+            {isSyncing
+              ? 'Sending queued reports…'
+              : items.length > 0
+                ? `${pending.length} waiting${
+                    failed.length > 0 ? ` · ${failed.length} rejected` : ''
+                  } — stored on this device`
+                : 'Queue is empty — nothing waiting to send.'}
           </p>
         </div>
         {onSync && items.length > 0 && (
@@ -114,7 +134,7 @@ export default function OfflineQueuePage({
             size="sm"
             icon={<UploadCloud className="h-4 w-4" aria-hidden="true" />}
             loading={isSyncing}
-            disabled={isSyncing || isOffline}
+            disabled={isSyncing || isOffline || pending.length === 0}
             onClick={onSync}
             className="min-h-9"
           >
@@ -221,7 +241,7 @@ export default function OfflineQueuePage({
           </div>
 
           {visibleItems.length > 0 ? (
-            <ul className="space-y-2">
+            <ol className="space-y-2">
               {visibleItems.map((item) => (
                 <QueueReportItem
                   key={item.id}
@@ -263,7 +283,7 @@ export default function OfflineQueuePage({
                   )}
                 </QueueReportItem>
               ))}
-            </ul>
+            </ol>
           ) : (
             <p role="status" className="px-1 text-xs text-slate-500">
               {filter === 'failed'
@@ -292,6 +312,25 @@ export default function OfflineQueuePage({
           onConfirm={() => {
             if (discardTarget) onDiscard(discardTarget.id);
             setDiscardTarget(null);
+            // The Discard button that opened this dialog disappears with its
+            // row, so focus return would land on <body>. Hand focus to the
+            // first control of the queue section (the filter chips), or —
+            // when the queue is now empty — back to the page heading.
+            requestAnimationFrame(() => {
+              const sectionButton = document.querySelector(
+                'main [aria-label="Queued reports"] button'
+              );
+              if (sectionButton) {
+                sectionButton.focus();
+                return;
+              }
+              const heading = document.querySelector('#offline-queue-title') ||
+                document.querySelector('main h1');
+              if (heading) {
+                heading.setAttribute('tabindex', '-1');
+                heading.focus();
+              }
+            });
           }}
           title="Discard this report?"
           message={`“${
