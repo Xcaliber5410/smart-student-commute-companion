@@ -242,11 +242,18 @@ export async function postRideGroup(groupData) {
 
 /**
  * Join an existing ride coordination group
+ *
+ * Sends the same anonymous `x-user-token` header the vote endpoints use: the
+ * backend reads it (`req.user || req.headers['x-user-token']`) to enforce its
+ * creator/already-member guards, so joining without it would silently skip
+ * those checks.
+ *
  * @param {string} groupId - Group ID to join
  */
 export async function joinRideGroup(groupId) {
   return request(`/ride-groups/${groupId}/join`, {
-    method: 'POST'
+    method: 'POST',
+    headers: { 'x-user-token': getOrGenerateUserToken() }
   });
 }
 
