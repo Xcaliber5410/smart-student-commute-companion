@@ -39,6 +39,8 @@ import {
   removeSavedCommute,
   commuteSignature,
   isCommuteSaved,
+  readNotificationReadIds,
+  writeNotificationReadIds,
 } from './utils/uiPreferences';
 import { resetDemoState } from './services/api';
 import {
@@ -379,9 +381,16 @@ export default function App() {
   const savedCommutes = savedCommutesResource.data || [];
 
   // Day 12 — notification read state lives at App level so the unread count
-  // can drive both the Notifications screen and navigation badges. In-memory
-  // for now; persistence is layered on in the service-integration commit.
-  const [notificationReadIds, setNotificationReadIds] = useState(() => new Set());
+  // can drive both the Notifications screen and navigation badges. Hydrated
+  // from device-local storage and persisted on every change (bounded,
+  // failure-safe — see utils/uiPreferences.js).
+  const [notificationReadIds, setNotificationReadIds] = useState(() =>
+    readNotificationReadIds()
+  );
+
+  useEffect(() => {
+    writeNotificationReadIds(notificationReadIds);
+  }, [notificationReadIds]);
 
   const handleToggleNotificationRead = (id) => {
     setNotificationReadIds((current) => {

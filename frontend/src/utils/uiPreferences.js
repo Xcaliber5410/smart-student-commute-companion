@@ -5,6 +5,7 @@
  * - Recent transit searches (reusable query chips)
  * - Local UI preferences such as result sorting
  * - Saved commutes ("My Commutes" — on-device planner shortcuts)
+ * - Notification read state (Day 12 — which notifications were read)
  *
  * View/preference accessors are wrapped in try/catch so private browsing
  * modes, disabled storage, or quota errors never break the UI. Saved-commute
@@ -331,4 +332,48 @@ export function isCommuteSaved(list, setup) {
   if (!Array.isArray(list) || list.length === 0) return false;
   const signature = commuteSignature(setup);
   return Boolean(signature) && list.some((saved) => commuteSignature(saved) === signature);
+}
+
+// ─── Notification read state (Day 12) ────────────────────────────────────────
+
+const NOTIFICATION_READ_KEY = 'smart_commute_notification_read_state';
+// Bounded so the store cannot grow forever; the oldest read-marks expire first
+// (those reports have typically aged out of the feed anyway).
+const MAX_READ_NOTIFICATION_IDS = 300;
+
+/**
+ * Ids of notifications the student has marked as read on this device.
+ * Failure-safe: missing/corrupt storage degrades to an empty set (everything
+ * simply looks unread again — nothing breaks and no data is fabricated).
+ *
+ * @returns {Set<string>} Read notification ids
+ */
+export function readNotificationReadIds() {
+  const value = safeRead(NOTIFICATION_READ_KEY, []);
+  if (!Array.isArray(value)) return new Set();
+  return new Set(
+    value
+      .filter((id) => typeof id === 'string' && id.length > 0)
+      .slice(-MAX_READ_NOTIFICATION_IDS)
+  );
+}
+
+/**
+ * Persist the full read-id set (bounded, oldest expire first; failure-safe like the
+ * other preferences — a rejected write is silently ignored because losing
+ * read-state is only a cosmetic regression).
+ *
+ * @param {Iterable<string>} ids - Current read notification ids
+ * @returns {Set<string>} The set that was stored
+ */
+export function writeNotificationReadIds(ids) {
+  // Insertion order is chronological (toggles append; a hydrated Set keeps the
+  // stored order), so slicing the tail keeps the NEWEST read-marks and lets
+  // the oldest expire — a stable policy that survives load/save cycles.
+  const unique = Array.from(
+    new Set(Array.from(ids || []).filter((id) => typeof id === 'string' && id.length > 0))
+  );
+  const kept = unique.slice(-MAX_READ_NOTIFICATION_IDS);
+  safeWrite(NOTIFICATION_READ_KEY, kept);
+  return new Set(kept);
 }
