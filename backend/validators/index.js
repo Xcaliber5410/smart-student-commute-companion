@@ -83,6 +83,17 @@ const {
   entityAndResourceParamSchema,
   resourceContextQuerySchema
 } = require('./studyResourceValidators');
+const {
+  studyPlanStatusEnum,
+  studyPlanItemStatusEnum,
+  studyPlanItemPriorityEnum,
+  createStudyPlanSchema,
+  updateStudyPlanSchema,
+  studyPlanFilterSchema,
+  createStudyPlanItemSchema,
+  updateStudyPlanItemSchema,
+  studyPlanItemFilterSchema
+} = require('./studyPlanValidators');
 
 module.exports = {
   validate,
@@ -160,7 +171,17 @@ module.exports = {
   studyResourceFilterSchema,
   linkResourcesSchema,
   entityAndResourceParamSchema,
-  resourceContextQuerySchema
+  resourceContextQuerySchema,
+  // Study Plans & Planned Study Work
+  studyPlanStatusEnum,
+  studyPlanItemStatusEnum,
+  studyPlanItemPriorityEnum,
+  createStudyPlanSchema,
+  updateStudyPlanSchema,
+  studyPlanFilterSchema,
+  createStudyPlanItemSchema,
+  updateStudyPlanItemSchema,
+  studyPlanItemFilterSchema
 };
 
 

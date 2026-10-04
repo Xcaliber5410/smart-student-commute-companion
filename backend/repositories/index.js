@@ -19,6 +19,7 @@ const { ReminderRepository, reminderRepository } = require('./ReminderRepository
 const { SavedRouteRepository, savedRouteRepository } = require('./SavedRouteRepository');
 const { StudentSearchRepository, studentSearchRepository } = require('./StudentSearchRepository');
 const { StudyResourceRepository, studyResourceRepository } = require('./StudyResourceRepository');
+const { StudyPlanRepository, studyPlanRepository } = require('./StudyPlanRepository');
 
 module.exports = {
   RideGroupRepository,
@@ -50,7 +51,9 @@ module.exports = {
   StudentSearchRepository,
   studentSearchRepository,
   StudyResourceRepository,
-  studyResourceRepository
+  studyResourceRepository,
+  StudyPlanRepository,
+  studyPlanRepository
 };
 
 

@@ -34,6 +34,13 @@ const {
   studentRelationshipEnum
 } = require('./StudentSearchResult');
 const { StudyResource, studyResourceSchema, resourceTypeEnum } = require('./StudyResource');
+const { StudyPlan, studyPlanSchema, studyPlanStatusEnum } = require('./StudyPlan');
+const {
+  StudyPlanItem,
+  studyPlanItemSchema,
+  studyPlanItemStatusEnum,
+  studyPlanItemPriorityEnum
+} = require('./StudyPlanItem');
 
 module.exports = {
   LiveReport,
@@ -83,6 +90,13 @@ module.exports = {
   studentRelationshipEnum,
   StudyResource,
   studyResourceSchema,
-  resourceTypeEnum
+  resourceTypeEnum,
+  StudyPlan,
+  studyPlanSchema,
+  studyPlanStatusEnum,
+  StudyPlanItem,
+  studyPlanItemSchema,
+  studyPlanItemStatusEnum,
+  studyPlanItemPriorityEnum
 };
 
