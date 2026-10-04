@@ -1706,6 +1706,222 @@ if (
 }
 
 // ============================================================
+// 22. DAY 13 QUIET HOURS / NOTIFICATION PREFERENCES
+// ============================================================
+
+section('22. DAY 13 QUIET HOURS / NOTIFICATION PREFERENCES');
+
+const prefsDialogDay13 = readFile('src/components/PreferencesDialog.jsx');
+if (fileExists('src/components/PreferencesDialog.jsx')) pass('Preferences dialog exists');
+else fail('Preferences dialog is missing');
+if (
+  prefsDialogDay13 &&
+  prefsDialogDay13.includes('Quiet hours') &&
+  prefsDialogDay13.includes('pref-quiet-hours') &&
+  prefsDialogDay13.includes('quietHoursEnabled: value')
+) {
+  pass('Dialog exposes the quiet-hours switch');
+} else {
+  fail('Dialog is missing the quiet-hours switch');
+}
+if (
+  prefsDialogDay13 &&
+  prefsDialogDay13.includes('<TimeRangeInput') &&
+  prefsDialogDay13.includes('legend="Quiet window"') &&
+  prefsDialogDay13.includes('disabled={!prefs.quietHoursEnabled}')
+) {
+  pass('Dialog renders the labelled quiet-window time pair, disabled when off');
+} else {
+  fail('Dialog is missing the quiet-window time pair or its disabled state');
+}
+if (
+  prefsDialogDay13 &&
+  prefsDialogDay13.includes('isQuietHoursActive(prefs)') &&
+  prefsDialogDay13.includes('role="status"') &&
+  prefsDialogDay13.includes('aria-live="polite"')
+) {
+  pass('Dialog announces the live quiet-hours status politely');
+} else {
+  fail('Dialog has no polite live quiet-hours status');
+}
+if (
+  prefsDialogDay13 &&
+  prefsDialogDay13.includes('<h4') &&
+  prefsDialogDay13.includes('Notifications')
+) {
+  pass('Dialog sections are real headings under the dialog title');
+} else {
+  fail('Dialog section labels are not headings');
+}
+if (prefsDialogDay13 && prefsDialogDay13.includes('size="lg"')) {
+  pass('Dialog was sized for the added notification controls');
+} else {
+  fail('Dialog sizing was not adjusted for the new content');
+}
+if (
+  prefsDialogDay13 &&
+  prefsDialogDay13.includes('Toggle') &&
+  !prefsDialogDay13.includes('function Switch')
+) {
+  pass('Dialog reuses the shared Toggle instead of a local switch copy');
+} else {
+  fail('Dialog still carries a duplicate local switch component');
+}
+if (
+  prefsDialogDay13 &&
+  prefsDialogDay13.includes('startDraft') &&
+  prefsDialogDay13.includes('handleTimeBlur') &&
+  prefsDialogDay13.includes('Use HH:MM format')
+) {
+  pass('Time edits use drafts with validation and forgiving blur revert');
+} else {
+  fail('Dialog time drafts/validation are incomplete');
+}
+if (prefsDialogDay13 && prefsDialogDay13.includes('setClockTick')) {
+  pass('Dialog recomputes the active status on a clock tick while open');
+} else {
+  fail('Dialog quiet-hours status can go stale while open');
+}
+
+const timeRangeInput = readFile('src/components/ui/TimeRangeInput.jsx');
+if (fileExists('src/components/ui/TimeRangeInput.jsx')) pass('Time range component exists');
+else fail('Time range component is missing');
+if (
+  timeRangeInput &&
+  timeRangeInput.includes('<fieldset') &&
+  timeRangeInput.includes('<legend') &&
+  timeRangeInput.includes('disabled={disabled}')
+) {
+  pass('Time range is a labelled fieldset that disables both fields together');
+} else {
+  fail('Time range lacks fieldset semantics or joint disabling');
+}
+if (
+  timeRangeInput &&
+  timeRangeInput.includes('startError') &&
+  timeRangeInput.includes('endError') &&
+  timeRangeInput.includes('aria-describedby')
+) {
+  pass('Time range wires per-field errors and an associated hint');
+} else {
+  fail('Time range is missing error or hint wiring');
+}
+const uiBarrelDay13 = readFile('src/components/ui/index.js');
+if (uiBarrelDay13 && uiBarrelDay13.includes("from './TimeRangeInput'")) {
+  pass('UI barrel exports the time range component');
+} else {
+  fail('UI barrel is missing the time range export');
+}
+const uiReadmeDay13 = readFile('src/components/ui/README.md');
+if (uiReadmeDay13 && uiReadmeDay13.includes('TimeRangeInput')) {
+  pass('UI component docs cover the time range component');
+} else {
+  fail('UI component docs are missing the time range component');
+}
+
+const prefsStoreDay13 = readFile('src/utils/uiPreferences.js');
+if (
+  prefsStoreDay13 &&
+  prefsStoreDay13.includes('quietHoursEnabled: false') &&
+  prefsStoreDay13.includes("quietHoursStart: '22:00'") &&
+  prefsStoreDay13.includes("quietHoursEnd: '07:00'")
+) {
+  pass('Preference defaults define a disabled 22:00-07:00 quiet window');
+} else {
+  fail('Quiet-hours preference defaults are missing');
+}
+if (
+  prefsStoreDay13 &&
+  prefsStoreDay13.includes('export function isValidQuietHoursTime') &&
+  prefsStoreDay13.includes('export function isQuietHoursActive')
+) {
+  pass('Preference store exports quiet-hours validation and evaluation');
+} else {
+  fail('Quiet-hours helpers are missing from the preference store');
+}
+if (
+  prefsStoreDay13 &&
+  prefsStoreDay13.includes('current >= start || current < end') &&
+  prefsStoreDay13.includes('start === end')
+) {
+  pass('Quiet window wraps past midnight and never collapses to 24h');
+} else {
+  fail('Quiet-window evaluation lacks overnight wrap or empty-window guard');
+}
+if (
+  prefsStoreDay13 &&
+  prefsStoreDay13.includes('isValidQuietHoursTime(stored.quietHoursStart)') &&
+  prefsStoreDay13.includes('isValidQuietHoursTime(overrides.quietHoursEnd)')
+) {
+  pass('Stored and incoming quiet-hours times are validated on read and write');
+} else {
+  fail('Quiet-hours times are not validated on read/write');
+}
+
+if (
+  appContent &&
+  appContent.includes('const mutedByQuietHours = isQuietHoursActive(prefs)') &&
+  appContent.includes('prefs.liveReportToasts && !mutedByQuietHours') &&
+  appContent.includes('!mutedByQuietHours &&')
+) {
+  pass('Both pop-up paths (toast and device alert) are gated by quiet hours');
+} else {
+  fail('Quiet hours does not gate both notification paths');
+}
+if (
+  appContent &&
+  appContent.includes('reportsResource.setData') &&
+  appContent.includes('mutedByQuietHours')
+) {
+  pass('Reports still reach the feed while pop-ups are muted');
+} else {
+  fail('Quiet hours must mute pop-ups only, never the feed itself');
+}
+if (appContent && appContent.includes('Quiet hours ${next.quietHoursEnabled')) {
+  pass('Preference changes surface quiet-hours feedback toasts');
+} else {
+  fail('Quiet-hours preference changes give no feedback');
+}
+if (
+  appContent &&
+  appContent.includes('quietHoursEnabled={appPreferences.quietHoursEnabled}') &&
+  appContent.includes('quietHoursEnd={appPreferences.quietHoursEnd}')
+) {
+  pass('Device alerts screen receives the quiet-hours preference state');
+} else {
+  fail('Device alerts screen is not wired to quiet-hours state');
+}
+
+const deviceAlertsPageDay13 = readFile('src/pages/DeviceAlertsPage.jsx');
+if (
+  deviceAlertsPageDay13 &&
+  deviceAlertsPageDay13.includes('Quiet hours are on') &&
+  deviceAlertsPageDay13.includes('isQuietHoursActive')
+) {
+  pass('Device alerts screen explains when quiet hours pause alerts');
+} else {
+  fail('Device alerts screen hides the quiet-hours pause');
+}
+if (
+  deviceAlertsPageDay13 &&
+  deviceAlertsPageDay13.includes('Paused by quiet hours') &&
+  deviceAlertsPageDay13.includes('manual test alerts below still fire')
+) {
+  pass('Status tiles and hints stay honest during quiet hours');
+} else {
+  fail('Device alerts status is misleading during quiet hours');
+}
+if (
+  deviceAlertsPageDay13 &&
+  deviceAlertsPageDay13.includes('setClockTick') &&
+  deviceAlertsPageDay13.includes('60000')
+) {
+  pass('Device alerts screen refreshes quiet-hours state every minute');
+} else {
+  fail('Device alerts quiet-hours state can go stale');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
