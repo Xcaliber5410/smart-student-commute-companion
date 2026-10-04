@@ -105,7 +105,7 @@ export default function PreferencesDialog({
       onClose={onClose}
       title="Preferences"
       icon={<SlidersHorizontal className="w-5 h-5 text-emerald-400" aria-hidden="true" />}
-      size="md"
+      size="lg"
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400 leading-relaxed">
@@ -161,7 +161,9 @@ export default function PreferencesDialog({
             onBlurEnd={() => handleTimeBlur('end')}
             className="py-3"
           />
-          <p className="pb-3 text-xs text-slate-500 leading-relaxed">{quietStatus}</p>
+          <p className="pt-1 pb-3 text-xs text-slate-500 leading-relaxed break-words">
+            {quietStatus}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">

@@ -66,7 +66,9 @@ export default function TimeRangeInput({
       <legend className="block p-0 text-xs font-semibold text-slate-300 mb-1.5">
         {legend}
       </legend>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {/* Stacked on narrow screens; two columns only once a pair of time
+          inputs comfortably fits (640px+, still inside a max-w-lg modal). */}
+      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
         <Input
           id={`${id}-start`}
           label={startLabel}
@@ -87,7 +89,7 @@ export default function TimeRangeInput({
         />
       </div>
       {hint && (
-        <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{hint}</p>
+        <p className="mt-1.5 text-xs text-slate-500 leading-relaxed break-words">{hint}</p>
       )}
     </fieldset>
   );
