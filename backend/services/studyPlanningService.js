@@ -1,0 +1,791 @@
+/**
+ * StudyPlanningService
+ *
+ * Deterministic study planning engine for students.
+ * Generates practical, conflict-free planned study work based on actual student data:
+ * - Upcoming assignment deadlines & priorities
+ * - Student goals & progress
+ * - Existing calendar commitments (CalendarEvents) & study sessions (StudySessions)
+ * - Sensible daily study limits and fatigue-conscious session chunking
+ * - Non-AI, 100% deterministic rules with clear explainability
+ */
+
+const { studyPlanRepository } = require('../repositories/StudyPlanRepository');
+const { assignmentRepository } = require('../repositories/AssignmentRepository');
+const { goalRepository } = require('../repositories/GoalRepository');
+const { calendarEventRepository } = require('../repositories/CalendarEventRepository');
+const { studySessionRepository } = require('../repositories/StudySessionRepository');
+const { courseRepository } = require('../repositories/CourseRepository');
+const { workloadAnalysisService } = require('./workloadAnalysisService');
+const { StudyPlan } = require('../models/StudyPlan');
+const { StudyPlanItem } = require('../models/StudyPlanItem');
+const { ValidationError, NotFoundError, ForbiddenError, ConflictError } = require('../errors');
+const { getDateKeyIST, IST_OFFSET_MS, formatInMumbaiTime } = require('../utils/timezone');
+
+// Priority weight multipliers for deterministic ranking
+const PRIORITY_WEIGHTS = {
+  urgent: 4,
+  high: 3,
+  medium: 2,
+  low: 1
+};
+
+class StudyPlanningService {
+  constructor(options = {}) {
+    this.studyPlanRepo = options.studyPlanRepo || studyPlanRepository;
+    this.assignmentRepo = options.assignmentRepo || assignmentRepository;
+    this.goalRepo = options.goalRepo || goalRepository;
+    this.calendarEventRepo = options.calendarEventRepo || calendarEventRepository;
+    this.studySessionRepo = options.studySessionRepo || studySessionRepository;
+    this.courseRepo = options.courseRepo || courseRepository;
+    this.workloadService = options.workloadService || workloadAnalysisService;
+    this.db = options.db || null;
+  }
+
+  /**
+   * Evaluates pending academic work, active goals, and existing calendar commitments
+   * to determine upcoming study needs over a planning window.
+   *
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}] - { startDate, endDate, days = 7, courseId, now }
+   * @returns {object} Workload and study needs assessment
+   */
+  async assessWorkloadAndNeeds(userId, options = {}) {
+    if (!userId || typeof userId !== 'string') {
+      throw new ValidationError('Student user ID is required');
+    }
+
+    const now = options.now !== undefined ? Number(options.now) : Date.now();
+    const days = Math.min(30, Math.max(1, Number(options.days) || 7));
+    const startDate = options.startDate ? Math.max(Number(options.startDate), now) : now;
+    const endDate = options.endDate ? Number(options.endDate) : startDate + (days * 86400000);
+
+    if (endDate <= startDate) {
+      throw new ValidationError('End date must be strictly after start date');
+    }
+
+    // 1. Fetch uncompleted assignments
+    const asgnOptions = { status: null };
+    if (options.courseId) asgnOptions.course_id = options.courseId;
+    const allAssignments = this.assignmentRepo.findByUserId(userId, asgnOptions);
+
+    // Rule: Exclude completed and cancelled assignments
+    const upcomingAssignments = allAssignments.filter(a => {
+      if (a.status === 'completed' || a.status === 'cancelled') return false;
+      return a.due_date >= startDate;
+    });
+
+    const overdueAssignments = allAssignments.filter(a => {
+      return (a.status === 'pending' || a.status === 'in_progress') && a.due_date < startDate;
+    });
+
+    // 2. Fetch active goals
+    const allGoals = this.goalRepo.findByUserId(userId, options.courseId ? { course_id: options.courseId } : {});
+    // Rule: Exclude completed, cancelled, or 100% progress goals
+    const activeGoals = allGoals.filter(g => {
+      if (g.status === 'completed' || g.status === 'cancelled' || g.status === 'on_hold') return false;
+      if (g.progress >= 100) return false;
+      if (g.target_date && g.target_date < startDate) return false;
+      return true;
+    });
+
+    // 3. Fetch existing commitments in range
+    const calendarEvents = this.calendarEventRepo.findInRange(userId, startDate, endDate, { status: 'scheduled' });
+    const studySessions = this.studySessionRepo.findInRange(userId, startDate, endDate, { status: 'planned' });
+    const existingPlanItems = this.studyPlanRepo.findUpcomingItems(userId, { now: startDate, days, limit: 100 });
+
+    // 4. Calculate required study minutes
+    let totalEstimatedStudyMinutes = 0;
+    const assignmentEstimates = upcomingAssignments.map(a => {
+      const minutes = this._estimateAssignmentStudyMinutes(a);
+      totalEstimatedStudyMinutes += minutes;
+      return {
+        id: a.id,
+        title: a.title,
+        priority: a.priority,
+        status: a.status,
+        dueDate: a.due_date,
+        dueDateFormatted: formatInMumbaiTime(a.due_date),
+        estimatedMinutes: minutes,
+        recommendedSessions: Math.ceil(minutes / 60)
+      };
+    });
+
+    const goalEstimates = activeGoals.map(g => {
+      const minutes = 60; // 1 milestone block per planning window
+      totalEstimatedStudyMinutes += minutes;
+      return {
+        id: g.id,
+        title: g.title,
+        progress: g.progress,
+        targetDate: g.target_date,
+        targetDateFormatted: g.target_date ? formatInMumbaiTime(g.target_date) : null,
+        estimatedMinutes: minutes
+      };
+    });
+
+    let existingCommittedMinutes = 0;
+    calendarEvents.forEach(e => { existingCommittedMinutes += (e.durationMinutes || Math.round((e.end_time - e.start_time) / 60000)); });
+    studySessions.forEach(s => { existingCommittedMinutes += (s.planned_duration_minutes || 60); });
+    existingPlanItems.forEach(p => { existingCommittedMinutes += (p.duration_minutes || 60); });
+
+    return {
+      window: {
+        startDate,
+        endDate,
+        days: Math.round((endDate - startDate) / 86400000),
+        startDateFormatted: formatInMumbaiTime(startDate),
+        endDateFormatted: formatInMumbaiTime(endDate)
+      },
+      needs: {
+        upcomingAssignmentsCount: upcomingAssignments.length,
+        overdueAssignmentsCount: overdueAssignments.length,
+        activeGoalsCount: activeGoals.length,
+        totalEstimatedStudyMinutes,
+        totalEstimatedStudyHours: Number((totalEstimatedStudyMinutes / 60).toFixed(1)),
+        assignments: assignmentEstimates,
+        goals: goalEstimates
+      },
+      existingCommitments: {
+        calendarEventsCount: calendarEvents.length,
+        studySessionsCount: studySessions.length,
+        existingPlanItemsCount: existingPlanItems.length,
+        totalCommittedMinutes: existingCommittedMinutes,
+        totalCommittedHours: Number((existingCommittedMinutes / 60).toFixed(1))
+      }
+    };
+  }
+
+  /**
+   * Discovers available non-conflicting study time slots for a student
+   * respecting study windows, existing commitments, buffer transitions, and daily limits.
+   *
+   * @param {string} userId - Student user ID
+   * @param {number} startDate - Search start epoch ms
+   * @param {number} endDate - Search end epoch ms
+   * @param {object} [options={}] - Sizing, limits, and commitment overrides
+   * @returns {Array<{ start: number, end: number, durationMinutes: number, dateKey: string }>}
+   */
+  findAvailableStudySlots(userId, startDate, endDate, options = {}) {
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const now = options.now !== undefined ? Number(options.now) : Date.now();
+    const effectiveStart = Math.max(Number(startDate), now);
+    const effectiveEnd = Number(endDate);
+
+    if (effectiveEnd <= effectiveStart) return [];
+
+    const slotDurationMinutes = Math.min(120, Math.max(30, Number(options.slotDurationMinutes) || 60));
+    const slotDurationMs = slotDurationMinutes * 60000;
+    const bufferMinutes = Math.max(0, Number(options.bufferMinutes !== undefined ? options.bufferMinutes : 15));
+    const bufferMs = bufferMinutes * 60000;
+    const dailyLimitMinutes = Math.min(600, Math.max(60, Number(options.dailyLimitMinutes) || 240));
+
+    // Daily study hours: default 09:00 to 21:00 IST
+    const startHour = options.startHour !== undefined ? Number(options.startHour) : 9;
+    const endHour = options.endHour !== undefined ? Number(options.endHour) : 21;
+
+    // Daily allocations tracker
+    const dailyAllocations = options.dailyAllocations || new Map();
+
+    // 1. Gather all existing commitments if not passed in
+    let commitments = options.existingCommitments;
+    if (!commitments) {
+      commitments = this._gatherAllCommitments(userId, effectiveStart, effectiveEnd);
+    }
+
+    // Sort commitments strictly ascending by start time
+    commitments.sort((a, b) => a.start - b.start);
+
+    const availableSlots = [];
+
+    // 2. Iterate through each calendar day in IST
+    const cursor = new Date(effectiveStart + IST_OFFSET_MS);
+    const endCursor = new Date(effectiveEnd + IST_OFFSET_MS);
+
+    // Reset cursor to 00:00:00 UTC (which corresponds to 00:00:00 IST)
+    cursor.setUTCHours(0, 0, 0, 0);
+
+    while (cursor.getTime() <= endCursor.getTime() + 86400000) {
+      const dayStartUTC = cursor.getTime() - IST_OFFSET_MS;
+      const dateKey = getDateKeyIST(dayStartUTC);
+
+      const dayStudyWindowStart = dayStartUTC + (startHour * 3600000);
+      const dayStudyWindowEnd = dayStartUTC + (endHour * 3600000);
+
+      let candidateTime = Math.max(dayStudyWindowStart, effectiveStart);
+
+      // Round candidateTime up to clean 15-minute boundary
+      candidateTime = Math.ceil(candidateTime / 900000) * 900000;
+
+      while (candidateTime + slotDurationMs <= dayStudyWindowEnd && candidateTime + slotDurationMs <= effectiveEnd) {
+        const slotEnd = candidateTime + slotDurationMs;
+        const currentDailyAllocated = dailyAllocations.get(dateKey) || 0;
+
+        // Check daily limit rule
+        if (currentDailyAllocated + slotDurationMinutes > dailyLimitMinutes) {
+          // Reached daily limit for this date, advance to next day
+          break;
+        }
+
+        // Check conflict with commitments: [candidateTime, slotEnd] vs [c.start, c.end]
+        const conflictingCommitment = commitments.find(c => {
+          return candidateTime < c.end && slotEnd > c.start;
+        });
+
+        if (conflictingCommitment) {
+          // Jump candidate time to the end of conflicting commitment + buffer
+          candidateTime = Math.ceil((conflictingCommitment.end + bufferMs) / 900000) * 900000;
+          continue;
+        }
+
+        // Slot is completely conflict-free and within daily limits!
+        availableSlots.push({
+          start: candidateTime,
+          end: slotEnd,
+          durationMinutes: slotDurationMinutes,
+          dateKey
+        });
+
+        // Advance candidate time by slot duration + buffer
+        candidateTime = Math.ceil((slotEnd + bufferMs) / 900000) * 900000;
+      }
+
+      // Advance cursor to next day
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    return availableSlots;
+  }
+
+  /**
+   * Deterministic Study Planning Engine.
+   *
+   * Formulates a structured study plan and individual study work items (`StudyPlanItem`)
+   * by scheduling upcoming uncompleted deliverables and active goals before deadlines.
+   *
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}] - Planning options
+   * @returns {Promise<{ plan: StudyPlan, items: StudyPlanItem[], summary: object, warnings: string[] }>}
+   */
+  async generateStudyPlan(userId, options = {}) {
+    if (!userId || typeof userId !== 'string') {
+      throw new ValidationError('Student user ID is required');
+    }
+
+    const now = options.now !== undefined ? Number(options.now) : Date.now();
+    const days = Math.min(30, Math.max(1, Number(options.days) || 7));
+    const startDate = options.startDate ? Math.max(Number(options.startDate), now) : now;
+    const endDate = options.endDate ? Number(options.endDate) : startDate + (days * 86400000);
+
+    if (endDate <= startDate) {
+      throw new ValidationError('End date must be strictly after start date');
+    }
+
+    const dailyLimitMinutes = Math.min(600, Math.max(60, Number(options.dailyLimitMinutes) || 240));
+    const defaultSessionDuration = Math.min(120, Math.max(30, Number(options.defaultSessionDuration) || 60));
+    const autoPersist = options.autoPersist !== false;
+    const includeAssignments = options.includeAssignments !== false;
+    const includeGoals = options.includeGoals !== false;
+
+    // 1. Gather all existing commitments
+    const existingCommitments = this._gatherAllCommitments(userId, startDate, endDate);
+    const allocatedCommitments = [...existingCommitments];
+
+    // Tracking structures
+    const dailyAllocations = new Map();
+    const dailyAssignmentSessions = new Map(); // key: `${dateKey}:${assignmentId}`
+    const plannedItemsData = [];
+    const warnings = [];
+    let orderIndex = 0;
+
+    // 2. Query and sort candidate assignments
+    let candidateAssignments = [];
+    if (includeAssignments) {
+      const asgnFilter = { status: null };
+      if (options.courseId) asgnFilter.course_id = options.courseId;
+      const allAsgns = this.assignmentRepo.findByUserId(userId, asgnFilter);
+
+      // Rule: Identify upcoming work needing attention, avoid already completed/cancelled work
+      candidateAssignments = allAsgns.filter(a => {
+        if (a.status === 'completed' || a.status === 'cancelled') return false;
+        // Skip deliverables already past deadline if strictly before startDate
+        if (a.due_date < startDate) {
+          warnings.push(`Assignment '${a.title}' is overdue (due: ${formatInMumbaiTime(a.due_date)}) and was excluded from forward planning.`);
+          return false;
+        }
+        return true;
+      });
+
+      // Deterministic prioritization:
+      // 1. Proximity to deadline (due_date ASC)
+      // 2. Priority weight (urgent > high > medium > low)
+      // 3. Deterministic tie-breaker (created_at ASC, id ASC)
+      candidateAssignments.sort((a, b) => {
+        if (a.due_date !== b.due_date) return a.due_date - b.due_date;
+        const weightA = PRIORITY_WEIGHTS[a.priority] || 1;
+        const weightB = PRIORITY_WEIGHTS[b.priority] || 1;
+        if (weightB !== weightA) return weightB - weightA;
+        if (a.created_at !== b.created_at) return a.created_at - b.created_at;
+        return a.id.localeCompare(b.id);
+      });
+    }
+
+    // 3. Query and sort candidate goals
+    let candidateGoals = [];
+    if (includeGoals) {
+      const allGoals = this.goalRepo.findByUserId(userId, options.courseId ? { course_id: options.courseId } : {});
+      candidateGoals = allGoals.filter(g => {
+        if (g.status === 'completed' || g.status === 'cancelled' || g.status === 'on_hold') return false;
+        if (g.progress >= 100) return false;
+        if (g.target_date && g.target_date < startDate) {
+          warnings.push(`Goal '${g.title}' target date (${formatInMumbaiTime(g.target_date)}) has passed.`);
+          return false;
+        }
+        return true;
+      });
+
+      // Deterministic sort: target_date ASC (nulls last), then progress ASC
+      candidateGoals.sort((a, b) => {
+        if (a.target_date && b.target_date && a.target_date !== b.target_date) {
+          return a.target_date - b.target_date;
+        }
+        if (a.target_date && !b.target_date) return -1;
+        if (!a.target_date && b.target_date) return 1;
+        if (a.progress !== b.progress) return a.progress - b.progress;
+        return a.id.localeCompare(b.id);
+      });
+    }
+
+    // 4. Plan Assignment Sessions
+    for (const assignment of candidateAssignments) {
+      const sessionsNeeded = this._calculateSessionsNeeded(assignment);
+      const sessionDuration = this._calculateSessionDuration(assignment, defaultSessionDuration);
+      let sessionsScheduled = 0;
+
+      for (let sIdx = 0; sIdx < sessionsNeeded; sIdx++) {
+        // Find candidate slots before assignment due date
+        const slots = this.findAvailableStudySlots(userId, startDate, Math.min(endDate, assignment.due_date), {
+          now,
+          slotDurationMinutes: sessionDuration,
+          dailyLimitMinutes,
+          existingCommitments: allocatedCommitments,
+          dailyAllocations
+        });
+
+        // Preferred slot: prioritize a day where this assignment hasn't already been scheduled today
+        // (to avoid cramming unless deadline is within 24 hours)
+        let chosenSlot = null;
+        const isUrgentDue = assignment.due_date - startDate < 86400000;
+
+        for (const slot of slots) {
+          // Rule: slot must finish strictly on or before assignment due date
+          if (slot.end > assignment.due_date) continue;
+
+          const assignKey = `${slot.dateKey}:${assignment.id}`;
+          const countOnDate = dailyAssignmentSessions.get(assignKey) || 0;
+
+          if (countOnDate === 0 || isUrgentDue) {
+            chosenSlot = slot;
+            break;
+          }
+        }
+
+        // If no preferred day slot, fallback to any available slot before deadline
+        if (!chosenSlot && slots.length > 0) {
+          chosenSlot = slots.find(slot => slot.end <= assignment.due_date);
+        }
+
+        if (chosenSlot) {
+          // Formulate descriptive, actionable title
+          const title = this._formatAssignmentSessionTitle(assignment, sIdx, sessionsNeeded);
+
+          const itemData = {
+            id: `plan-item-${now}-${Math.random().toString(36).substring(2, 7)}`,
+            user_id: userId,
+            plan_id: null, // set during persistence
+            course_id: assignment.course_id || null,
+            assignment_id: assignment.id,
+            goal_id: assignment.goal_id || null,
+            study_session_id: null,
+            resource_id: null,
+            title,
+            description: `Planned study work for '${assignment.title}' (Due: ${formatInMumbaiTime(assignment.due_date)})`,
+            planned_date: chosenSlot.start,
+            duration_minutes: sessionDuration,
+            priority: assignment.priority,
+            status: 'planned',
+            order_index: orderIndex++,
+            completed_at: null,
+            created_at: now,
+            updated_at: now
+          };
+
+          plannedItemsData.push(itemData);
+
+          // Update allocation commitments
+          allocatedCommitments.push({
+            start: chosenSlot.start,
+            end: chosenSlot.end,
+            type: 'planned_study_item',
+            title
+          });
+
+          // Update daily tracking
+          const prevDaily = dailyAllocations.get(chosenSlot.dateKey) || 0;
+          dailyAllocations.set(chosenSlot.dateKey, prevDaily + sessionDuration);
+
+          const assignKey = `${chosenSlot.dateKey}:${assignment.id}`;
+          dailyAssignmentSessions.set(assignKey, (dailyAssignmentSessions.get(assignKey) || 0) + 1);
+
+          sessionsScheduled++;
+        }
+      }
+
+      if (sessionsScheduled < sessionsNeeded) {
+        warnings.push(
+          `Could only schedule ${sessionsScheduled} of ${sessionsNeeded} planned session(s) for '${assignment.title}' before deadline ${formatInMumbaiTime(assignment.due_date)} due to schedule constraints.`
+        );
+      }
+    }
+
+    // 5. Plan Goal Milestone Sessions
+    for (const goal of candidateGoals) {
+      const goalDuration = Math.min(60, defaultSessionDuration);
+      const maxGoalEnd = goal.target_date ? Math.min(endDate, goal.target_date) : endDate;
+
+      const slots = this.findAvailableStudySlots(userId, startDate, maxGoalEnd, {
+        now,
+        slotDurationMinutes: goalDuration,
+        dailyLimitMinutes,
+        existingCommitments: allocatedCommitments,
+        dailyAllocations
+      });
+
+      if (slots.length > 0) {
+        const chosenSlot = slots[0];
+        const title = `Milestone Study: ${goal.title}`;
+
+        const itemData = {
+          id: `plan-item-${now}-${Math.random().toString(36).substring(2, 7)}`,
+          user_id: userId,
+          plan_id: null,
+          course_id: goal.course_id || null,
+          assignment_id: null,
+          goal_id: goal.id,
+          study_session_id: null,
+          resource_id: null,
+          title,
+          description: `Goal study block towards '${goal.title}' (Progress: ${goal.progress}%)`,
+          planned_date: chosenSlot.start,
+          duration_minutes: goalDuration,
+          priority: 'medium',
+          status: 'planned',
+          order_index: orderIndex++,
+          completed_at: null,
+          created_at: now,
+          updated_at: now
+        };
+
+        plannedItemsData.push(itemData);
+
+        allocatedCommitments.push({
+          start: chosenSlot.start,
+          end: chosenSlot.end,
+          type: 'planned_study_item',
+          title
+        });
+
+        const prevDaily = dailyAllocations.get(chosenSlot.dateKey) || 0;
+        dailyAllocations.set(chosenSlot.dateKey, prevDaily + goalDuration);
+      } else {
+        warnings.push(`Could not find an available study slot for goal '${goal.title}' within planning limits.`);
+      }
+    }
+
+    // 6. Sort all planned items deterministically by planned_date ASC, order_index ASC
+    plannedItemsData.sort((a, b) => {
+      if (a.planned_date !== b.planned_date) return a.planned_date - b.planned_date;
+      return a.order_index - b.order_index;
+    });
+
+    // Re-index order_index cleanly
+    plannedItemsData.forEach((item, idx) => { item.order_index = idx; });
+
+    // 7. Formulate StudyPlan entity
+    const planTitle = options.title || `Study Sprint: ${formatInMumbaiTime(startDate).split(',')[0]} - ${formatInMumbaiTime(endDate).split(',')[0]}`;
+    const planDescription = options.description || `Deterministic study plan with ${plannedItemsData.length} scheduled work items across assignments and goals.`;
+
+    const planEntity = StudyPlan.create({
+      id: `plan-${now}-${Math.random().toString(36).substring(2, 7)}`,
+      user_id: userId,
+      title: planTitle,
+      description: planDescription,
+      start_date: startDate,
+      end_date: endDate,
+      status: 'active',
+      created_at: now,
+      updated_at: now
+    });
+
+    // 8. Handle persistence if autoPersist is true
+    let persistedPlan = planEntity;
+    let finalItems = plannedItemsData.map(d => StudyPlanItem.create(d));
+
+    if (autoPersist) {
+      persistedPlan = this.studyPlanRepo.createPlan(planEntity);
+      plannedItemsData.forEach(item => { item.plan_id = persistedPlan.id; });
+      finalItems = this.studyPlanRepo.createItemsBatch(plannedItemsData, userId);
+    } else {
+      // In-memory preview: set plan_id
+      plannedItemsData.forEach(item => { item.plan_id = planEntity.id; });
+      finalItems = plannedItemsData.map(d => StudyPlanItem.create(d));
+    }
+
+    // 9. Compute summary metrics
+    const totalDurationMinutes = finalItems.reduce((acc, it) => acc + it.duration_minutes, 0);
+    const coveredAssignmentIds = Array.from(new Set(finalItems.map(it => it.assignment_id).filter(Boolean)));
+    const coveredGoalIds = Array.from(new Set(finalItems.map(it => it.goal_id).filter(Boolean)));
+
+    const dailyBreakdown = {};
+    for (const [dKey, mins] of dailyAllocations.entries()) {
+      dailyBreakdown[dKey] = mins;
+    }
+
+    const summary = {
+      totalItemsPlanned: finalItems.length,
+      totalStudyMinutes: totalDurationMinutes,
+      totalStudyHours: Number((totalDurationMinutes / 60).toFixed(1)),
+      assignmentsCoveredCount: coveredAssignmentIds.length,
+      goalsCoveredCount: coveredGoalIds.length,
+      conflictsAvoidedCount: existingCommitments.length,
+      dailyBreakdown,
+      isDryRun: !autoPersist
+    };
+
+    return {
+      plan: persistedPlan,
+      items: finalItems,
+      summary,
+      warnings
+    };
+  }
+
+  /**
+   * Preview a generated study plan without persisting records in SQLite.
+   *
+   * @param {string} userId
+   * @param {object} [options={}]
+   * @returns {Promise<{ plan: StudyPlan, items: StudyPlanItem[], summary: object, warnings: string[] }>}
+   */
+  async previewStudyPlan(userId, options = {}) {
+    return this.generateStudyPlan(userId, { ...options, autoPersist: false });
+  }
+
+  /**
+   * Reschedules an individual planned study work item with deterministic validation
+   * ensuring new time is in the future, respects assignment/goal deadlines, and checks for conflicts.
+   *
+   * @param {string} userId - Student user ID
+   * @param {string} itemId - Study plan item ID
+   * @param {number} newPlannedDate - New epoch timestamp in ms
+   * @param {object} [options={}] - { allowConflict = false, now }
+   * @returns {StudyPlanItem}
+   */
+  async reschedulePlanItem(userId, itemId, newPlannedDate, options = {}) {
+    if (!userId) throw new ValidationError('Student user ID is required');
+    if (!itemId) throw new ValidationError('Study plan item ID is required');
+
+    const item = this.studyPlanRepo.findItemById(itemId, userId);
+    if (!item) {
+      throw new NotFoundError('Study plan item not found or does not belong to you');
+    }
+
+    const now = options.now !== undefined ? Number(options.now) : Date.now();
+    const plannedEpoch = Number(newPlannedDate);
+
+    // Rule: Avoid scheduling in the past
+    if (plannedEpoch < now) {
+      throw new ValidationError('Cannot reschedule a study work item to a time in the past');
+    }
+
+    const newEndEpoch = plannedEpoch + (item.duration_minutes * 60000);
+
+    // Rule: Respect assignment deadline
+    if (item.assignment_id) {
+      const assignment = this.assignmentRepo.findById(item.assignment_id);
+      if (assignment && assignment.user_id === userId) {
+        if (newEndEpoch > assignment.due_date) {
+          throw new ValidationError(
+            `Cannot reschedule study item after assignment deadline (${formatInMumbaiTime(assignment.due_date)})`
+          );
+        }
+      }
+    }
+
+    // Rule: Respect goal target date
+    if (item.goal_id) {
+      const goal = this.goalRepo.findById(item.goal_id);
+      if (goal && goal.user_id === userId && goal.target_date) {
+        if (newEndEpoch > goal.target_date) {
+          throw new ValidationError(
+            `Cannot reschedule study item after goal target date (${formatInMumbaiTime(goal.target_date)})`
+          );
+        }
+      }
+    }
+
+    // Rule: Avoid obvious schedule conflicts
+    const events = this.calendarEventRepo.findInRange(userId, plannedEpoch - 1, newEndEpoch + 1, { status: 'scheduled' });
+    const studySessions = this.studySessionRepo.findInRange(userId, plannedEpoch - 1, newEndEpoch + 1, { status: 'planned' });
+
+    const eventConflict = events.find(e => plannedEpoch < e.end_time && newEndEpoch > e.start_time);
+    const sessionConflict = studySessions.find(s => plannedEpoch < s.plannedEndTime && newEndEpoch > s.planned_start_time);
+
+    if ((eventConflict || sessionConflict) && options.allowConflict !== true) {
+      const conflictName = eventConflict ? eventConflict.title : sessionConflict.title;
+      throw new ConflictError(
+        `Rescheduled time conflicts with existing commitment '${conflictName}'.`
+      );
+    }
+
+    // Update item
+    const updated = this.studyPlanRepo.updateItem(itemId, userId, {
+      planned_date: plannedEpoch
+    });
+
+    return updated;
+  }
+
+  // =========================================================================
+  // INTERNAL HELPER METHODS (DETERMINISTIC RULES)
+  // =========================================================================
+
+  /**
+   * Gathers all existing student commitments (CalendarEvents, StudySessions, StudyPlanItems)
+   * in the specified time window.
+   */
+  _gatherAllCommitments(userId, start, end) {
+    const commitments = [];
+
+    // 1. Calendar Events
+    const events = this.calendarEventRepo.findInRange(userId, start, end, { status: 'scheduled' });
+    for (const e of events) {
+      commitments.push({
+        id: e.id,
+        start: e.start_time,
+        end: e.end_time,
+        type: 'calendar_event',
+        title: e.title
+      });
+    }
+
+    // 2. Study Sessions
+    const sessions = this.studySessionRepo.findInRange(userId, start, end, { status: 'planned' });
+    for (const s of sessions) {
+      commitments.push({
+        id: s.id,
+        start: s.planned_start_time,
+        end: s.plannedEndTime,
+        type: 'study_session',
+        title: s.title
+      });
+    }
+
+    // 3. Existing Study Plan Items (active/planned)
+    const planItems = this.studyPlanRepo.findUpcomingItems(userId, {
+      now: start,
+      days: Math.max(1, Math.ceil((end - start) / 86400000)),
+      limit: 200
+    });
+    for (const p of planItems) {
+      commitments.push({
+        id: p.id,
+        start: p.planned_date,
+        end: p.planned_date + (p.duration_minutes * 60000),
+        type: 'study_plan_item',
+        title: p.title
+      });
+    }
+
+    return commitments;
+  }
+
+  /**
+   * Estimates total study minutes for an assignment based on priority and status.
+   */
+  _estimateAssignmentStudyMinutes(assignment) {
+    let minutes = 60;
+    switch (assignment.priority) {
+      case 'urgent':
+        minutes = 120;
+        break;
+      case 'high':
+        minutes = 90;
+        break;
+      case 'medium':
+        minutes = 60;
+        break;
+      case 'low':
+        minutes = 45;
+        break;
+      default:
+        minutes = 60;
+    }
+
+    // In-progress items discount (already partially done)
+    if (assignment.status === 'in_progress') {
+      minutes = Math.max(30, minutes - 30);
+    }
+
+    return minutes;
+  }
+
+  /**
+   * Calculates the number of separate study sessions for an assignment.
+   * Multi-session work is spread out to prevent student fatigue.
+   */
+  _calculateSessionsNeeded(assignment) {
+    if (assignment.priority === 'urgent') {
+      return assignment.status === 'in_progress' ? 2 : 2;
+    }
+    if (assignment.priority === 'high') {
+      return assignment.status === 'in_progress' ? 1 : 2;
+    }
+    return 1;
+  }
+
+  /**
+   * Calculates the session duration in minutes for an individual study block.
+   */
+  _calculateSessionDuration(assignment, defaultDuration) {
+    if (assignment.priority === 'low') {
+      return Math.min(45, defaultDuration);
+    }
+    return Math.min(90, Math.max(30, defaultDuration));
+  }
+
+  /**
+   * Generates clear, actionable session titles for multi-session assignment work.
+   */
+  _formatAssignmentSessionTitle(assignment, sessionIndex, totalSessions) {
+    if (totalSessions <= 1) {
+      return `Study & Prepare: ${assignment.title}`;
+    }
+    if (totalSessions === 2) {
+      return sessionIndex === 0
+        ? `Research & Draft: ${assignment.title}`
+        : `Review & Finalize: ${assignment.title}`;
+    }
+    if (sessionIndex === 0) return `Initial Research: ${assignment.title}`;
+    if (sessionIndex === totalSessions - 1) return `Final Polish: ${assignment.title}`;
+    return `Deep Work & Problem Solving: ${assignment.title}`;
+  }
+}
+
+const studyPlanningService = new StudyPlanningService();
+
+module.exports = {
+  StudyPlanningService,
+  studyPlanningService
+};
