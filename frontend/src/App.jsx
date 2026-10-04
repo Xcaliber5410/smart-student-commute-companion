@@ -41,6 +41,7 @@ import {
   isCommuteSaved,
   readNotificationReadIds,
   writeNotificationReadIds,
+  isQuietHoursActive,
 } from './utils/uiPreferences';
 import { resetDemoState } from './services/api';
 import {
@@ -315,6 +316,9 @@ export default function App() {
       showDashboardOverview: `Dashboard overview ${next.showDashboardOverview ? 'shown' : 'hidden'}`,
       liveReportToasts: `Live report notifications ${next.liveReportToasts ? 'enabled' : 'muted'}`,
       deviceAlerts: `Device alerts ${next.deviceAlerts ? 'enabled' : 'disabled'}`,
+      quietHoursEnabled: `Quiet hours ${next.quietHoursEnabled ? 'enabled' : 'disabled'}`,
+      quietHoursStart: `Quiet hours now run ${next.quietHoursStart}–${next.quietHoursEnd}`,
+      quietHoursEnd: `Quiet hours now run ${next.quietHoursStart}–${next.quietHoursEnd}`,
     };
     showToast(labels[key] || 'Preference updated.', 'info');
   };
@@ -482,15 +486,22 @@ export default function App() {
 
     socket.on('live_report_created', (newReport) => {
       reportsResource.setData((prev) => [newReport, ...(prev || []).filter(r => r.id !== newReport.id)]);
-      // Respect the user's notification preference (read fresh each event)
-      if (readAppPreferences().liveReportToasts) {
+      // Respect the user's notification preferences (read fresh each event
+      // because this handler outlives renders). Day 13 — quiet hours mute
+      // BOTH pop-up paths; the report itself is still added to the feed.
+      const prefs = readAppPreferences();
+      const mutedByQuietHours = isQuietHoursActive(prefs);
+      if (prefs.liveReportToasts && !mutedByQuietHours) {
         showToast(`⚠ Live Report from ${newReport.area}: ${newReport.message.substring(0, 50)}...`, 'warning');
       }
       // Day 7 — mirror the report as an OS-level alert, but only while the
       // app is NOT focused (no duplicate noise while actively using it).
-      // Preferences are read fresh because this handler outlives renders.
-      const prefs = readAppPreferences();
-      if (prefs.deviceAlerts && !document.hasFocus() && getDeviceAlertPermission() === 'granted') {
+      if (
+        prefs.deviceAlerts &&
+        !mutedByQuietHours &&
+        !document.hasFocus() &&
+        getDeviceAlertPermission() === 'granted'
+      ) {
         showDeviceNotification({
           title: `Live report — ${newReport.area}`,
           body: newReport.message,
@@ -1032,6 +1043,9 @@ export default function App() {
             onToggleEnabled={(value) => handlePreferenceChange({ deviceAlerts: value })}
             onSendTestAlert={handleSendTestAlert}
             isSendingTest={isSendingTestAlert}
+            quietHoursEnabled={appPreferences.quietHoursEnabled}
+            quietHoursStart={appPreferences.quietHoursStart}
+            quietHoursEnd={appPreferences.quietHoursEnd}
           />
         );
 

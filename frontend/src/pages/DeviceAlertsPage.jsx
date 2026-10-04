@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BellRing, Info, Moon, Send, ShieldAlert, Smartphone, Wifi, WifiOff } from 'lucide-react';
 import { Alert, Button, Card, StatTile, Toggle } from '../components/ui';
 import DeviceAlertPermissionCard from '../components/DeviceAlertPermissionCard';
+import { DEFAULT_APP_PREFERENCES, isQuietHoursActive } from '../utils/uiPreferences';
 
 /**
  * Device Alerts (Day 7 feature screen)
@@ -10,6 +11,12 @@ import DeviceAlertPermissionCard from '../components/DeviceAlertPermissionCard';
  * an explanation of when OS-level alerts fire. All effects (permission
  * request, preference writes, test notification) run in the application
  * layer and arrive via callback props.
+ *
+ * Day 13 — surfaces quiet-hours state honestly: when the daily quiet window
+ * is active, an alert explains that automatic pop-ups (toasts + OS alerts)
+ * are paused until the window ends, while manual test alerts still fire.
+ * The active state is recomputed once a minute so it never goes stale while
+ * the page stays open across the window boundary.
  */
 export default function DeviceAlertsPage({
   permission = 'default',
@@ -20,10 +27,22 @@ export default function DeviceAlertsPage({
   onToggleEnabled,
   onSendTestAlert,
   isSendingTest = false,
+  quietHoursEnabled = DEFAULT_APP_PREFERENCES.quietHoursEnabled,
+  quietHoursStart = DEFAULT_APP_PREFERENCES.quietHoursStart,
+  quietHoursEnd = DEFAULT_APP_PREFERENCES.quietHoursEnd,
 }) {
   const isSupported = typeof window !== 'undefined' && 'Notification' in window;
   const effectivePermission = !isSupported ? 'unsupported' : permission;
   const canSendTest = effectivePermission === 'granted' && isEnabled && !isSendingTest;
+
+  // Recompute "quiet right now" every minute (the page can stay open across
+  // the window boundary).
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setClockTick((tick) => tick + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const quietActive = isQuietHoursActive({ quietHoursEnabled, quietHoursStart, quietHoursEnd });
 
   // Permission action slot: the enable button appears only while the browser
   // has not been asked yet (denied/unsupported are guided by the alerts above).
@@ -68,6 +87,15 @@ export default function DeviceAlertsPage({
         </Alert>
       )}
 
+      {quietHoursEnabled && quietActive && (
+        <Alert variant="warning" title="Quiet hours are on">
+          <span>
+            Automatic pop-ups (live toasts and device alerts) are paused until {quietHoursEnd}.
+            Reports still arrive in Live Alerts, and manual test alerts below still fire.
+          </span>
+        </Alert>
+      )}
+
       <section aria-label="Device alert status" className="space-y-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Status</h2>
         <DeviceAlertPermissionCard
@@ -88,7 +116,7 @@ export default function DeviceAlertsPage({
             variant={isEnabled ? 'sky' : 'slate'}
             value={isEnabled ? 'On' : 'Off'}
             label="Device alerts"
-            hint="Your saved preference"
+            hint={quietHoursEnabled && quietActive ? 'Paused by quiet hours' : 'Your saved preference'}
           />
         </div>
       </section>
@@ -158,7 +186,9 @@ export default function DeviceAlertsPage({
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
         <span>
           {effectivePermission === 'granted'
-            ? 'Device alerts are ready. New live reports will appear as system notifications when the app is in the background.'
+            ? quietHoursEnabled && quietActive
+              ? `Device alerts are ready but paused by quiet hours until ${quietHoursEnd}. New live reports still appear in the app.`
+              : 'Device alerts are ready. New live reports will appear as system notifications when the app is in the background.'
             : 'Nothing is sent to any server — alerts are raised locally by your browser from live reports the app already receives.'}
         </span>
       </p>
