@@ -1,7 +1,8 @@
 # Feature Inventory — Smart Student Companion
 
 > Replacement for the missing `completed_features.md`. Statuses verified against source
-> code and Git history at frontend Day 13 (`bef9454`). Statuses: **IMPLEMENTED**,
+> code and Git history at frontend Day 13 + the Day 1–13 full audit
+> (`days/DAY-01-13-AUDIT.md`). Statuses: **IMPLEMENTED**,
 > **PARTIAL**, **BLOCKED**, **PLANNED**. "Not verified from repository history" marks
 > anything unconfirmable.
 
@@ -42,6 +43,9 @@
 - **Files**: `pages/TravelTogetherPage.jsx`, `components/TravelTogether.jsx`,
   `components/CreateGroupModal.jsx`, `services/rideGroups.js`
 - **API**: `GET/POST /api/ride-groups`, `POST /api/ride-groups/:id/join`
+- **Audit note (Day 1–13)**: join now sends the anonymous `x-user-token` header
+  the backend reads for its creator/already-member guards (previously omitted,
+  so those guards were silently skipped) — see `days/DAY-01-13-AUDIT.md` §4B.
 
 ### 5. Transit search (Mumbai GTFS) — Day 4
 - **Status**: IMPLEMENTED
@@ -101,6 +105,10 @@
   `CreateReportModal`, which submits via the existing `POST /api/live-reports`.
 - **Notes**: includes `?tab=` deep-link initialization (makes manifest shortcuts work)
   and manual-install guidance (incl. iOS).
+- **Audit note (Day 1–13)**: the SW→page payload delivery was found broken at
+  runtime (wrong message channel + wrong request type) and **fixed**; the full
+  share → SW → page flow was then reproduced and verified working in the
+  production build (see `days/DAY-01-13-AUDIT.md` §4A).
 
 ### 13. Smart install promotion — Day 9
 - **Status**: IMPLEMENTED
@@ -125,7 +133,7 @@
 
 ### 16. Verification suite — Day 1, extended daily
 - **Status**: IMPLEMENTED
-- **Files**: `frontend/verify-frontend.js` (310 checks, 22 sections)
+- **Files**: `frontend/verify-frontend.js` (314 checks, 23 sections)
 - **API**: none
 
 ### 17. PWA analytics & monitoring dashboard — Day 10

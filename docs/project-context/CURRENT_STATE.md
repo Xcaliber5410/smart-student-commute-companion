@@ -60,8 +60,10 @@
   nav surfaces + Day-7 device alerts; Day-13 quiet hours (device-local preference)
   mute the pop-up paths (live-report toasts, OS device alerts) while the window is
   active — reports still reach the feed.
-- **Forms**: controlled components built on `ui/FormField` + `utils/validation.js`
-  (client-side validation only; submissions go through `api.js` services).
+- **Forms**: controlled components built on `ui/Input`/`ui/Select`/`ui/Textarea`
+  + `utils/validation.js` (client-side validation only; submissions go through
+  `api.js` services). Note: `ui/FormField` exists in the kit but is not used by
+  any screen (corrected by the Day 1–13 audit; previously mis-stated).
 - **Responsive behavior**: Tailwind breakpoints; icon/short/full-label scaling in
   `Navbar` (ten tabs since Day 11: icon-only <1536px, short from 2xl → 2199px, full
   labels ≥2200px — re-measured because ten full labels no longer fit at 1920px), mobile
@@ -188,7 +190,7 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 - **Framework**: none (no Jest/Vitest/Playwright — verified no such deps).
 - **Test command**: `cd frontend && npm run verify` (= `npm test`) →
-  `frontend/verify-frontend.js`, Node script, currently **310 checks / 22 sections**, all
+  `frontend/verify-frontend.js`, Node script, currently **314 checks / 23 sections**, all
   passing; exit code gates CI-less workflow. Static source assertions (files exist,
   patterns present), not runtime tests.
 - **Lint**: not configured (no eslint config/script — verified). Report as N/A.
@@ -197,7 +199,7 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 - **PWA checks**: section 6 of `verify-frontend.js` (manifest/SW/meta), section 19
   (Day-10 analytics), section 20 (Day-11 offline queue), section 21 (Day-12
   notification read state), section 22 (Day-13 notification preferences / quiet
-  hours), + manual browser testing
+  hours), section 23 (Day 1–13 audit regression locks), + manual browser testing
   documented in `frontend/PWA_TESTING.md`.
   Browser-based responsive/a11y audits used during Days 7–10 were **session-local
   tools, not committed** — "Not verified from repository history" as reusable repo
@@ -214,11 +216,12 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
    code but unchecked in the file).
 5. Day-6 empty commits anomaly (`9a43783…957a74d`) pollute history with 7 no-op commits
    carrying Day-6 messages; real Day 6 = `a1e3d78…8a3f441` (see `days/DAY-06.md`).
-6. **Pre-existing share-target messaging bug** (documented Day 10, NOT fixed):
-   `services/shareTarget.js` listens on `window` for SW messages, but SW
-   `client.postMessage()` arrives on the `navigator.serviceWorker` container — so
-   Day-8's SW→page share-target messages never reach that handler (the sessionStorage
-   fallback covers the real flow). See `days/DAY-10.md`.
+6. **Share-target messaging bug — FIXED during the Day 1–13 audit** (was
+   documented Day 10): `services/shareTarget.js` used to listen on `window` for
+   SW messages and pinged with a type the worker ignored, so the shared payload
+   never reached the UI. The listener now uses the `navigator.serviceWorker`
+   channel and requests with `SHARE_TARGET_FETCH`; delivery was reproduced and
+   then verified working at runtime (see `days/DAY-01-13-AUDIT.md`).
 
 ---
 
