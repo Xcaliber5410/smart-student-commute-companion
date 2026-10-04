@@ -614,7 +614,13 @@ class StudyPlanningService {
 
     // 4. Plan Assignment Sessions
     for (const assignment of candidateAssignments) {
-      const sessionsNeeded = this._calculateSessionsNeeded(assignment);
+      let sessionsNeeded = this._calculateSessionsNeeded(assignment);
+      if (options.completedSessionsByAssignment && options.completedSessionsByAssignment.has(assignment.id)) {
+        const completedCount = options.completedSessionsByAssignment.get(assignment.id);
+        sessionsNeeded = Math.max(0, sessionsNeeded - completedCount);
+      }
+      if (sessionsNeeded === 0) continue;
+
       const sessionDuration = this._calculateSessionDuration(assignment, defaultSessionDuration);
       let sessionsScheduled = 0;
 
@@ -780,6 +786,11 @@ class StudyPlanningService {
 
     // 5. Plan Goal Milestone Sessions
     for (const goal of candidateGoals) {
+      if (options.completedSessionsByGoal && options.completedSessionsByGoal.has(goal.id)) {
+        const completedGoalCount = options.completedSessionsByGoal.get(goal.id);
+        if (completedGoalCount > 0) continue;
+      }
+
       const goalDuration = Math.min(60, defaultSessionDuration);
       const maxGoalEnd = goal.target_date ? Math.min(endDate, goal.target_date) : endDate;
 
@@ -886,30 +897,33 @@ class StudyPlanningService {
     let finalItems = plannedItemsData.map(d => StudyPlanItem.create(d));
 
     if (autoPersist) {
-      // Prevent duplicate planned items: find existing active plans in this window
-      if (options.replaceExisting !== false) {
-        const activePlans = this.studyPlanRepo.findPlansByUserId(userId, {
-          status: 'active',
-          startDate,
-          endDate,
-          limit: 50
-        });
+      const runPersistTx = this.database.transaction(() => {
+        // Prevent duplicate planned items: find existing active plans in this window
+        if (options.replaceExisting !== false) {
+          const activePlans = this.studyPlanRepo.findPlansByUserId(userId, {
+            status: 'active',
+            startDate,
+            endDate,
+            limit: 50
+          });
 
-        for (const oldPlan of activePlans.data) {
-          // Cleanly delete uncompleted planned items from previous plan in this window
-          this.studyPlanRepo.database.prepare(`
-            DELETE FROM study_plan_items
-            WHERE plan_id = ? AND user_id = ? AND status = 'planned'
-          `).run(oldPlan.id, userId);
+          for (const oldPlan of activePlans.data) {
+            // Cleanly delete uncompleted planned items from previous plan in this window
+            this.studyPlanRepo.database.prepare(`
+              DELETE FROM study_plan_items
+              WHERE plan_id = ? AND user_id = ? AND status = 'planned'
+            `).run(oldPlan.id, userId);
 
-          // Archive the old plan
-          this.studyPlanRepo.updatePlan(oldPlan.id, userId, { status: 'archived' });
+            // Archive the old plan
+            this.studyPlanRepo.updatePlan(oldPlan.id, userId, { status: 'archived' });
+          }
         }
-      }
 
-      persistedPlan = this.studyPlanRepo.createPlan(planEntity);
-      plannedItemsData.forEach(item => { item.plan_id = persistedPlan.id; });
-      finalItems = this.studyPlanRepo.createItemsBatch(plannedItemsData, userId);
+        persistedPlan = this.studyPlanRepo.createPlan(planEntity);
+        plannedItemsData.forEach(item => { item.plan_id = persistedPlan.id; });
+        finalItems = this.studyPlanRepo.createItemsBatch(plannedItemsData, userId);
+      });
+      runPersistTx();
     } else {
       // In-memory preview: set plan_id
       plannedItemsData.forEach(item => { item.plan_id = planEntity.id; });
@@ -1077,14 +1091,8 @@ class StudyPlanningService {
       targetPlan = activePlans.data[0];
     }
 
-    // 1. Delete existing uncompleted planned items for this plan to avoid duplicates
-    this.studyPlanRepo.database.prepare(`
-      DELETE FROM study_plan_items
-      WHERE plan_id = ? AND user_id = ? AND status = 'planned'
-    `).run(targetPlan.id, userId);
-
     // 2. Determine forward planning window
-    const now = Date.now();
+    const now = options.now !== undefined ? Number(options.now) : Date.now();
     const effectiveStart = Math.max(now, targetPlan.start_date);
     const effectiveEnd = targetPlan.end_date;
 
@@ -1103,30 +1111,66 @@ class StudyPlanningService {
       };
     }
 
-    // 3. Generate fresh schedule for the remaining window without auto-persisting
+    // 3. Gather existing completed/in_progress items for this plan to prevent duplicate work or overlapping slots
+    const existingItems = this.studyPlanRepo.findItemsByPlanId(targetPlan.id, userId);
+    const completedItems = existingItems.filter(i => i.status === 'completed' || i.status === 'in_progress');
+
+    const completedSessionsByAssignment = new Map();
+    const completedSessionsByGoal = new Map();
+    for (const it of completedItems) {
+      if (it.assignment_id) {
+        completedSessionsByAssignment.set(
+          it.assignment_id,
+          (completedSessionsByAssignment.get(it.assignment_id) || 0) + 1
+        );
+      }
+      if (it.goal_id) {
+        completedSessionsByGoal.set(
+          it.goal_id,
+          (completedSessionsByGoal.get(it.goal_id) || 0) + 1
+        );
+      }
+    }
+
+    // 4. Generate fresh schedule for the remaining window without auto-persisting
     const planGenResult = await this.generateStudyPlan(userId, {
       ...options,
+      now,
       startDate: effectiveStart,
       endDate: effectiveEnd,
       replaceExisting: false,
-      autoPersist: false
+      autoPersist: false,
+      excludePlanId: targetPlan.id,
+      completedSessionsByAssignment,
+      completedSessionsByGoal
     });
 
-    // 4. Attach generated items to targetPlan and batch insert
+    // 4. Attach generated items to targetPlan and batch insert atomically
     const newItemsData = planGenResult.items.map(item => ({
       ...item.toRow(),
       plan_id: targetPlan.id,
       user_id: userId
     }));
 
-    const savedNewItems = this.studyPlanRepo.createItemsBatch(newItemsData, userId);
+    let updatedPlan = targetPlan;
+    let savedNewItems = [];
+    const runRecalcTx = this.database.transaction(() => {
+      // Cleanly delete existing uncompleted planned items for this plan to avoid duplicates
+      this.studyPlanRepo.database.prepare(`
+        DELETE FROM study_plan_items
+        WHERE plan_id = ? AND user_id = ? AND status = 'planned'
+      `).run(targetPlan.id, userId);
 
-    // 5. Update plan timestamp
-    const updatedPlan = this.studyPlanRepo.updatePlan(targetPlan.id, userId, {
-      updated_at: now
+      savedNewItems = this.studyPlanRepo.createItemsBatch(newItemsData, userId);
+
+      // Update plan timestamp
+      updatedPlan = this.studyPlanRepo.updatePlan(targetPlan.id, userId, {
+        updated_at: now
+      });
     });
+    runRecalcTx();
 
-    // 6. Fetch complete items (including any previously completed ones)
+    // 5. Fetch complete items (including any previously completed ones)
     const allPlanItems = this.studyPlanRepo.findItemsByPlanId(targetPlan.id, userId);
     const progressSummary = this._computePlanProgressSummary(updatedPlan, allPlanItems);
 
@@ -1453,16 +1497,19 @@ class StudyPlanningService {
       });
     }
 
-    // 3. Existing Study Plan Items (active/planned)
+    // 3. Existing Study Plan Items (active/planned and completed)
     if (options.includePlanItems !== false) {
       const planItems = this.studyPlanRepo.findInRange(userId, start, end, {
-        status: options.planItemStatus || 'planned',
+        status: options.planItemStatus || null,
         excludeItemId: options.excludeItemId || null
       });
       for (const p of planItems) {
         if (options.excludePlanId && p.plan_id === options.excludePlanId) {
-          continue;
+          if (p.status !== 'completed' && p.status !== 'in_progress') {
+            continue;
+          }
         }
+        if (p.status === 'skipped') continue;
         commitments.push({
           id: p.id,
           start: p.planned_date,

@@ -469,7 +469,7 @@ async function run() {
       );
 
       // 3. Valid reschedule to a free slot before the deadline succeeds
-      const validSlotTime = now + (1.5 * dayMs);
+      const validSlotTime = now + (2.5 * dayMs);
       const updatedItem = await engine.reschedulePlanItem(userA, item.id, validSlotTime, { now });
       assert.equal(updatedItem.planned_date, validSlotTime);
 

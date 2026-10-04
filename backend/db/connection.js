@@ -50,9 +50,14 @@ function createDriverInstance(dbFilePath) {
         return this.exec(`PRAGMA ${pragmaStr};`);
       };
 
-      // Polyfill transaction method
+      // Polyfill transaction method with nested/re-entrant transaction support
+      let inTx = false;
       nativeDb.transaction = function (fn) {
         return function (...args) {
+          if (inTx) {
+            return fn(...args);
+          }
+          inTx = true;
           nativeDb.exec('BEGIN TRANSACTION;');
           try {
             const result = fn(...args);
@@ -61,6 +66,8 @@ function createDriverInstance(dbFilePath) {
           } catch (err) {
             nativeDb.exec('ROLLBACK;');
             throw err;
+          } finally {
+            inTx = false;
           }
         };
       };

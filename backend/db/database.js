@@ -195,6 +195,7 @@ function initDb(overrideDb) {
     CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_resource ON notifications(user_id, related_resource_type, related_resource_id);
 
     CREATE TABLE IF NOT EXISTS reminders (
       id TEXT PRIMARY KEY,
@@ -392,6 +393,8 @@ function initDb(overrideDb) {
     CREATE INDEX IF NOT EXISTS idx_study_plan_items_course_id ON study_plan_items(course_id);
     CREATE INDEX IF NOT EXISTS idx_study_plan_items_assignment_id ON study_plan_items(assignment_id);
     CREATE INDEX IF NOT EXISTS idx_study_plan_items_goal_id ON study_plan_items(goal_id);
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_study_session_id ON study_plan_items(study_session_id);
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_resource_id ON study_plan_items(resource_id);
   `);
 
   // Defensively ensure columns added across Day 7-13 migrations exist on pre-existing database tables
