@@ -34,7 +34,7 @@ side working in parallel.
   (per `backend/docs/goal_and_productivity_workflows.md`, commits through `a8f8d80`,
   2026-10-01), plus the Day-11 start-of-day merge brought the study-resources suite
   (`df275de`, 2026-10-03).
-- Frontend verification: `npm run verify` = **314/314 checks passing** (23 named
+- Frontend verification: `npm run verify` = **319/319 checks passing** (24 named
   sections), `npm run build` succeeds. A full Day 1–13 audit (runtime tests in
   headless Chrome incl. offline + share-target flows) is recorded in
   `days/DAY-01-13-AUDIT.md`.
@@ -156,7 +156,7 @@ by the frontend are listed in
 UI kit lives in `frontend/src/components/ui/` (barrel-exported). Most reused:
 `Button`, `Card`, `Modal` (focus trap/ESC/aria-modal), `ConfirmDialog`, `Badge`,
 `StatTile`, `Tabs`/`TabPanel`, `SearchInput`, `FilterBar`, `Select`, `Input`,
-`FormField`, `EmptyState`, `ErrorState`, `LoadingState`, `Spinner`, `Skeleton`/
+`EmptyState`, `ErrorState`, `LoadingState`, `Spinner`, `Skeleton`/
 `ListSkeleton`, `Alert`, `Toast` (app-level, `components/Toast.jsx`), `ProgressBar`,
 `ComparisonBars`, `Toggle` (Day 7), `FeatureHighlight` + `InstallPromoDialog` (Day 9),
 `ShareableCard` + `InstallStatusCard` (Day 8), `EventLogList` (Day 10),
@@ -236,7 +236,7 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 ## 17. Testing / lint / type-check / build
 
 - **Tests**: `cd frontend && npm run verify` (alias `npm test`) → `verify-frontend.js`,
-  a Node script performing **314 static source checks across 23 sections** (structure,
+  a Node script performing **319 static source checks across 24 sections** (structure,
   config, design system, PWA, and per-day feature checks). These are source-level
   assertions, not runtime unit tests. No Jest/Vitest/Playwright exists.
 - **Lint**: **none configured** (no eslint config or script — verified).

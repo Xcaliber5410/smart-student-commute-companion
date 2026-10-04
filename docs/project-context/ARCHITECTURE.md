@@ -103,10 +103,12 @@
 ## Forms
 
 - **Where**: form components (`PlannerForm`, `CreateReportModal`, `TransitSearchForm`,
-  `CreateGroupModal`, `FeedbackModal`) are controlled components using `ui/FormField`,
-  `ui/Input`/`Select`/`Textarea` and `utils/validation.js` helpers; submit handlers come
-  from App props and call domain services.
-- **How to add**: reuse `FormField` (labels, error `role=alert`, `aria-describedby`),
+  `CreateGroupModal`, `FeedbackModal`) are controlled components using
+  `ui/Input`/`Select`/`Textarea` directly and `utils/validation.js` helpers; submit
+  handlers come from App props and call domain services. (The kit's `ui/FormField`
+  wrapper had zero consumers and was removed in the audit follow-up.)
+- **How to add**: reuse `ui/Input`/`Select`/`Textarea` — they render the label
+  (`htmlFor`/`id`), announce errors with `role=alert` and wire `aria-describedby` —
   validate client-side with `utils/validation.js`, keep submit logic in App, show
   pending state on the button and toasts on success/failure.
 

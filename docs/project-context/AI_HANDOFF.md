@@ -104,7 +104,7 @@ documented exception).
 ## 8. Verification workflow (before every commit)
 
 ```bash
-cd frontend && npm run verify    # must be 100%, currently 314 checks
+cd frontend && npm run verify    # must be 100%, currently 319 checks
 cd frontend && npm run build     # must succeed (chunk >500kB warning is pre-existing)
 ```
 

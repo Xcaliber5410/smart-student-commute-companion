@@ -133,7 +133,7 @@
 
 ### 16. Verification suite — Day 1, extended daily
 - **Status**: IMPLEMENTED
-- **Files**: `frontend/verify-frontend.js` (314 checks, 23 sections)
+- **Files**: `frontend/verify-frontend.js` (319 checks, 24 sections)
 - **API**: none
 
 ### 17. PWA analytics & monitoring dashboard — Day 10

@@ -62,8 +62,8 @@
   active — reports still reach the feed.
 - **Forms**: controlled components built on `ui/Input`/`ui/Select`/`ui/Textarea`
   + `utils/validation.js` (client-side validation only; submissions go through
-  `api.js` services). Note: `ui/FormField` exists in the kit but is not used by
-  any screen (corrected by the Day 1–13 audit; previously mis-stated).
+  `api.js` services). Note: the kit's `ui/FormField`/`ui/SuccessState` had zero
+  consumers and were removed in the audit follow-up (previously mis-stated).
 - **Responsive behavior**: Tailwind breakpoints; icon/short/full-label scaling in
   `Navbar` (ten tabs since Day 11: icon-only <1536px, short from 2xl → 2199px, full
   labels ≥2200px — re-measured because ten full labels no longer fit at 1920px), mobile
@@ -190,7 +190,7 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 - **Framework**: none (no Jest/Vitest/Playwright — verified no such deps).
 - **Test command**: `cd frontend && npm run verify` (= `npm test`) →
-  `frontend/verify-frontend.js`, Node script, currently **314 checks / 23 sections**, all
+  `frontend/verify-frontend.js`, Node script, currently **319 checks / 24 sections**, all
   passing; exit code gates CI-less workflow. Static source assertions (files exist,
   patterns present), not runtime tests.
 - **Lint**: not configured (no eslint config/script — verified). Report as N/A.

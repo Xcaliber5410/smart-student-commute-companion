@@ -142,10 +142,32 @@ change — no backend modification, no invented endpoint.
    the SW cannot read the localStorage queue).
 4. Optional P3/P4 cleanups listed in section 5E.
 
-## 8. Verdict
-
-**READY WITH KNOWN ISSUES** — all Day 1–13 features are implemented,
+## 8. Verdict**READY WITH KNOWN ISSUES** — all Day 1–13 features are implemented,
 reachable and statically tested; one real integration bug (share-target
 delivery) existed and was fixed and runtime-verified during this audit;
-full E2E with live backend data is blocked by a backend-local DB issue, and
-real-device PWA checks remain open.
+full E2E with live backend data is blocked by a backend-local DB issue,
+and real-device PWA checks remain open.
+
+## 9. Follow-up session (same day) — §4E/§7 cleanups applied
+
+Per the follow-up request to "fix these issues":
+
+- `sw.js` `CACHE_URLS` branch **removed** (grep confirmed no client ever
+  posts that type; `node --check` passes, rebuilt `dist/sw.js` is clean).
+  The second `message` listener stays (legal, both run).
+- `ui/FormField` and `ui/SuccessState` **deleted** (zero consumers anywhere)
+  and dropped from the barrel. `FeatureHighlight`, `Skeleton` and `Spinner`
+  were kept — they are used inside the kit (`InstallPromoDialog`,
+  `ListSkeleton`, `LoadingState`) and are locked by the suite.
+- `utils/registerSW.js` debug helpers: left as-is (explicit decision).
+- `public/icons/convert-to-png.md` moved to `frontend/docs/icons/` and its
+  5 doc references updated — it no longer ships into `dist/` (build
+  re-checked).
+- Verify suite grew 314 → **319 checks / 24 sections**; section 24 locks the
+  cleanups above. `npm run verify` → 319/319, `npm run build` → green.
+- Backend source **left untouched as instructed** — a draft `database.js`
+  self-heal fix was written, tested, then reverted (clean `git status` for
+  `backend/`). During that test the local gitignored `backend/db/commute.db`
+  received the missing `assignments.goal_id` column (additive ALTER, no data
+  changed), so local `node server.js` now boots and answers API requests
+  (auth-gated routes still 401 per §5). No tracked backend file changed.
