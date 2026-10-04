@@ -33,7 +33,7 @@ Successfully established a complete Progressive Web App foundation for the Smart
 6. **`PWA_SETUP.md`** - Complete setup guide and configuration reference
 7. **`PWA_TESTING.md`** - Testing checklist and browser testing guide
 8. **`PWA_SUMMARY.md`** - This implementation summary
-9. **`public/icons/convert-to-png.md`** - Icon conversion instructions
+9. **`docs/icons/convert-to-png.md`** - Icon conversion instructions
 
 #### Modified Files
 - **`index.html`** - Added PWA meta tags, manifest link, SEO improvements
@@ -223,7 +223,7 @@ See `PWA_TESTING.md` for comprehensive testing guide.
 
 - **Setup Guide**: `PWA_SETUP.md`
 - **Testing Guide**: `PWA_TESTING.md`
-- **Icon Conversion**: `public/icons/convert-to-png.md`
+- **Icon Conversion**: `docs/icons/convert-to-png.md`
 - **Service Worker**: `public/sw.js`
 - **Registration**: `src/utils/registerSW.js`
 - **Manifest**: `public/manifest.json`

@@ -189,7 +189,7 @@ export default defineConfig({
 ```
 
 ### Manual Conversion
-See `public/icons/convert-to-png.md` for manual conversion options.
+See `docs/icons/convert-to-png.md` for manual conversion options.
 
 ## Future PWA Roadmap
 

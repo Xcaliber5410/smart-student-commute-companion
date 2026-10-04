@@ -190,7 +190,7 @@ All Day 1 frontend foundation work has been verified and is functioning correctl
 
 **Minor Notes**:
 - ⚠️ Icons are SVG (work in modern browsers, PNG recommended for max compatibility)
-- ⚠️ PNG conversion guide provided in public/icons/convert-to-png.md
+- ⚠️ PNG conversion guide provided in docs/icons/convert-to-png.md
 
 **Verified Features**:
 - Complete PWA manifest

@@ -1973,6 +1973,54 @@ if (
 }
 
 // ============================================================
+// 24. AUDIT FOLLOW-UP — P3/P4 CLEANUP LOCKS
+// ============================================================
+// Fixes applied after the full-project audit: the sender-less CACHE_URLS
+// branch was dropped from the worker, the two kit components with zero
+// consumers were deleted, and the icon conversion guide moved out of
+// public/ so it no longer ships into dist/.
+
+section('24. AUDIT FOLLOW-UP CLEANUP LOCKS');
+
+const swCleanupAudit = readFile('public/sw.js');
+if (swCleanupAudit && !swCleanupAudit.includes("type === 'CACHE_URLS'")) {
+  pass('Worker no longer carries the sender-less CACHE_URLS branch');
+} else {
+  fail('Worker still handles CACHE_URLS though no client ever posts it');
+}
+
+if (!fileExists('src/components/ui/FormField.jsx')) {
+  pass('Unused FormField component removed from the kit');
+} else {
+  fail('FormField still present despite having no consumers');
+}
+
+if (!fileExists('src/components/ui/SuccessState.jsx')) {
+  pass('Unused SuccessState component removed from the kit');
+} else {
+  fail('SuccessState still present despite having no consumers');
+}
+
+const uiBarrelCleanup = readFile('src/components/ui/index.js');
+if (
+  uiBarrelCleanup &&
+  !uiBarrelCleanup.includes('FormField') &&
+  !uiBarrelCleanup.includes('SuccessState') &&
+  uiBarrelCleanup.includes("from './LoadingState'") &&
+  uiBarrelCleanup.includes("from './ErrorState'")
+) {
+  pass('UI barrel drops the dead exports and keeps the page-state components');
+} else {
+  fail('UI barrel exports are out of sync with the kit files');
+}
+
+if (!fileExists('public/icons/convert-to-png.md') && fileExists('docs/icons/convert-to-png.md')) {
+  pass('Icon conversion guide lives outside public/ so it cannot ship to dist');
+} else {
+  fail('Icon conversion guide still ships from public/ into dist');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 

@@ -105,7 +105,7 @@ node verify-frontend.js
 node scripts/generate-icons.js
 
 # Creates icons in public/icons/
-# See public/icons/convert-to-png.md for PNG conversion
+# See docs/icons/convert-to-png.md for PNG conversion
 ```
 
 ---

@@ -363,20 +363,6 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
   
-  if (event.data && event.data.type === 'CACHE_URLS') {
-    console.log('[SW] Received CACHE_URLS message');
-    const urls = event.data.urls || [];
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urls))
-      .then(() => {
-        event.ports[0].postMessage({ success: true });
-      })
-      .catch((error) => {
-        console.error('[SW] Failed to cache URLs:', error);
-        event.ports[0].postMessage({ success: false, error: error.message });
-      });
-  }
-
   // Day 10: the Analytics screen pulls the recorded store on load, refresh
   // and retry (observations made before the page's JS mounted live here).
   if (event.data && event.data.type === 'pwa-analytics-sync') {

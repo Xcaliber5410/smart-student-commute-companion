@@ -182,7 +182,7 @@ Created 8 production-ready, accessible UI components:
 - **PWA_TESTING.md** - Comprehensive testing checklist
 - **PWA_SUMMARY.md** - Implementation summary and roadmap
 - **public/INSTALL.md** - User-facing installation guide
-- **public/icons/convert-to-png.md** - Icon conversion instructions
+- **docs/icons/convert-to-png.md** - Icon conversion instructions (kept out of `public/` so it is not shipped into `dist/`)
 
 **Key Features**:
 - Install to home screen (all platforms)
@@ -306,16 +306,17 @@ a949d31 feat(frontend): establish layout and routing foundation
 ```
 frontend/
 ├── public/
-│   ├── icons/                    # PWA icons (11 files)
+│   ├── icons/                    # PWA icons (10 files)
 │   │   ├── icon-*.svg           # Standard icons
-│   │   ├── icon-maskable-*.svg  # Adaptive icons
-│   │   └── convert-to-png.md    # Conversion guide
+│   │   └── icon-maskable-*.svg  # Adaptive icons
 │   ├── favicon.svg              # App favicon
 │   ├── manifest.json            # Web app manifest
 │   ├── sw.js                    # Service worker
 │   └── INSTALL.md               # User installation guide
 ├── scripts/
 │   └── generate-icons.js        # Icon generation script
+├── docs/
+│   └── icons/convert-to-png.md  # Conversion guide (not shipped to dist/)
 ├── src/
 │   ├── components/
 │   │   ├── ui/                  # Reusable UI library
