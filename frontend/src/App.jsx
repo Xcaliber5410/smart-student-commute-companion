@@ -61,7 +61,6 @@ import { getSocket } from './services/socket';
 import {
   clearShareTargetData,
   getShareTargetData,
-  isShareTargetLaunch,
   watchShareTargetDeliveries,
 } from './services/shareTarget';
 import {

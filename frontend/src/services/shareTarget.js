@@ -87,8 +87,14 @@ export function clearShareTargetData() {
  * Listen for shared content delivered by the service worker via postMessage
  * (the primary channel; sessionStorage is the fallback redundancy).
  *
+ * Messages the worker sends with `client.postMessage()` arrive on the
+ * `navigator.serviceWorker` container, NOT on `window` (verified against the
+ * spec and in Chrome — see also services/pwaAnalytics.js, which listens on
+ * the same channel). The `window` listener is kept as a harmless fallback
+ * for any future window-surface delivery.
+ *
  * @param {Function} callback - Called with {title, text, url}
- * @returns {Function} Cleanup function removing the listener
+ * @returns {Function} Cleanup function removing the listeners
  */
 export function registerShareTargetListener(callback) {
   if (typeof window === 'undefined' || typeof callback !== 'function') {
@@ -103,7 +109,18 @@ export function registerShareTargetListener(callback) {
   };
 
   window.addEventListener('message', handleMessage);
-  return () => window.removeEventListener('message', handleMessage);
+  // ServiceWorkerContainer is the channel the worker's client.postMessage
+  // replies actually arrive on — without this the payload never reaches us.
+  const container =
+    typeof navigator !== 'undefined' && navigator.serviceWorker?.addEventListener
+      ? navigator.serviceWorker
+      : null;
+  container?.addEventListener('message', handleMessage);
+
+  return () => {
+    window.removeEventListener('message', handleMessage);
+    container?.removeEventListener('message', handleMessage);
+  };
 }
 
 /**
@@ -124,10 +141,13 @@ export function watchShareTargetDeliveries(callback) {
     .then((registration) => {
       if (cancelled) return;
       cleanupMessage = registerShareTargetListener(callback);
-      // Ask any existing window client that already holds shared content
-      // (e.g. the SW redirected us) whether it has a payload stashed —
-      // covers the case where postMessage raced the page load.
-      registration.active?.postMessage({ type: 'SHARE_TARGET_PING' });
+      // Ask the worker for any payload it stashed before this page loaded
+      // (e.g. the share POST landed while the shell was still loading). This
+      // must use the request type the worker actually answers
+      // ('SHARE_TARGET_FETCH' — see the worker's message handler); it replies
+      // with { type: 'SHARE_TARGET_PAYLOAD', payload } on the
+      // navigator.serviceWorker channel, which the listener above receives.
+      registration.active?.postMessage({ type: 'SHARE_TARGET_FETCH' });
     })
     .catch(() => {
       // SW unavailable — silent; sessionStorage fallback is read by the app
