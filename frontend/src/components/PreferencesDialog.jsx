@@ -21,6 +21,11 @@ import {
  * pop-ups (toasts and OS-level alerts) are muted. Reports still arrive in the
  * feed either way; quiet hours never hide data.
  *
+ * Accessibility: section labels are `h4` headings under the dialog's `h3`
+ * title, the time window is a `fieldset`/`legend` group (see TimeRangeInput),
+ * invalid times surface as built-in `role="alert"` messages, and the
+ * live quiet-hours status is a polite `role="status"` region.
+ *
  * NOTE: these are local interface preferences. There is no backend endpoint
  * for syncing them, and the dialog says so plainly.
  *
@@ -115,9 +120,9 @@ export default function PreferencesDialog({
         </p>
 
         <div className="bg-slate-950/60 border border-slate-800 rounded-xl px-4">
-          <p className="pt-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800">
+          <h4 className="pt-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800">
             Display
-          </p>
+          </h4>
           <Toggle
             id="pref-dashboard-overview"
             className="py-3 border-b border-slate-800"
@@ -126,9 +131,9 @@ export default function PreferencesDialog({
             label="Show dashboard overview"
             description="Display the “at a glance” summary, quick actions, and recent searches at the top of the planner."
           />
-          <p className="pt-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800">
+          <h4 className="pt-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800">
             Notifications
-          </p>
+          </h4>
           <Toggle
             id="pref-live-report-toasts"
             className="py-3 border-b border-slate-800"
@@ -141,7 +146,12 @@ export default function PreferencesDialog({
             id="pref-quiet-hours"
             className="py-3 border-b border-slate-800"
             checked={prefs.quietHoursEnabled}
-            onChange={(value) => onChange({ quietHoursEnabled: value })}
+            onChange={(value) => {
+              // Switching quiet hours off also clears any in-progress time
+              // errors so greyed-out fields never show stale validation.
+              if (!value) setTimeErrors({ start: null, end: null });
+              onChange({ quietHoursEnabled: value });
+            }}
             label="Quiet hours"
             description="Pause live toasts and device alerts during a daily window (for example overnight). Reports still reach Live Alerts — nothing is hidden."
           />
@@ -161,7 +171,11 @@ export default function PreferencesDialog({
             onBlurEnd={() => handleTimeBlur('end')}
             className="py-3"
           />
-          <p className="pt-1 pb-3 text-xs text-slate-500 leading-relaxed break-words">
+          <p
+            role="status"
+            aria-live="polite"
+            className="pt-1 pb-3 text-xs text-slate-500 leading-relaxed break-words"
+          >
             {quietStatus}
           </p>
         </div>

@@ -58,10 +58,12 @@ export default function TimeRangeInput({
   hint,
   className = '',
 }) {
+  const hintId = `${id}-hint`;
   return (
     <fieldset
       className={`min-w-0 border-0 p-0 m-0 ${className}`}
       disabled={disabled}
+      aria-describedby={hint ? hintId : undefined}
     >
       <legend className="block p-0 text-xs font-semibold text-slate-300 mb-1.5">
         {legend}
@@ -89,7 +91,9 @@ export default function TimeRangeInput({
         />
       </div>
       {hint && (
-        <p className="mt-1.5 text-xs text-slate-500 leading-relaxed break-words">{hint}</p>
+        <p id={hintId} className="mt-1.5 text-xs text-slate-500 leading-relaxed break-words">
+          {hint}
+        </p>
       )}
     </fieldset>
   );
