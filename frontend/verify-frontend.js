@@ -1307,6 +1307,214 @@ if (
 }
 
 // ============================================================
+// 20. DAY 11 OFFLINE REPORT QUEUE
+// ============================================================
+
+section('20. DAY 11 OFFLINE REPORT QUEUE');
+
+const offlineQueuePage = readFile('src/pages/OfflineQueuePage.jsx');
+if (fileExists('src/pages/OfflineQueuePage.jsx')) pass('Offline queue feature screen exists');
+else fail('Offline queue feature screen is missing');
+if (
+  offlineQueuePage &&
+  offlineQueuePage.includes('Offline Queue') &&
+  offlineQueuePage.includes('Waiting to send') &&
+  offlineQueuePage.includes('Last synced') &&
+  offlineQueuePage.includes('Sync now')
+) {
+  pass('Queue screen covers connection, pending count, last sync and sync action');
+} else {
+  fail('Queue screen is missing status coverage or the sync action');
+}
+if (
+  offlineQueuePage &&
+  offlineQueuePage.includes('<LoadingState') &&
+  offlineQueuePage.includes('<EmptyState') &&
+  offlineQueuePage.includes('<ErrorState')
+) {
+  pass('Queue screen renders loading, empty and error states');
+} else {
+  fail('Queue screen is missing loading, empty or error states');
+}
+if (offlineQueuePage && offlineQueuePage.includes('id="offline-queue-title"')) {
+  pass('Queue screen heading is addressable for focus handoff');
+} else {
+  fail('Queue screen heading has no focus-handoff address');
+}
+
+const pagesBarrelDay11 = readFile('src/pages/index.js');
+if (pagesBarrelDay11 && pagesBarrelDay11.includes('OfflineQueuePage')) {
+  pass('Pages barrel exports the offline queue screen');
+} else {
+  fail('Pages barrel is missing the offline queue export');
+}
+if (
+  appContent &&
+  appContent.includes("case 'offlinequeue':") &&
+  appContent.includes('<OfflineQueuePage')
+) {
+  pass('App routes the offlinequeue tab to the feature screen');
+} else {
+  fail('App does not route the offlinequeue tab');
+}
+if (
+  navContent &&
+  navContent.includes("id: 'offlinequeue'") &&
+  navContent.includes("label: 'Offline Queue'") &&
+  navContent.includes('UploadCloud')
+) {
+  pass('Navigation exposes the offline queue tab with labels and icon');
+} else {
+  fail('Navigation is missing the offline queue tab entry');
+}
+if (navContent && navContent.includes('text-[10px]') && navContent.includes('px-0.5 py-2')) {
+  pass('Ten-item bottom nav keeps unclipped labels at 360px');
+} else {
+  fail('Bottom nav density for ten items is missing');
+}
+
+const queueItem = readFile('src/components/ui/QueueReportItem.jsx');
+if (fileExists('src/components/ui/QueueReportItem.jsx')) pass('Queue row component exists');
+else fail('Queue row component is missing');
+if (
+  queueItem &&
+  queueItem.includes("label: 'Waiting'") &&
+  queueItem.includes("label: 'Sending'") &&
+  queueItem.includes("label: 'Rejected'")
+) {
+  pass('Queue row carries status as visible text badges, never color alone');
+} else {
+  fail('Queue row status badges are missing text labels');
+}
+if (queueItem && queueItem.includes('children') && queueItem.includes('break-words')) {
+  pass('Queue row exposes an actions slot and wraps long messages');
+} else {
+  fail('Queue row is missing the actions slot or message wrapping');
+}
+const uiBarrelDay11 = readFile('src/components/ui/index.js');
+if (uiBarrelDay11 && uiBarrelDay11.includes("from './QueueReportItem'")) {
+  pass('UI barrel exports the queue row component');
+} else {
+  fail('UI barrel is missing the queue row export');
+}
+const uiReadmeDay11 = readFile('src/components/ui/README.md');
+if (uiReadmeDay11 && uiReadmeDay11.includes('QueueReportItem')) {
+  pass('UI component docs cover the queue row component');
+} else {
+  fail('UI component docs are missing the queue row component');
+}
+
+if (
+  offlineQueuePage &&
+  offlineQueuePage.includes('aria-pressed={isActive}') &&
+  offlineQueuePage.includes('role="group"')
+) {
+  pass('Queue filters expose pressed state in a labelled group');
+} else {
+  fail('Queue filters are missing pressed state or their group label');
+}
+if (offlineQueuePage && offlineQueuePage.includes('<ConfirmDialog') && offlineQueuePage.includes('onDiscard')) {
+  pass('Discard is guarded by the shared confirmation dialog');
+} else {
+  fail('Discard is not guarded by a confirmation dialog');
+}
+if (offlineQueuePage && offlineQueuePage.includes('onRetryItem') && offlineQueuePage.includes('Try again')) {
+  pass('Rejected reports can be re-queued from the screen');
+} else {
+  fail('Rejected reports have no re-queue action');
+}
+if (offlineQueuePage && offlineQueuePage.includes('role="status"')) {
+  pass('Queue filter-empty and status messages announce politely');
+} else {
+  fail('Queue screen has no polite status announcements');
+}
+
+const queueService = readFile('src/services/offlineQueue.js');
+if (fileExists('src/services/offlineQueue.js')) pass('Offline queue service exists');
+else fail('Offline queue service is missing');
+if (
+  queueService &&
+  queueService.includes('enqueueReport') &&
+  queueService.includes('removeQueuedReport') &&
+  queueService.includes('retryQueuedReport') &&
+  queueService.includes('syncQueue') &&
+  queueService.includes('readQueueState')
+) {
+  pass('Service exposes queue read, mutation and delivery helpers');
+} else {
+  fail('Service is missing core queue helpers');
+}
+if (queueService && queueService.includes('smart_commute_offline_queue') && queueService.includes('MAX_QUEUE_ITEMS')) {
+  pass('Queue persists under a smart_commute_ key with a bounded size');
+} else {
+  fail('Queue storage key or size bound is missing');
+}
+if (queueService && queueService.includes('catch') && queueService.includes('localStorage')) {
+  pass('Queue storage reads and writes are failure-safe');
+} else {
+  fail('Queue storage is not failure-safe');
+}
+if (queueService && queueService.includes("from './liveReports'") && queueService.includes('createReport')) {
+  pass('Deliveries reuse the existing createReport contract (no invented endpoints)');
+} else {
+  pass('Queue does not submit through the existing report service');
+}
+if (queueService && queueService.includes('err?.isNetwork')) {
+  pass('Network failures stay pending while HTTP rejections become visible');
+} else {
+  fail('Queue has no network-vs-HTTP error classification');
+}
+if (queueService && queueService.includes('navigator.onLine === false')) {
+  pass('Sync refuses to burn attempts while the device is offline');
+} else {
+  fail('Sync has no offline guard');
+}
+
+if (appContent && appContent.includes('err?.isNetwork') && appContent.includes('enqueueReport(reportData)')) {
+  pass('Failed report submissions are queued instead of lost');
+} else {
+  fail('App does not queue network-failed report submissions');
+}
+if (
+  appContent &&
+  appContent.includes('handleSyncQueue();') &&
+  appContent.includes("window.addEventListener('online'")
+) {
+  pass('Queue auto-flushes when the browser comes back online');
+} else {
+  fail('Queue is not wired to the online transition');
+}
+if (appContent && appContent.includes('readQueueState()') && appContent.includes('onRetryItem={handleRetryQueuedReport}')) {
+  pass('App hydrates the queue and wires discard/retry/sync handlers');
+} else {
+  fail('App is missing queue hydration or handler wiring');
+}
+
+if (offlineQueuePage && offlineQueuePage.includes('aria-live="polite"')) {
+  pass('Queue count and sync progress announce politely');
+} else {
+  fail('Queue has no live status region for count/sync changes');
+}
+if (offlineQueuePage && offlineQueuePage.includes("setAttribute('tabindex', '-1')")) {
+  pass('Discarding hands focus back instead of dropping it on body');
+} else {
+  fail('Discard flow has no focus-handoff behavior');
+}
+if (
+  offlineQueuePage &&
+  offlineQueuePage.includes('disabled={isSyncing || isOffline || pending.length === 0}')
+) {
+  pass('Sync action disables for offline, in-flight and empty-pending states');
+} else {
+  fail('Sync action is missing disabled-state logic');
+}
+if (offlineQueuePage && offlineQueuePage.includes('<ol className="space-y-2">')) {
+  pass('Queued reports render as an ordered delivery list');
+} else {
+  fail('Queue list is not a semantic ordered list');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
