@@ -65,3 +65,6 @@ export { default as QueueReportItem } from './QueueReportItem';
 
 // Reusable Unread Count Badge (Day 12)
 export { default as UnreadCountBadge } from './UnreadCountBadge';
+
+// Reusable Time Range Field (Day 13)
+export { default as TimeRangeInput } from './TimeRangeInput';

@@ -292,6 +292,26 @@ import { UnreadCountBadge } from '@/components/ui';
 
 **Props**: `count` (number, renders nothing ≤ 0), `max` (clamp, default 9), `srLabel` (string | null), `variant` (`emerald` | `amber`), `size` (`sm` | `md`), `className`
 
+### TimeRangeInput
+Labelled start/end time pair for a daily window (Day 13 quiet hours). Wraps two `Input type="time"` controls in a `fieldset`/`legend` so the group is announced before each time, disables both fields together, and provides a hint slot for window behaviour or live status text. Values are 24-hour `HH:MM` strings (the format `uiPreferences` validates).
+
+```jsx
+import { TimeRangeInput } from '@/components/ui';
+
+<TimeRangeInput
+  id="quiet-hours"
+  legend="Quiet window"
+  startValue="22:00"
+  endValue="07:00"
+  disabled={!enabled}
+  onChangeStart={(v) => onChange({ quietHoursStart: v })}
+  onChangeEnd={(v) => onChange({ quietHoursEnd: v })}
+  hint="Overnight windows wrap past midnight."
+/>
+```
+
+**Props**: `id` (base id), `legend`, `startLabel`/`endLabel`, `startValue`/`endValue`, `onChangeStart`/`onChangeEnd`, `disabled`, `hint` (node), `className`
+
 ## Import Patterns
 
 **Recommended** (barrel import):
