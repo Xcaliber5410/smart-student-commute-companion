@@ -393,7 +393,14 @@ export default function App() {
   };
 
   const handleMarkAllNotificationsRead = () => {
+    const unread = reports.filter((report) => !notificationReadIds.has(report.id)).length;
     setNotificationReadIds(() => new Set(reports.map((report) => report.id)));
+    if (unread > 0) {
+      showToast(
+        `Marked ${unread} notification${unread === 1 ? '' : 's'} as read.`,
+        'success'
+      );
+    }
   };
 
   const unreadNotificationsCount = reports.filter(
@@ -1078,6 +1085,7 @@ export default function App() {
     activeTab,
     setActiveTab,
     reportsCount: reports.length,
+    unreadNotificationsCount,
     onOpenPreferences: () => setIsPreferencesOpen(true),
     canInstall: canInstall && !isInstalled,
     onInstallApp: handleInstallApp

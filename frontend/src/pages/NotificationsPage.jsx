@@ -153,9 +153,9 @@ export default function NotificationsPage({
                 value={view}
                 onChange={(event) => setView(event.target.value)}
                 options={[
-                  { value: 'all', label: 'All notifications' },
-                  { value: 'unread', label: 'Unread only' },
-                  { value: 'read', label: 'Read only' },
+                  { value: 'all', label: `All notifications (${reports.length})` },
+                  { value: 'unread', label: `Unread only (${unread})` },
+                  { value: 'read', label: `Read only (${readTotal})` },
                 ]}
               />
             </div>

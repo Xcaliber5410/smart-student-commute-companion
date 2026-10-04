@@ -19,7 +19,7 @@ import {
   UploadCloud
 } from 'lucide-react';
 import { ENABLE_DEMO_RESET } from '../config/index.js';
-import { ConfirmDialog } from './ui';
+import { ConfirmDialog, UnreadCountBadge } from './ui';
 
 /**
  * Valid application routes
@@ -103,10 +103,10 @@ export const NAV_ITEMS = [
 export default function Navbar({ 
   isConnected, 
   onResetDemo, 
-  isResetting, 
-  activeTab, 
-  setActiveTab, 
+  isResetting,  activeTab,
+  setActiveTab,
   reportsCount = 0,
+  unreadNotificationsCount = 0,
   onOpenPreferences,
   canInstall = false,
   onInstallApp
@@ -243,6 +243,14 @@ export default function Navbar({
                     >
                       {reportsCount}
                     </span>
+                  )}
+                  {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                    <UnreadCountBadge
+                      count={unreadNotificationsCount}
+                      variant={isActive ? 'dark' : 'emerald'}
+                      srLabel="unread notifications"
+                      className="ml-0.5"
+                    />
                   )}
                 </button>
               );
@@ -384,6 +392,14 @@ export default function Navbar({
                         {reportsCount}
                       </span>
                     )}
+                    {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                      <UnreadCountBadge
+                        count={unreadNotificationsCount}
+                        size="md"
+                        variant={isActive ? 'dark' : 'emerald'}
+                        srLabel="unread notifications"
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -462,6 +478,13 @@ export default function Navbar({
                   <span className="absolute -top-1 -right-2 w-4 h-4 bg-amber-500 text-slate-950 text-[10px] font-extrabold rounded-full flex items-center justify-center border border-slate-950">
                     {reportsCount > 9 ? '9+' : reportsCount}
                   </span>
+                )}
+                {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                  <UnreadCountBadge
+                    count={unreadNotificationsCount}
+                    srLabel="unread"
+                    className="absolute -top-1 -right-2 border-slate-950"
+                  />
                 )}
               </div>
               <span className="text-[10px] mt-1 tracking-tight max-w-full truncate">

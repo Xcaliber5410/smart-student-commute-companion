@@ -16,7 +16,8 @@ import React from 'react';
  * @param {string|null} [props.srLabel='unread notifications'] - Suffix for a
  *   visually hidden description of the count. Pass `null` when adjacent visible
  *   text already carries the meaning (avoids duplicate announcements).
- * @param {'emerald'|'amber'} [props.variant='emerald'] - Color variant.
+ * @param {'emerald'|'amber'|'dark'} [props.variant='emerald'] - Color variant
+ *   (`dark` matches the active-tab treatment used by the navigation).
  * @param {'sm'|'md'} [props.size='sm'] - Pill size.
  * @param {string} [props.className=''] - Extra classes for positioning.
  */
@@ -38,7 +39,9 @@ export default function UnreadCountBadge({
   const variantClasses =
     variant === 'amber'
       ? 'border-amber-500/30 bg-amber-500/15 text-amber-300'
-      : 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300';
+      : variant === 'dark'
+        ? 'border-emerald-500/40 bg-slate-950 text-emerald-400'
+        : 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300';
 
   return (
     <span
