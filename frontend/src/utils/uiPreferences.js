@@ -110,7 +110,59 @@ export const DEFAULT_APP_PREFERENCES = Object.freeze({
   liveReportToasts: true,
   /** Raise OS-level device alerts for live reports while the app is backgrounded. */
   deviceAlerts: true,
+  /** Suppress live toasts & device alerts during a daily quiet window (Day 13). */
+  quietHoursEnabled: false,
+  /** Quiet window start, 24h `HH:MM` (local device time). */
+  quietHoursStart: '22:00',
+  /** Quiet window end, 24h `HH:MM`; may wrap past midnight. */
+  quietHoursEnd: '07:00',
 });
+
+// 24-hour HH:MM — the shape an <input type="time"> produces.
+const QUIET_HOURS_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Whether a value is a usable quiet-hours time (`HH:MM`, 24h).
+ * @param {string} value
+ * @returns {boolean}
+ */
+export function isValidQuietHoursTime(value) {
+  return typeof value === 'string' && QUIET_HOURS_TIME_PATTERN.test(value);
+}
+
+/**
+ * Whether quiet hours are suppressing notifications right now.
+ *
+ * Handles a window that wraps past midnight (start > end) and treats an
+ * empty window (start === end) as inactive so a malformed pair can never
+ * suppress alerts for a full 24 hours. Reports still reach the feed either
+ * way — quiet hours only mute pop-ups (toasts + OS-level alerts).
+ *
+ * @param {Object} [prefs] - Preference set (defaults applied per-key)
+ * @param {Date} [now] - Current time (injectable for tests)
+ * @returns {boolean}
+ */
+export function isQuietHoursActive(prefs, now = new Date()) {
+  const merged = { ...DEFAULT_APP_PREFERENCES, ...(prefs || {}) };
+  if (!merged.quietHoursEnabled) return false;
+  if (
+    !isValidQuietHoursTime(merged.quietHoursStart) ||
+    !isValidQuietHoursTime(merged.quietHoursEnd)
+  ) {
+    return false;
+  }
+  const toMinutes = (value) => {
+    const [hours, minutes] = value.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+  const start = toMinutes(merged.quietHoursStart);
+  const end = toMinutes(merged.quietHoursEnd);
+  if (start === end) return false;
+  const current = now.getHours() * 60 + now.getMinutes();
+  return start < end
+    ? current >= start && current < end
+    : current >= start || current < end;
+}
 
 /** @returns {Object} Stored app preferences merged over defaults (validated). */
 export function readAppPreferences() {
@@ -125,6 +177,15 @@ export function readAppPreferences() {
     }
     if (typeof stored.deviceAlerts === 'boolean') {
       result.deviceAlerts = stored.deviceAlerts;
+    }
+    if (typeof stored.quietHoursEnabled === 'boolean') {
+      result.quietHoursEnabled = stored.quietHoursEnabled;
+    }
+    if (isValidQuietHoursTime(stored.quietHoursStart)) {
+      result.quietHoursStart = stored.quietHoursStart;
+    }
+    if (isValidQuietHoursTime(stored.quietHoursEnd)) {
+      result.quietHoursEnd = stored.quietHoursEnd;
     }
   }
   return result;
@@ -146,6 +207,15 @@ export function writeAppPreferences(overrides) {
     }
     if (typeof overrides.deviceAlerts === 'boolean') {
       next.deviceAlerts = overrides.deviceAlerts;
+    }
+    if (typeof overrides.quietHoursEnabled === 'boolean') {
+      next.quietHoursEnabled = overrides.quietHoursEnabled;
+    }
+    if (isValidQuietHoursTime(overrides.quietHoursStart)) {
+      next.quietHoursStart = overrides.quietHoursStart;
+    }
+    if (isValidQuietHoursTime(overrides.quietHoursEnd)) {
+      next.quietHoursEnd = overrides.quietHoursEnd;
     }
   }
   safeWrite(APP_PREFERENCES_KEY, next);

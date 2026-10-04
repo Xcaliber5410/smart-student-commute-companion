@@ -1,7 +1,7 @@
 import React from 'react';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
-import { Modal, Button } from './ui';
-import { DEFAULT_APP_PREFERENCES } from '../utils/uiPreferences';
+import { Modal, Button, Input } from './ui';
+import { DEFAULT_APP_PREFERENCES, isQuietHoursActive } from '../utils/uiPreferences';
 
 /**
  * Switch - Accessible labeled toggle built on a native checkbox.
@@ -64,11 +64,16 @@ function Switch({ id, checked, onChange, label, description }) {
 /**
  * PreferencesDialog - Student personalization controls (client-side only)
  *
- * A settings dialog for display preferences stored on this device via the
- * existing uiPreferences store. Every control:
+ * A settings dialog for display and notification preferences stored on this
+ * device via the existing uiPreferences store. Every control:
  * - has a visible label + description (never placeholder-only),
  * - updates immediately (parent applies it on change) and shows a toast,
  * - is keyboard operable through the shared Modal focus management.
+ *
+ * Day 13 added the Notifications section: the live-report toast toggle plus
+ * quiet hours — a device-local window (default 22:00–07:00) during which
+ * pop-ups (toasts and OS-level alerts) are muted. Reports still arrive in the
+ * feed either way; quiet hours never hide data.
  *
  * NOTE: these are local interface preferences. There is no backend endpoint
  * for syncing them, and the dialog says so plainly.
@@ -88,6 +93,12 @@ export default function PreferencesDialog({
   onReset,
 }) {
   const prefs = { ...DEFAULT_APP_PREFERENCES, ...(preferences || {}) };
+  const quietActive = isQuietHoursActive(prefs);
+  const quietStatus = !prefs.quietHoursEnabled
+    ? 'Quiet hours are off — live pop-ups follow your toggles above.'
+    : quietActive
+      ? `Quiet hours are active now (${prefs.quietHoursStart}–${prefs.quietHoursEnd}) — toasts and device alerts are paused. Reports still appear in Live Alerts.`
+      : `Quiet hours run daily from ${prefs.quietHoursStart} to ${prefs.quietHoursEnd}.`;
 
   return (
     <Modal
@@ -105,6 +116,11 @@ export default function PreferencesDialog({
         </p>
 
         <div className="bg-slate-950/60 border border-slate-800 rounded-xl px-4">
+          <div className="py-3 border-b border-slate-800">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+              Display
+            </p>
+          </div>
           <Switch
             id="pref-dashboard-overview"
             checked={prefs.showDashboardOverview}
@@ -112,6 +128,11 @@ export default function PreferencesDialog({
             label="Show dashboard overview"
             description="Display the “at a glance” summary, quick actions, and recent searches at the top of the planner."
           />
+          <div className="pt-3 border-b border-slate-800">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+              Notifications
+            </p>
+          </div>
           <Switch
             id="pref-live-report-toasts"
             checked={prefs.liveReportToasts}
@@ -119,6 +140,32 @@ export default function PreferencesDialog({
             label="Live report notifications"
             description="Show a toast when another student posts a new disruption report while you browse."
           />
+          <Switch
+            id="pref-quiet-hours"
+            checked={prefs.quietHoursEnabled}
+            onChange={(value) => onChange({ quietHoursEnabled: value })}
+            label="Quiet hours"
+            description="Pause live toasts and device alerts during a daily window (for example overnight). Reports still reach Live Alerts — nothing is hidden."
+          />
+          <div className="grid grid-cols-1 gap-3 py-3 sm:grid-cols-2">
+            <Input
+              id="pref-quiet-hours-start"
+              label="Quiet hours start"
+              type="time"
+              value={prefs.quietHoursStart}
+              disabled={!prefs.quietHoursEnabled}
+              onChange={(event) => onChange({ quietHoursStart: event.target.value })}
+            />
+            <Input
+              id="pref-quiet-hours-end"
+              label="Quiet hours end"
+              type="time"
+              value={prefs.quietHoursEnd}
+              disabled={!prefs.quietHoursEnabled}
+              onChange={(event) => onChange({ quietHoursEnd: event.target.value })}
+            />
+          </div>
+          <p className="pb-3 text-xs text-slate-500 leading-relaxed">{quietStatus}</p>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
