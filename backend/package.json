@@ -56,6 +56,7 @@
     "test:resource-context": "node scripts/integration_resource_context_test.js",
     "test:study-resources-e2e": "node scripts/integration_study_resources_master_test.js",
     "test:study-planning-api": "node scripts/integration_study_planning_api_test.js",
+    "test:planning-conflicts": "node scripts/integration_planning_calendar_conflicts_test.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",

@@ -124,10 +124,48 @@ class StudyPlanningService {
       };
     });
 
+    const commitments = this._gatherAllCommitments(userId, startDate, endDate);
     let existingCommittedMinutes = 0;
-    calendarEvents.forEach(e => { existingCommittedMinutes += (e.durationMinutes || Math.round((e.end_time - e.start_time) / 60000)); });
-    studySessions.forEach(s => { existingCommittedMinutes += (s.planned_duration_minutes || 60); });
-    existingPlanItems.forEach(p => { existingCommittedMinutes += (p.duration_minutes || 60); });
+    commitments.forEach(c => { existingCommittedMinutes += Math.round((c.end - c.start) / 60000); });
+
+    // Conflict analysis across student calendar commitments
+    let conflictReport = { hasConflicts: false, totalConflicts: 0, conflicts: [] };
+    try {
+      conflictReport = await this.workloadService.analyzeConflicts(userId, { start: startDate, end: endDate });
+    } catch {
+      // non-fatal conflict detection fallback
+    }
+
+    // Discover free time windows across the planning window
+    const freeWindows = this.findAvailableTimeWindows(userId, startDate, endDate, {
+      now,
+      dailyLimitMinutes: options.dailyLimitMinutes || 240,
+      existingCommitments: commitments
+    });
+    const totalAvailableFreeMinutes = freeWindows.reduce((acc, w) => acc + (w.availableStudyMinutes || w.durationMinutes), 0);
+    const hasInsufficientAvailability = totalEstimatedStudyMinutes > totalAvailableFreeMinutes;
+    const freeTimeDeficitMinutes = Math.max(0, totalEstimatedStudyMinutes - totalAvailableFreeMinutes);
+
+    // Detect per-deliverable deadline pressure
+    const deadlinePressureDeliverables = [];
+    for (const asgn of upcomingAssignments) {
+      const freeBeforeDeadline = freeWindows
+        .filter(w => w.end <= asgn.due_date)
+        .reduce((acc, w) => acc + (w.availableStudyMinutes || w.durationMinutes), 0);
+      const needed = this._estimateAssignmentStudyMinutes(asgn);
+      if (needed > freeBeforeDeadline) {
+        deadlinePressureDeliverables.push({
+          id: asgn.id,
+          title: asgn.title,
+          dueDate: asgn.due_date,
+          dueDateFormatted: formatInMumbaiTime(asgn.due_date),
+          neededMinutes: needed,
+          availableFreeMinutesBeforeDeadline: freeBeforeDeadline,
+          deficitMinutes: needed - freeBeforeDeadline,
+          urgency: asgn.priority === 'urgent' ? 'critical' : (asgn.priority === 'high' ? 'high' : 'moderate')
+        });
+      }
+    }
 
     return {
       window: {
@@ -146,18 +184,211 @@ class StudyPlanningService {
         assignments: assignmentEstimates,
         goals: goalEstimates
       },
+      freeTimeAnalysis: {
+        totalAvailableFreeMinutes,
+        totalEstimatedStudyMinutes,
+        hasInsufficientAvailability,
+        freeTimeDeficitMinutes,
+        freeWindowsCount: freeWindows.length,
+        deadlinePressureCount: deadlinePressureDeliverables.length,
+        deadlinePressureDeliverables
+      },
       existingCommitments: {
         calendarEventsCount: calendarEvents.length,
         studySessionsCount: studySessions.length,
         existingPlanItemsCount: existingPlanItems.length,
         totalCommittedMinutes: existingCommittedMinutes,
-        totalCommittedHours: Number((existingCommittedMinutes / 60).toFixed(1))
+        totalCommittedHours: Number((existingCommittedMinutes / 60).toFixed(1)),
+        preExistingConflictsCount: conflictReport.totalConflicts,
+        hasPreExistingConflicts: conflictReport.hasConflicts
       }
     };
   }
 
   /**
+   * Deterministically merges overlapping or adjacent busy intervals into consolidated non-overlapping blocks.
+   *
+   * @param {Array<{ start: number, end: number, source?: any }>} intervals
+   * @returns {Array<{ start: number, end: number, sources: any[] }>}
+   */
+  _mergeBusyIntervals(intervals) {
+    if (!intervals || intervals.length === 0) return [];
+
+    // Sort strictly ascending by start time, then end time
+    const sorted = [...intervals].sort((a, b) => a.start - b.start || a.end - b.end);
+    const merged = [];
+
+    let current = {
+      start: sorted[0].start,
+      end: sorted[0].end,
+      sources: sorted[0].source ? [sorted[0].source] : []
+    };
+
+    for (let i = 1; i < sorted.length; i++) {
+      const item = sorted[i];
+      // If next interval overlaps or is contiguous with current
+      if (item.start <= current.end) {
+        current.end = Math.max(current.end, item.end);
+        if (item.source) current.sources.push(item.source);
+      } else {
+        merged.push(current);
+        current = {
+          start: item.start,
+          end: item.end,
+          sources: item.source ? [item.source] : []
+        };
+      }
+    }
+    merged.push(current);
+
+    return merged;
+  }
+
+  /**
+   * Discovers available continuous free time windows between existing calendar events,
+   * study sessions, and previously committed study plan items.
+   *
+   * Merges overlapping and back-to-back busy commitments (with transition buffers)
+   * to determine genuine, continuous free intervals during allowed study hours.
+   *
+   * @param {string} userId - Student user ID
+   * @param {number} startDate - Search window start epoch ms
+   * @param {number} endDate - Search window end epoch ms
+   * @param {object} [options={}] - Options (startHour, endHour, bufferMinutes, minWindowMinutes, dailyLimitMinutes)
+   * @returns {Array<{ start: number, end: number, durationMinutes: number, dateKey: string, availableStudyMinutes: number, startFormatted: string, endFormatted: string }>}
+   */
+  findAvailableTimeWindows(userId, startDate, endDate, options = {}) {
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const now = options.now !== undefined ? Number(options.now) : Date.now();
+    const effectiveStart = Math.max(Number(startDate), now);
+    const effectiveEnd = Number(endDate);
+
+    if (effectiveEnd <= effectiveStart) return [];
+
+    const bufferMinutes = Math.max(0, Number(options.bufferMinutes !== undefined ? options.bufferMinutes : 15));
+    const bufferMs = bufferMinutes * 60000;
+    const minWindowMinutes = Math.max(15, Number(options.minWindowMinutes || 30));
+    const dailyLimitMinutes = Math.min(600, Math.max(60, Number(options.dailyLimitMinutes) || 240));
+
+    // Daily study hours: default 09:00 to 21:00 IST
+    const startHour = options.startHour !== undefined ? Number(options.startHour) : 9;
+    const endHour = options.endHour !== undefined ? Number(options.endHour) : 21;
+
+    // Daily allocations tracker
+    const dailyAllocations = options.dailyAllocations || new Map();
+
+    // 1. Gather all existing commitments
+    let commitments = options.existingCommitments;
+    if (!commitments) {
+      commitments = this._gatherAllCommitments(userId, effectiveStart, effectiveEnd, options);
+    }
+
+    const freeWindows = [];
+
+    // 2. Iterate each calendar day in IST
+    const cursor = new Date(effectiveStart + IST_OFFSET_MS);
+    const endCursor = new Date(effectiveEnd + IST_OFFSET_MS);
+    cursor.setUTCHours(0, 0, 0, 0);
+
+    while (cursor.getTime() <= endCursor.getTime() + 86400000) {
+      const dayStartUTC = cursor.getTime() - IST_OFFSET_MS;
+      const dateKey = getDateKeyIST(dayStartUTC);
+
+      const dayStudyWindowStart = dayStartUTC + (startHour * 3600000);
+      const dayStudyWindowEnd = dayStartUTC + (endHour * 3600000);
+
+      const effectiveDayStart = Math.max(dayStudyWindowStart, effectiveStart);
+      const effectiveDayEnd = Math.min(dayStudyWindowEnd, effectiveEnd);
+
+      if (effectiveDayStart >= effectiveDayEnd) {
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        continue;
+      }
+
+      const currentDailyAllocated = dailyAllocations.get(dateKey) || 0;
+      const remainingDailyMinutes = Math.max(0, dailyLimitMinutes - currentDailyAllocated);
+
+      if (remainingDailyMinutes < minWindowMinutes) {
+        // Daily limit already exhausted on this date
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        continue;
+      }
+
+      // Filter commitments on this day that overlap [effectiveDayStart, effectiveDayEnd]
+      const dayCommitments = commitments.filter(c => {
+        return c.start < effectiveDayEnd && c.end > effectiveDayStart;
+      });
+
+      // Construct buffered busy blocks
+      const rawBusyBlocks = dayCommitments.map(c => ({
+        start: Math.max(effectiveDayStart, c.start - bufferMs),
+        end: Math.min(effectiveDayEnd, c.end + bufferMs),
+        source: c
+      }));
+
+      // Merge overlapping & back-to-back busy blocks
+      const mergedBusy = this._mergeBusyIntervals(rawBusyBlocks);
+
+      // Compute free time windows as the complement of mergedBusy within [effectiveDayStart, effectiveDayEnd]
+      let timePointer = effectiveDayStart;
+      timePointer = Math.ceil(timePointer / 900000) * 900000; // Align to 15m
+
+      for (const busy of mergedBusy) {
+        if (busy.start > timePointer) {
+          const windowEnd = Math.floor(busy.start / 900000) * 900000;
+          const windowDurationMs = windowEnd - timePointer;
+          const windowDurationMinutes = Math.round(windowDurationMs / 60000);
+
+          if (windowDurationMinutes >= minWindowMinutes) {
+            freeWindows.push({
+              start: timePointer,
+              end: windowEnd,
+              durationMinutes: windowDurationMinutes,
+              availableStudyMinutes: Math.min(windowDurationMinutes, remainingDailyMinutes),
+              dateKey,
+              startFormatted: formatInMumbaiTime(timePointer),
+              endFormatted: formatInMumbaiTime(windowEnd)
+            });
+          }
+        }
+        timePointer = Math.max(timePointer, Math.ceil(busy.end / 900000) * 900000);
+      }
+
+      if (timePointer < effectiveDayEnd) {
+        const windowEnd = Math.floor(effectiveDayEnd / 900000) * 900000;
+        const windowDurationMs = windowEnd - timePointer;
+        const windowDurationMinutes = Math.round(windowDurationMs / 60000);
+
+        if (windowDurationMinutes >= minWindowMinutes) {
+          freeWindows.push({
+            start: timePointer,
+            end: windowEnd,
+            durationMinutes: windowDurationMinutes,
+            availableStudyMinutes: Math.min(windowDurationMinutes, remainingDailyMinutes),
+            dateKey,
+            startFormatted: formatInMumbaiTime(timePointer),
+            endFormatted: formatInMumbaiTime(windowEnd)
+          });
+        }
+      }
+
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    return freeWindows;
+  }
+
+  /**
+   * Alias for findAvailableTimeWindows
+   */
+  getAvailableTimeWindows(userId, startDate, endDate, options = {}) {
+    return this.findAvailableTimeWindows(userId, startDate, endDate, options);
+  }
+
+  /**
    * Discovers available non-conflicting study time slots for a student
+   * by carving concrete session blocks out of consolidated free time windows,
    * respecting study windows, existing commitments, buffer transitions, and daily limits.
    *
    * @param {string} userId - Student user ID
@@ -169,90 +400,43 @@ class StudyPlanningService {
   findAvailableStudySlots(userId, startDate, endDate, options = {}) {
     if (!userId) throw new ValidationError('Student user ID is required');
 
-    const now = options.now !== undefined ? Number(options.now) : Date.now();
-    const effectiveStart = Math.max(Number(startDate), now);
-    const effectiveEnd = Number(endDate);
-
-    if (effectiveEnd <= effectiveStart) return [];
-
     const slotDurationMinutes = Math.min(120, Math.max(30, Number(options.slotDurationMinutes) || 60));
     const slotDurationMs = slotDurationMinutes * 60000;
     const bufferMinutes = Math.max(0, Number(options.bufferMinutes !== undefined ? options.bufferMinutes : 15));
     const bufferMs = bufferMinutes * 60000;
     const dailyLimitMinutes = Math.min(600, Math.max(60, Number(options.dailyLimitMinutes) || 240));
-
-    // Daily study hours: default 09:00 to 21:00 IST
-    const startHour = options.startHour !== undefined ? Number(options.startHour) : 9;
-    const endHour = options.endHour !== undefined ? Number(options.endHour) : 21;
-
-    // Daily allocations tracker
     const dailyAllocations = options.dailyAllocations || new Map();
 
-    // 1. Gather all existing commitments if not passed in
-    let commitments = options.existingCommitments;
-    if (!commitments) {
-      commitments = this._gatherAllCommitments(userId, effectiveStart, effectiveEnd);
-    }
-
-    // Sort commitments strictly ascending by start time
-    commitments.sort((a, b) => a.start - b.start);
+    // 1. Get continuous free time windows
+    const windows = this.findAvailableTimeWindows(userId, startDate, endDate, {
+      ...options,
+      minWindowMinutes: slotDurationMinutes
+    });
 
     const availableSlots = [];
 
-    // 2. Iterate through each calendar day in IST
-    const cursor = new Date(effectiveStart + IST_OFFSET_MS);
-    const endCursor = new Date(effectiveEnd + IST_OFFSET_MS);
+    // 2. Carve concrete slots out of available windows
+    for (const win of windows) {
+      let candidateTime = win.start;
+      const currentDailyAllocated = dailyAllocations.get(win.dateKey) || 0;
+      let dailyUsed = currentDailyAllocated;
 
-    // Reset cursor to 00:00:00 UTC (which corresponds to 00:00:00 IST)
-    cursor.setUTCHours(0, 0, 0, 0);
+      while (candidateTime + slotDurationMs <= win.end) {
+        if (dailyUsed + slotDurationMinutes > dailyLimitMinutes) {
+          break; // Daily limit reached on this dateKey
+        }
 
-    while (cursor.getTime() <= endCursor.getTime() + 86400000) {
-      const dayStartUTC = cursor.getTime() - IST_OFFSET_MS;
-      const dateKey = getDateKeyIST(dayStartUTC);
-
-      const dayStudyWindowStart = dayStartUTC + (startHour * 3600000);
-      const dayStudyWindowEnd = dayStartUTC + (endHour * 3600000);
-
-      let candidateTime = Math.max(dayStudyWindowStart, effectiveStart);
-
-      // Round candidateTime up to clean 15-minute boundary
-      candidateTime = Math.ceil(candidateTime / 900000) * 900000;
-
-      while (candidateTime + slotDurationMs <= dayStudyWindowEnd && candidateTime + slotDurationMs <= effectiveEnd) {
         const slotEnd = candidateTime + slotDurationMs;
-        const currentDailyAllocated = dailyAllocations.get(dateKey) || 0;
-
-        // Check daily limit rule
-        if (currentDailyAllocated + slotDurationMinutes > dailyLimitMinutes) {
-          // Reached daily limit for this date, advance to next day
-          break;
-        }
-
-        // Check conflict with commitments: [candidateTime, slotEnd] vs [c.start, c.end]
-        const conflictingCommitment = commitments.find(c => {
-          return candidateTime < c.end && slotEnd > c.start;
-        });
-
-        if (conflictingCommitment) {
-          // Jump candidate time to the end of conflicting commitment + buffer
-          candidateTime = Math.ceil((conflictingCommitment.end + bufferMs) / 900000) * 900000;
-          continue;
-        }
-
-        // Slot is completely conflict-free and within daily limits!
         availableSlots.push({
           start: candidateTime,
           end: slotEnd,
           durationMinutes: slotDurationMinutes,
-          dateKey
+          dateKey: win.dateKey
         });
 
-        // Advance candidate time by slot duration + buffer
+        dailyUsed += slotDurationMinutes;
         candidateTime = Math.ceil((slotEnd + bufferMs) / 900000) * 900000;
       }
-
-      // Advance cursor to next day
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
 
     return availableSlots;
@@ -289,8 +473,20 @@ class StudyPlanningService {
     const includeGoals = options.includeGoals !== false;
 
     // 1. Gather all existing commitments
-    const existingCommitments = this._gatherAllCommitments(userId, startDate, endDate);
+    const existingCommitments = this._gatherAllCommitments(userId, startDate, endDate, {
+      includePlanItems: options.replaceExisting === false,
+      excludePlanId: options.planId || null
+    });
     const allocatedCommitments = [...existingCommitments];
+
+    // Compute continuous free time windows available at the outset
+    const initialFreeWindows = this.findAvailableTimeWindows(userId, startDate, endDate, {
+      now,
+      dailyLimitMinutes,
+      existingCommitments
+    });
+    const totalAvailableFreeMinutes = initialFreeWindows.reduce((acc, w) => acc + (w.availableStudyMinutes || w.durationMinutes), 0);
+    const insufficientAvailabilityItems = [];
 
     // Tracking structures
     const dailyAllocations = new Map();
@@ -443,9 +639,46 @@ class StudyPlanningService {
       }
 
       if (sessionsScheduled < sessionsNeeded) {
-        warnings.push(
-          `Could only schedule ${sessionsScheduled} of ${sessionsNeeded} planned session(s) for '${assignment.title}' before deadline ${formatInMumbaiTime(assignment.due_date)} due to schedule constraints.`
-        );
+        const freeBeforeDeadline = this.findAvailableTimeWindows(userId, startDate, Math.min(endDate, assignment.due_date), {
+          now,
+          dailyLimitMinutes,
+          existingCommitments: allocatedCommitments,
+          dailyAllocations
+        });
+        const freeMinutes = freeBeforeDeadline.reduce((acc, w) => acc + (w.availableStudyMinutes || w.durationMinutes), 0);
+        const neededMinutes = sessionsNeeded * sessionDuration;
+
+        if (freeMinutes < neededMinutes) {
+          warnings.push(
+            `Insufficient availability: Assignment '${assignment.title}' requires ${neededMinutes} mins before deadline ${formatInMumbaiTime(assignment.due_date)}, but only ${freeMinutes} mins of free study time are available in your schedule. Scheduled ${sessionsScheduled} of ${sessionsNeeded} session(s).`
+          );
+          insufficientAvailabilityItems.push({
+            assignmentId: assignment.id,
+            title: assignment.title,
+            dueDate: assignment.due_date,
+            neededMinutes,
+            availableFreeMinutes: freeMinutes,
+            deficitMinutes: Math.max(0, neededMinutes - freeMinutes),
+            sessionsNeeded,
+            sessionsScheduled,
+            reason: 'insufficient_free_time'
+          });
+        } else {
+          warnings.push(
+            `Could only schedule ${sessionsScheduled} of ${sessionsNeeded} planned session(s) for '${assignment.title}' before deadline ${formatInMumbaiTime(assignment.due_date)} due to schedule constraints.`
+          );
+          insufficientAvailabilityItems.push({
+            assignmentId: assignment.id,
+            title: assignment.title,
+            dueDate: assignment.due_date,
+            neededMinutes,
+            availableFreeMinutes: freeMinutes,
+            deficitMinutes: Math.max(0, neededMinutes - (sessionsScheduled * sessionDuration)),
+            sessionsNeeded,
+            sessionsScheduled,
+            reason: 'daily_limit_or_spacing'
+          });
+        }
       }
     }
 
@@ -580,6 +813,13 @@ class StudyPlanningService {
       assignmentsCoveredCount: coveredAssignmentIds.length,
       goalsCoveredCount: coveredGoalIds.length,
       conflictsAvoidedCount: existingCommitments.length,
+      freeTimeAnalysis: {
+        totalAvailableFreeMinutes,
+        totalStudyMinutesPlanned: totalDurationMinutes,
+        hasInsufficientAvailability: insufficientAvailabilityItems.length > 0,
+        insufficientAvailabilityCount: insufficientAvailabilityItems.length,
+        insufficientAvailabilityItems
+      },
       dailyBreakdown,
       isDryRun: !autoPersist
     };
@@ -659,12 +899,14 @@ class StudyPlanningService {
     // Rule: Avoid obvious schedule conflicts
     const events = this.calendarEventRepo.findInRange(userId, plannedEpoch - 1, newEndEpoch + 1, { status: 'scheduled' });
     const studySessions = this.studySessionRepo.findInRange(userId, plannedEpoch - 1, newEndEpoch + 1, { status: 'planned' });
+    const planItems = this.studyPlanRepo.findInRange(userId, plannedEpoch - 1, newEndEpoch + 1, { status: 'planned', excludeItemId: itemId });
 
     const eventConflict = events.find(e => plannedEpoch < e.end_time && newEndEpoch > e.start_time);
     const sessionConflict = studySessions.find(s => plannedEpoch < s.plannedEndTime && newEndEpoch > s.planned_start_time);
+    const planItemConflict = planItems.find(p => plannedEpoch < (p.planned_date + (p.duration_minutes * 60000)) && newEndEpoch > p.planned_date);
 
-    if ((eventConflict || sessionConflict) && options.allowConflict !== true) {
-      const conflictName = eventConflict ? eventConflict.title : sessionConflict.title;
+    if ((eventConflict || sessionConflict || planItemConflict) && options.allowConflict !== true) {
+      const conflictName = eventConflict ? eventConflict.title : (sessionConflict ? sessionConflict.title : planItemConflict.title);
       throw new ConflictError(
         `Rescheduled time conflicts with existing commitment '${conflictName}'.`
       );
@@ -1053,10 +1295,10 @@ class StudyPlanningService {
    * Gathers all existing student commitments (CalendarEvents, StudySessions, StudyPlanItems)
    * in the specified time window.
    */
-  _gatherAllCommitments(userId, start, end) {
+  _gatherAllCommitments(userId, start, end, options = {}) {
     const commitments = [];
 
-    // 1. Calendar Events
+    // 1. Calendar Events (scheduled)
     const events = this.calendarEventRepo.findInRange(userId, start, end, { status: 'scheduled' });
     for (const e of events) {
       commitments.push({
@@ -1068,7 +1310,7 @@ class StudyPlanningService {
       });
     }
 
-    // 2. Study Sessions
+    // 2. Study Sessions (planned)
     const sessions = this.studySessionRepo.findInRange(userId, start, end, { status: 'planned' });
     for (const s of sessions) {
       commitments.push({
@@ -1081,19 +1323,23 @@ class StudyPlanningService {
     }
 
     // 3. Existing Study Plan Items (active/planned)
-    const planItems = this.studyPlanRepo.findUpcomingItems(userId, {
-      now: start,
-      days: Math.max(1, Math.ceil((end - start) / 86400000)),
-      limit: 200
-    });
-    for (const p of planItems) {
-      commitments.push({
-        id: p.id,
-        start: p.planned_date,
-        end: p.planned_date + (p.duration_minutes * 60000),
-        type: 'study_plan_item',
-        title: p.title
+    if (options.includePlanItems !== false) {
+      const planItems = this.studyPlanRepo.findInRange(userId, start, end, {
+        status: options.planItemStatus || 'planned',
+        excludeItemId: options.excludeItemId || null
       });
+      for (const p of planItems) {
+        if (options.excludePlanId && p.plan_id === options.excludePlanId) {
+          continue;
+        }
+        commitments.push({
+          id: p.id,
+          start: p.planned_date,
+          end: p.planned_date + (p.duration_minutes * 60000),
+          type: 'study_plan_item',
+          title: p.title
+        });
+      }
     }
 
     return commitments;

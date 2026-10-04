@@ -485,6 +485,50 @@ class StudyPlanRepository {
   }
 
   /**
+   * Finds all study plan items for a student that overlap with or fall inside the given time window.
+   * A study plan item interval [planned_date, planned_date + duration * 60000] overlaps with [rangeStart, rangeEnd] if:
+   * planned_date < rangeEnd AND (planned_date + (duration_minutes * 60000)) > rangeStart
+   *
+   * @param {string} userId - Student user ID
+   * @param {number} rangeStart - Start epoch ms
+   * @param {number} rangeEnd - End epoch ms
+   * @param {object} [options={}] - { status, plan_id, excludeItemId }
+   * @returns {StudyPlanItem[]}
+   */
+  findInRange(userId, rangeStart, rangeEnd, options = {}) {
+    if (!userId || typeof userId !== 'string') return [];
+    let query = `
+      SELECT * FROM study_plan_items
+      WHERE user_id = ?
+        AND planned_date < ?
+        AND (planned_date + (duration_minutes * 60000)) > ?
+    `;
+    const params = [userId, rangeEnd, rangeStart];
+
+    if (options.status) {
+      query += ' AND status = ?';
+      params.push(options.status);
+    } else {
+      query += " AND status != 'cancelled'";
+    }
+
+    if (options.plan_id) {
+      query += ' AND plan_id = ?';
+      params.push(options.plan_id);
+    }
+
+    if (options.excludeItemId) {
+      query += ' AND id != ?';
+      params.push(options.excludeItemId);
+    }
+
+    query += ' ORDER BY planned_date ASC';
+    const stmt = this.database.prepare(query);
+    const rows = stmt.all(...params);
+    return rows.map(r => StudyPlanItem.fromRow(r));
+  }
+
+  /**
    * Updates an existing study plan item.
    *
    * @param {string} id
