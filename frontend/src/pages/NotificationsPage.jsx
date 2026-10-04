@@ -53,25 +53,25 @@ export default function NotificationsPage({
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-extrabold tracking-tight text-white">Notifications</h1>
-          <p className="text-sm text-slate-400">
+          <p className="max-w-2xl text-sm text-slate-400">
             Recent commute updates from the student community
           </p>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
             <UnreadCountBadge count={unread} srLabel="unread notifications" />
             <span>
               {readTotal} of {reports.length} read
             </span>
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
           {onMarkAllRead && reports.length > 0 && (
             <button
               type="button"
               onClick={onMarkAllRead}
               disabled={!hasUnread}
-              className="flex min-h-10 items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+              className="flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
             >
               Mark all as read
             </button>
@@ -82,7 +82,7 @@ export default function NotificationsPage({
               onClick={onRefresh}
               disabled={isLoading || isRefreshing}
               aria-busy={isRefreshing}
-              className="flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+              className="flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
               <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
@@ -149,7 +149,7 @@ export default function NotificationsPage({
               <Select
                 label="Show"
                 id="notification-view"
-                className="w-full sm:w-auto"
+                className="w-full max-w-full sm:w-auto"
                 value={view}
                 onChange={(event) => setView(event.target.value)}
                 options={[
