@@ -1921,6 +1921,57 @@ if (
   fail('Device alerts quiet-hours state can go stale');
 }
 
+// 23. FULL PROJECT AUDIT (DAY 1-13) — REGRESSION LOCKS
+// ============================================================
+// Added during the full-project audit. Each check pins an integration bug
+// found at runtime and fixed; they exist so these regressions can never
+// silently return.
+
+section('23. FULL PROJECT AUDIT (DAY 1-13) REGRESSION LOCKS');
+
+const shareTargetAudit = readFile('src/services/shareTarget.js');
+if (
+  shareTargetAudit &&
+  shareTargetAudit.includes("navigator.serviceWorker") &&
+  shareTargetAudit.includes("container?.addEventListener('message'") &&
+  shareTargetAudit.includes("container?.removeEventListener('message'")
+) {
+  pass('Share-target listener receives worker messages on the ServiceWorkerContainer');
+} else {
+  fail('Share-target listener misses the serviceWorker message channel (payload never delivered)');
+}
+if (
+  shareTargetAudit &&
+  shareTargetAudit.includes("type: 'SHARE_TARGET_FETCH'") &&
+  !shareTargetAudit.includes("type: 'SHARE_TARGET_PING'")
+) {
+  pass('Share-target watcher requests stashed payloads with the type the worker answers');
+} else {
+  fail('Share-target watcher uses a request type the service worker ignores');
+}
+
+const apiContentAudit = readFile('src/services/api.js');
+if (
+  apiContentAudit &&
+  /joinRideGroup[\s\S]{0,400}x-user-token[\s\S]{0,200}getOrGenerateUserToken/.test(apiContentAudit)
+) {
+  pass('Ride-group join sends the anonymous token the backend guards read');
+} else {
+  fail('Ride-group join omits x-user-token — backend creator/member guards are skipped');
+}
+
+const swContentAudit = readFile('public/sw.js');
+if (
+  swContentAudit &&
+  swContentAudit.includes("type !== 'SHARE_TARGET_FETCH'") &&
+  swContentAudit.includes("type: 'SHARE_TARGET_PAYLOAD'") &&
+  swContentAudit.includes('caches.delete(SHARE_TARGET_CACHE)')
+) {
+  pass('Worker delivers the stashed share payload once, then clears its cache');
+} else {
+  fail('Worker share-target delivery contract changed (reply type or one-shot cleanup)');
+}
+
 // ============================================================
 // SUMMARY
 // ============================================================
