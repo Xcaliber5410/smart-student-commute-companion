@@ -25,16 +25,16 @@ side working in parallel.
 
 ## 2. Current development state (as of this documentation)
 
-- Frontend daily cycle has reached **Day 11** (last frontend commit `fbdb302`,
-  2026-10-03: `test(frontend): verify Day 11 frontend implementation`; docs commit
+- Frontend daily cycle has reached **Day 12** (last frontend commit `96e8288`,
+  2026-10-04: `test(frontend): verify Day 12 frontend implementation`; docs commit
   follows).
-- `main` was at `df275de` (backend study-resources suite) when Day 11 started; Day-11
+- `main` was at `9e3a5ed` (Day-11 docs) when Day 12 started; Day-12
   work was merged `frontfeat` → `main` at day end per `GIT_WORKFLOW.md`.
 - Backend has progressed at least through its own "Day 10" goals/productivity suite
   (per `backend/docs/goal_and_productivity_workflows.md`, commits through `a8f8d80`,
   2026-10-01), plus the Day-11 start-of-day merge brought the study-resources suite
   (`df275de`, 2026-10-03).
-- Frontend verification: `npm run verify` = **262/262 checks passing** (20 named
+- Frontend verification: `npm run verify` = **285/285 checks passing** (21 named
   sections), `npm run build` succeeds.
 
 ## 3. Purpose of the frontend/PWA
@@ -158,7 +158,7 @@ UI kit lives in `frontend/src/components/ui/` (barrel-exported). Most reused:
 `ListSkeleton`, `Alert`, `Toast` (app-level, `components/Toast.jsx`), `ProgressBar`,
 `ComparisonBars`, `Toggle` (Day 7), `FeatureHighlight` + `InstallPromoDialog` (Day 9),
 `ShareableCard` + `InstallStatusCard` (Day 8), `EventLogList` (Day 10),
-`QueueReportItem` (Day 11). Component conventions are documented in
+`QueueReportItem` (Day 11), `UnreadCountBadge` (Day 12). Component conventions are documented in
 `frontend/src/components/ui/README.md`.
 
 ## 12. Important frontend services
@@ -185,9 +185,11 @@ UI kit lives in `frontend/src/components/ui/` (barrel-exported). Most reused:
 
 Local-first: component `useState`/`useReducer`-free hooks (`useAsyncResource` for
 loading/error/retry), App-level `useState` for cross-cutting state (tab, socket reports,
-toasts, modal flags, install state), passed down as props. Persistence is exclusively
+toasts, modal flags, install state, offline queue, notification read ids), passed down
+as props. Persistence is exclusively
 `localStorage` through `utils/uiPreferences.js` (validated reads, failure-safe writes;
-`saved commutes` intentionally surfaces storage errors). No Redux/Zustand/Context store
+`saved commutes` intentionally surfaces storage errors; Day 12 added bounded
+notification read-state helpers). No Redux/Zustand/Context store
 exists. **Convention: prefer local state; do not introduce a global store casually.**
 
 ## 14. PWA architecture
@@ -232,7 +234,7 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 ## 17. Testing / lint / type-check / build
 
 - **Tests**: `cd frontend && npm run verify` (alias `npm test`) → `verify-frontend.js`,
-  a Node script performing **262 static source checks across 20 sections** (structure,
+  a Node script performing **285 static source checks across 21 sections** (structure,
   config, design system, PWA, and per-day feature checks). These are source-level
   assertions, not runtime unit tests. No Jest/Vitest/Playwright exists.
 - **Lint**: **none configured** (no eslint config or script — verified).

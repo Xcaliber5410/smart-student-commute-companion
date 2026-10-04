@@ -1,7 +1,7 @@
 # Feature Inventory — Smart Student Companion
 
 > Replacement for the missing `completed_features.md`. Statuses verified against source
-> code and Git history at frontend Day 11 (`fbdb302`). Statuses: **IMPLEMENTED**,
+> code and Git history at frontend Day 12 (`96e8288`). Statuses: **IMPLEMENTED**,
 > **PARTIAL**, **BLOCKED**, **PLANNED**. "Not verified from repository history" marks
 > anything unconfirmable.
 
@@ -125,7 +125,7 @@
 
 ### 16. Verification suite — Day 1, extended daily
 - **Status**: IMPLEMENTED
-- **Files**: `frontend/verify-frontend.js` (262 checks, 20 sections)
+- **Files**: `frontend/verify-frontend.js` (285 checks, 21 sections)
 - **API**: none
 
 ### 17. PWA analytics & monitoring dashboard — Day 10
@@ -156,19 +156,36 @@
   (discard gated by ConfirmDialog); filter chips, polite live status, focus handoff,
   loading/empty/error/retry states.
 
+### 19. Notification read state & unread badges — Day 12
+- **Status**: IMPLEMENTED (device-local; completes the client-side slice of the
+  Notifications center — see P1 for the still-blocked server feed)
+- **Route**: existing `?tab=notifications` (no new tab)
+- **Files**: `pages/NotificationsPage.jsx`, `components/NotificationItem.jsx`,
+  `ui/UnreadCountBadge.jsx` (new), `utils/uiPreferences.js` (read-state helpers),
+  App wiring (`notificationReadIds`, `unreadNotificationsCount`, mark-all),
+  `components/Navbar.jsx` (unread badge in desktop nav, drawer and bottom nav)
+- **API**: none new — reads the already-loaded live reports (`GET /api/live-reports`);
+  persistence is localStorage (`smart_commute_notification_read_state`, bounded 300,
+  failure-safe)
+- **Notes**: read state survives reloads; mark-all-as-read with toast + focus handoff;
+  visible "Unread" text badge (never color alone); filter options show live counts;
+  "You're all caught up" empty state; polite live announcements of read progress.
+
 ---
 
 ## PARTIALLY IMPLEMENTED
 
 ### P1. Notifications center
-- **Status**: PARTIAL
+- **Status**: PARTIAL (client-side complete as of Day 12 — see #19)
 - **Route**: `?tab=notifications`
 - **Files**: `pages/NotificationsPage.jsx`, `components/NotificationItem.jsx`
-- **What exists**: full UI — search, all/unread filter, per-item read state
-  (in-memory, resets on reload), feed/announcement styling, empty/loading/error states.
+- **What exists**: full UI — search, all/unread filter with live counts, per-item read
+  state **persisted on device** (Day 12), mark-all-as-read, unread badges in
+  navigation, feed/announcement styling, empty/loading/error states.
   Data = live **reports** already loaded in App (`reports` prop).
 - **What's missing**: backend notification feed (`GET /api/alerts` exists but requires
-  JWT — see `backend/routes/notificationRoutes.js`); persistent read state.
+  JWT — see `backend/routes/notificationRoutes.js`) and persistent server-side read
+  state across devices.
 - **API dependency**: BLOCKED on auth (see Backend Dependent #B4).
 
 ### P2. Offline support
@@ -241,8 +258,9 @@ Only items verifiable from project documentation/roadmap files:
 - **Source**: `frontend/PWA_SUMMARY.md` "⏳ Requires Browser Testing" checklist
   (install prompt, real devices, Lighthouse audit — unticked).
 
-### R3. Frontend work beyond Day 11
+### R3. Frontend work beyond Day 12
 - **Status**: Not verified from repository history.
 
-(Former planned items "PWA Analytics & Monitoring (Day 10)" and "offline request
-queueing (Day 11)" are now **IMPLEMENTED** as #17 and #18.)
+(Former planned items "PWA Analytics & Monitoring (Day 10)", "offline request
+queueing (Day 11)" and "persistent notification read state (Day 12)" are now
+**IMPLEMENTED** as #17, #18 and #19.)

@@ -1,7 +1,7 @@
 # Current State — Smart Student Companion
 
-> Verified against the repository working tree and Git history at frontend Day 11
-> (HEAD `fbdb302`, 2026-10-03, `frontfeat`; end-of-day merge to `main` follows this
+> Verified against the repository working tree and Git history at frontend Day 12
+> (HEAD `96e8288`, 2026-10-04, `frontfeat`; end-of-day merge to `main` follows this
 > docs commit). Anything unverifiable is marked
 > "Not verified from repository history."
 
@@ -11,8 +11,8 @@
 
 | Branch | State |
 |---|---|
-| `main` | At `df275de` (backend study-resources suite, 2026-10-03) before Day 11's end-of-day merge; receives completed frontend days. |
-| `frontfeat` | At Day-11 HEAD (`fbdb302` + docs). Xcaliber's working branch — Day-11 work merged to `main` at day end. |
+| `main` | At `9e3a5ed` (Day-11 docs on top of backend study-resources suite `df275de`) before Day 12's end-of-day merge; receives completed frontend days. |
+| `frontfeat` | At Day-12 HEAD (`96e8288` + docs). Xcaliber's working branch — Day-12 work merged to `main` at day end. |
 | `origin/day-01-foundation` | Historical Day-1 branch (tip `e8facbb`), unused now. |
 | `fix/budget-and-mode-filtering` | Local stale branch from the hackathon era; outside the daily workflow. |
 
@@ -41,16 +41,21 @@
 - **State management**: local component state + App-level `useState` prop drilling;
   `useAsyncResource` hook for loading/error/retry; no global store library. Day 11
   added App-level offline-queue state (`queue`, `isSyncingQueue`) for the offline
-  report queue.
+  report queue; Day 12 added App-level `notificationReadIds` +
+  `unreadNotificationsCount` (drives the Notifications screen and nav badges).
 - **Persistence**: `src/utils/uiPreferences.js` localStorage helpers — app preferences,
   transit sort, recent searches, saved commutes, device-alert pref, install-promo
   snooze (via `services/installPromotion.js`); Day-10 analytics snapshot in
   `smart_commute_pwa_analytics` (via `services/pwaAnalytics.js`, merged with the SW's
   own metrics store); Day-11 offline report queue in `smart_commute_offline_queue`
-  (via `services/offlineQueue.js`, bounded at 50 items, failure-safe envelope).
+  (via `services/offlineQueue.js`, bounded at 50 items, failure-safe envelope); Day-12
+  notification read state in `smart_commute_notification_read_state` (via
+  `utils/uiPreferences.js` helpers, bounded at 300 ids, failure-safe).
 - **Notifications (UI)**: `Toast` queue (polite `role=status`; errors `role=alert`) +
   `NotificationsPage` (client-side view over loaded live reports with search, all/unread
-  view, per-item read state in memory) + Day-7 device alerts.
+  view, per-item read state **persisted on device since Day 12**, mark-all-as-read,
+  live read counts, "all caught up" state) + unread `UnreadCountBadge` in all three
+  nav surfaces + Day-7 device alerts.
 - **Forms**: controlled components built on `ui/FormField` + `utils/validation.js`
   (client-side validation only; submissions go through `api.js` services).
 - **Responsive behavior**: Tailwind breakpoints; icon/short/full-label scaling in
@@ -179,14 +184,15 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 - **Framework**: none (no Jest/Vitest/Playwright — verified no such deps).
 - **Test command**: `cd frontend && npm run verify` (= `npm test`) →
-  `frontend/verify-frontend.js`, Node script, currently **262 checks / 20 sections**,
+  `frontend/verify-frontend.js`, Node script, currently **285 checks / 21 sections**,
   all passing; exit code gates CI-less workflow. Static source assertions (files exist,
   patterns present), not runtime tests.
 - **Lint**: not configured (no eslint config/script — verified). Report as N/A.
 - **Type-check**: not configured (no TypeScript — verified). Report as N/A.
 - **Build**: `npm run build` (Vite) — passes; known warning: chunk > 500 kB.
 - **PWA checks**: section 6 of `verify-frontend.js` (manifest/SW/meta), section 19
-  (Day-10 analytics), section 20 (Day-11 offline queue), + manual browser testing
+  (Day-10 analytics), section 20 (Day-11 offline queue), section 21 (Day-12
+  notification read state), + manual browser testing
   documented in `frontend/PWA_TESTING.md`.
   Browser-based responsive/a11y audits used during Days 7–10 were **session-local
   tools, not committed** — "Not verified from repository history" as reusable repo
@@ -199,7 +205,7 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 1. **JWT gap** (Authentication section) — authenticated backend domains unreachable.
 2. No lint/type-check gates — style/typo regressions rely on code review + verify.
 3. Vite build warning: bundle chunk > 500 kB (pre-existing, flagged every build).
-4. `frontend/PWA_SETUP.md` roadmap checkboxes are stale (Day 8–10 items implemented in
+4. `frontend/PWA_SETUP.md` roadmap checkboxes are stale (Day 8–11 items implemented in
    code but unchecked in the file).
 5. Day-6 empty commits anomaly (`9a43783…957a74d`) pollute history with 7 no-op commits
    carrying Day-6 messages; real Day 6 = `a1e3d78…8a3f441` (see `days/DAY-06.md`).
@@ -213,10 +219,12 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 ## Next Logical Work (from repository/roadmap evidence only — no product decisions)
 
-- **Frontend Day 11 is complete** (Offline Report Queue — `days/DAY-11.md`); the same
-  7-commit cycle would continue for any Day 12+ on `frontfeat`. Next roadmap items still
-  open: Background Sync / push support and real-device Lighthouse PWA testing
-  (`frontend/PWA_SUMMARY.md` medium-term + browser-testing checklists).
+- **Frontend Day 12 is complete** (Notification Read State & Unread Badges —
+  `days/DAY-12.md`); the same 7-commit cycle would continue for any Day 13+ on
+  `frontfeat`. Next roadmap items still open: Background Sync / push support
+  (push needs a server; Background Sync would require re-architecting the Day-11 queue
+  because service workers cannot read localStorage) and real-device Lighthouse PWA
+  testing (`frontend/PWA_SUMMARY.md` medium-term + browser-testing checklists).
 - `frontend/PWA_SETUP.md` "Future PWA Roadmap" still lists **Day 10: Analytics &
   Monitoring** as unchecked (doc drift — implemented in code in Day 10); the file's
   Day 8–9 boxes are likewise stale.
