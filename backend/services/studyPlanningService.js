@@ -17,6 +17,7 @@ const { calendarEventRepository } = require('../repositories/CalendarEventReposi
 const { studySessionRepository } = require('../repositories/StudySessionRepository');
 const { courseRepository } = require('../repositories/CourseRepository');
 const { workloadAnalysisService } = require('./workloadAnalysisService');
+const { resourceContextService } = require('./resourceContextService');
 const { StudyPlan } = require('../models/StudyPlan');
 const { StudyPlanItem } = require('../models/StudyPlanItem');
 const { ValidationError, NotFoundError, ForbiddenError, ConflictError } = require('../errors');
@@ -39,6 +40,7 @@ class StudyPlanningService {
     this.studySessionRepo = options.studySessionRepo || studySessionRepository;
     this.courseRepo = options.courseRepo || courseRepository;
     this.workloadService = options.workloadService || workloadAnalysisService;
+    this.resourceService = options.resourceService || resourceContextService;
     this.db = options.db || null;
   }
 
@@ -69,9 +71,9 @@ class StudyPlanningService {
     if (options.courseId) asgnOptions.course_id = options.courseId;
     const allAssignments = this.assignmentRepo.findByUserId(userId, asgnOptions);
 
-    // Rule: Exclude completed and cancelled assignments
+    // Rule: Exclude completed, submitted, and cancelled assignments
     const upcomingAssignments = allAssignments.filter(a => {
-      if (a.status === 'completed' || a.status === 'cancelled') return false;
+      if (a.status === 'completed' || a.status === 'cancelled' || a.status === 'submitted') return false;
       return a.due_date >= startDate;
     });
 
@@ -81,7 +83,7 @@ class StudyPlanningService {
 
     // 2. Fetch active goals
     const allGoals = this.goalRepo.findByUserId(userId, options.courseId ? { course_id: options.courseId } : {});
-    // Rule: Exclude completed, cancelled, or 100% progress goals
+    // Rule: Exclude completed, cancelled, on_hold, or 100% progress goals
     const activeGoals = allGoals.filter(g => {
       if (g.status === 'completed' || g.status === 'cancelled' || g.status === 'on_hold') return false;
       if (g.progress >= 100) return false;
@@ -128,12 +130,19 @@ class StudyPlanningService {
     let existingCommittedMinutes = 0;
     commitments.forEach(c => { existingCommittedMinutes += Math.round((c.end - c.start) / 60000); });
 
-    // Conflict analysis across student calendar commitments
+    // Conflict analysis & workload assessment across student calendar commitments
     let conflictReport = { hasConflicts: false, totalConflicts: 0, conflicts: [] };
+    let workloadReport = null;
     try {
       conflictReport = await this.workloadService.analyzeConflicts(userId, { start: startDate, end: endDate });
     } catch {
       // non-fatal conflict detection fallback
+    }
+
+    try {
+      workloadReport = await this.workloadService.getWorkloadSummary(userId, { start: startDate, end: endDate });
+    } catch {
+      // non-fatal workload summary fallback
     }
 
     // Discover free time windows across the planning window
@@ -166,6 +175,10 @@ class StudyPlanningService {
         });
       }
     }
+
+    const heavyDates = workloadReport && Array.isArray(workloadReport.dailyBreakdown)
+      ? workloadReport.dailyBreakdown.filter(d => d.isHeavyDay).map(d => d.date)
+      : [];
 
     return {
       window: {
@@ -201,6 +214,13 @@ class StudyPlanningService {
         totalCommittedHours: Number((existingCommittedMinutes / 60).toFixed(1)),
         preExistingConflictsCount: conflictReport.totalConflicts,
         hasPreExistingConflicts: conflictReport.hasConflicts
+      },
+      workloadAnalysis: {
+        heavyDaysCount: heavyDates.length,
+        heavyDates,
+        busiestDay: workloadReport ? workloadReport.summary.busiestDay : null,
+        totalCommitmentMinutes: workloadReport ? workloadReport.summary.totalCommitmentMinutes : 0,
+        dailyBreakdown: workloadReport ? workloadReport.dailyBreakdown : []
       }
     };
   }
@@ -488,11 +508,34 @@ class StudyPlanningService {
     const totalAvailableFreeMinutes = initialFreeWindows.reduce((acc, w) => acc + (w.availableStudyMinutes || w.durationMinutes), 0);
     const insufficientAvailabilityItems = [];
 
+    // Workload summary & heavy-day detection
+    const heavyDates = new Set();
+    const warnings = [];
+    let workloadSummaryReport = null;
+    try {
+      workloadSummaryReport = await this.workloadService.getWorkloadSummary(userId, { start: startDate, end: endDate });
+      if (workloadSummaryReport && Array.isArray(workloadSummaryReport.dailyBreakdown)) {
+        workloadSummaryReport.dailyBreakdown.forEach(day => {
+          if (day.isHeavyDay) {
+            heavyDates.add(day.date);
+          }
+        });
+      }
+    } catch {
+      // non-fatal workload summary fallback
+    }
+
+    if (heavyDates.size > 0) {
+      warnings.push(
+        `Detected ${heavyDates.size} high workload day(s) (${Array.from(heavyDates).join(', ')}). The planner will avoid scheduling non-urgent study work during heavy periods where possible.`
+      );
+    }
+
     // Tracking structures
     const dailyAllocations = new Map();
     const dailyAssignmentSessions = new Map(); // key: `${dateKey}:${assignmentId}`
     const plannedItemsData = [];
-    const warnings = [];
+    const warningsCollector = warnings;
     let orderIndex = 0;
 
     // 2. Query and sort candidate assignments
@@ -502,12 +545,12 @@ class StudyPlanningService {
       if (options.courseId) asgnFilter.course_id = options.courseId;
       const allAsgns = this.assignmentRepo.findByUserId(userId, asgnFilter);
 
-      // Rule: Identify upcoming work needing attention, avoid already completed/cancelled work
+      // Rule: Identify upcoming work needing attention, avoid already completed/submitted/cancelled work
       candidateAssignments = allAsgns.filter(a => {
-        if (a.status === 'completed' || a.status === 'cancelled') return false;
+        if (a.status === 'completed' || a.status === 'cancelled' || a.status === 'submitted') return false;
         // Skip deliverables already past deadline if strictly before startDate
         if (a.due_date < startDate) {
-          warnings.push(`Assignment '${a.title}' is overdue (due: ${formatInMumbaiTime(a.due_date)}) and was excluded from forward planning.`);
+          warningsCollector.push(`Assignment '${a.title}' is overdue (due: ${formatInMumbaiTime(a.due_date)}) and was excluded from forward planning.`);
           return false;
         }
         return true;
@@ -515,12 +558,14 @@ class StudyPlanningService {
 
       // Deterministic prioritization:
       // 1. Proximity to deadline (due_date ASC)
-      // 2. Priority weight (urgent > high > medium > low)
+      // 2. Effective priority weight (elevated for approaching deadlines) + goal-link bonus (+0.5)
       // 3. Deterministic tie-breaker (created_at ASC, id ASC)
       candidateAssignments.sort((a, b) => {
         if (a.due_date !== b.due_date) return a.due_date - b.due_date;
-        const weightA = PRIORITY_WEIGHTS[a.priority] || 1;
-        const weightB = PRIORITY_WEIGHTS[b.priority] || 1;
+        const effA = this._resolveEffectiveAssignmentPriority(a, startDate);
+        const effB = this._resolveEffectiveAssignmentPriority(b, startDate);
+        const weightA = (PRIORITY_WEIGHTS[effA] || 1) + (a.goal_id ? 0.5 : 0);
+        const weightB = (PRIORITY_WEIGHTS[effB] || 1) + (b.goal_id ? 0.5 : 0);
         if (weightB !== weightA) return weightB - weightA;
         if (a.created_at !== b.created_at) return a.created_at - b.created_at;
         return a.id.localeCompare(b.id);
@@ -535,19 +580,24 @@ class StudyPlanningService {
         if (g.status === 'completed' || g.status === 'cancelled' || g.status === 'on_hold') return false;
         if (g.progress >= 100) return false;
         if (g.target_date && g.target_date < startDate) {
-          warnings.push(`Goal '${g.title}' target date (${formatInMumbaiTime(g.target_date)}) has passed.`);
+          warningsCollector.push(`Goal '${g.title}' target date (${formatInMumbaiTime(g.target_date)}) has passed.`);
           return false;
         }
         return true;
       });
 
-      // Deterministic sort: target_date ASC (nulls last), then progress ASC
+      // Deterministic sort: target_date ASC (nulls last), effective goal priority DESC, progress ASC, id ASC
       candidateGoals.sort((a, b) => {
         if (a.target_date && b.target_date && a.target_date !== b.target_date) {
           return a.target_date - b.target_date;
         }
         if (a.target_date && !b.target_date) return -1;
         if (!a.target_date && b.target_date) return 1;
+        const effPriorityA = this._resolveEffectiveGoalPriority(a, startDate);
+        const effPriorityB = this._resolveEffectiveGoalPriority(b, startDate);
+        const weightA = PRIORITY_WEIGHTS[effPriorityA] || 1;
+        const weightB = PRIORITY_WEIGHTS[effPriorityB] || 1;
+        if (weightB !== weightA) return weightB - weightA;
         if (a.progress !== b.progress) return a.progress - b.progress;
         return a.id.localeCompare(b.id);
       });
@@ -569,8 +619,8 @@ class StudyPlanningService {
           dailyAllocations
         });
 
-        // Preferred slot: prioritize a day where this assignment hasn't already been scheduled today
-        // (to avoid cramming unless deadline is within 24 hours)
+        // Preferred slot selection:
+        // Pass 1: Ideal slot -> avoid cramming today (countOnDate === 0 || isUrgentDue) AND avoid heavy days (unless urgent)
         let chosenSlot = null;
         const isUrgentDue = assignment.due_date - startDate < 86400000;
 
@@ -580,14 +630,28 @@ class StudyPlanningService {
 
           const assignKey = `${slot.dateKey}:${assignment.id}`;
           const countOnDate = dailyAssignmentSessions.get(assignKey) || 0;
+          const isHeavy = heavyDates.has(slot.dateKey);
 
-          if (countOnDate === 0 || isUrgentDue) {
+          if ((countOnDate === 0 || isUrgentDue) && (!isHeavy || isUrgentDue)) {
             chosenSlot = slot;
             break;
           }
         }
 
-        // If no preferred day slot, fallback to any available slot before deadline
+        // Pass 2: If no slot avoiding heavy days, allow scheduling on heavy day (as long as no cramming today unless urgent)
+        if (!chosenSlot) {
+          for (const slot of slots) {
+            if (slot.end > assignment.due_date) continue;
+            const assignKey = `${slot.dateKey}:${assignment.id}`;
+            const countOnDate = dailyAssignmentSessions.get(assignKey) || 0;
+            if (countOnDate === 0 || isUrgentDue) {
+              chosenSlot = slot;
+              break;
+            }
+          }
+        }
+
+        // Pass 3: Fallback to any available slot before deadline
         if (!chosenSlot && slots.length > 0) {
           chosenSlot = slots.find(slot => slot.end <= assignment.due_date);
         }
@@ -595,6 +659,29 @@ class StudyPlanningService {
         if (chosenSlot) {
           // Formulate descriptive, actionable title
           const title = this._formatAssignmentSessionTitle(assignment, sIdx, sessionsNeeded);
+
+          // Resolve effective priority based on deadline proximity
+          const effectivePriority = this._resolveEffectiveAssignmentPriority(assignment, chosenSlot.start);
+
+          // Contextual study resource lookup
+          let associatedResourceId = null;
+          let associatedResourceTitle = null;
+          try {
+            if (this.resourceService && typeof this.resourceService.getContextForAssignment === 'function') {
+              const resCtx = this.resourceService.getContextForAssignment(userId, assignment.id, { limit: 1 });
+              if (resCtx && Array.isArray(resCtx.resources) && resCtx.resources.length > 0) {
+                associatedResourceId = resCtx.resources[0].id;
+                associatedResourceTitle = resCtx.resources[0].title;
+              }
+            }
+          } catch {
+            // non-fatal resource lookup fallback
+          }
+
+          let description = `Planned study work for '${assignment.title}' (Due: ${formatInMumbaiTime(assignment.due_date)})`;
+          if (associatedResourceTitle) {
+            description += ` • Attached Study Resource: ${associatedResourceTitle}`;
+          }
 
           const itemData = {
             id: `plan-item-${now}-${Math.random().toString(36).substring(2, 7)}`,
@@ -604,12 +691,12 @@ class StudyPlanningService {
             assignment_id: assignment.id,
             goal_id: assignment.goal_id || null,
             study_session_id: null,
-            resource_id: null,
+            resource_id: associatedResourceId,
             title,
-            description: `Planned study work for '${assignment.title}' (Due: ${formatInMumbaiTime(assignment.due_date)})`,
+            description,
             planned_date: chosenSlot.start,
             duration_minutes: sessionDuration,
-            priority: assignment.priority,
+            priority: effectivePriority,
             status: 'planned',
             order_index: orderIndex++,
             completed_at: null,
@@ -649,7 +736,7 @@ class StudyPlanningService {
         const neededMinutes = sessionsNeeded * sessionDuration;
 
         if (freeMinutes < neededMinutes) {
-          warnings.push(
+          warningsCollector.push(
             `Insufficient availability: Assignment '${assignment.title}' requires ${neededMinutes} mins before deadline ${formatInMumbaiTime(assignment.due_date)}, but only ${freeMinutes} mins of free study time are available in your schedule. Scheduled ${sessionsScheduled} of ${sessionsNeeded} session(s).`
           );
           insufficientAvailabilityItems.push({
@@ -664,7 +751,7 @@ class StudyPlanningService {
             reason: 'insufficient_free_time'
           });
         } else {
-          warnings.push(
+          warningsCollector.push(
             `Could only schedule ${sessionsScheduled} of ${sessionsNeeded} planned session(s) for '${assignment.title}' before deadline ${formatInMumbaiTime(assignment.due_date)} due to schedule constraints.`
           );
           insufficientAvailabilityItems.push({
@@ -696,8 +783,32 @@ class StudyPlanningService {
       });
 
       if (slots.length > 0) {
-        const chosenSlot = slots[0];
+        // Preferred slot for goal: try avoiding heavy day if possible
+        let chosenSlot = slots.find(s => !heavyDates.has(s.dateKey));
+        if (!chosenSlot) chosenSlot = slots[0];
+
         const title = `Milestone Study: ${goal.title}`;
+        const effectiveGoalPriority = this._resolveEffectiveGoalPriority(goal, chosenSlot.start);
+
+        // Contextual study resource lookup for goal
+        let associatedResourceId = null;
+        let associatedResourceTitle = null;
+        try {
+          if (this.resourceService && typeof this.resourceService.getContextForGoal === 'function') {
+            const resCtx = this.resourceService.getContextForGoal(userId, goal.id, { limit: 1 });
+            if (resCtx && Array.isArray(resCtx.resources) && resCtx.resources.length > 0) {
+              associatedResourceId = resCtx.resources[0].id;
+              associatedResourceTitle = resCtx.resources[0].title;
+            }
+          }
+        } catch {
+          // non-fatal resource lookup fallback
+        }
+
+        let description = `Goal study block towards '${goal.title}' (Progress: ${goal.progress}%)`;
+        if (associatedResourceTitle) {
+          description += ` • Supporting Study Resource: ${associatedResourceTitle}`;
+        }
 
         const itemData = {
           id: `plan-item-${now}-${Math.random().toString(36).substring(2, 7)}`,
@@ -707,12 +818,12 @@ class StudyPlanningService {
           assignment_id: null,
           goal_id: goal.id,
           study_session_id: null,
-          resource_id: null,
+          resource_id: associatedResourceId,
           title,
-          description: `Goal study block towards '${goal.title}' (Progress: ${goal.progress}%)`,
+          description,
           planned_date: chosenSlot.start,
           duration_minutes: goalDuration,
-          priority: 'medium',
+          priority: effectiveGoalPriority,
           status: 'planned',
           order_index: orderIndex++,
           completed_at: null,
@@ -732,7 +843,7 @@ class StudyPlanningService {
         const prevDaily = dailyAllocations.get(chosenSlot.dateKey) || 0;
         dailyAllocations.set(chosenSlot.dateKey, prevDaily + goalDuration);
       } else {
-        warnings.push(`Could not find an available study slot for goal '${goal.title}' within planning limits.`);
+        warningsCollector.push(`Could not find an available study slot for goal '${goal.title}' within planning limits.`);
       }
     }
 
@@ -800,6 +911,8 @@ class StudyPlanningService {
     const totalDurationMinutes = finalItems.reduce((acc, it) => acc + it.duration_minutes, 0);
     const coveredAssignmentIds = Array.from(new Set(finalItems.map(it => it.assignment_id).filter(Boolean)));
     const coveredGoalIds = Array.from(new Set(finalItems.map(it => it.goal_id).filter(Boolean)));
+    const associatedResourceIds = Array.from(new Set(finalItems.map(it => it.resource_id).filter(Boolean)));
+    const goalLinkedItemsCount = finalItems.filter(it => it.goal_id !== null).length;
 
     const dailyBreakdown = {};
     for (const [dKey, mins] of dailyAllocations.entries()) {
@@ -812,7 +925,16 @@ class StudyPlanningService {
       totalStudyHours: Number((totalDurationMinutes / 60).toFixed(1)),
       assignmentsCoveredCount: coveredAssignmentIds.length,
       goalsCoveredCount: coveredGoalIds.length,
+      goalLinkedItemsCount,
+      resourcesAssociatedCount: associatedResourceIds.length,
+      associatedResourceIds,
       conflictsAvoidedCount: existingCommitments.length,
+      workloadAnalysis: {
+        heavyDaysCount: heavyDates.size,
+        heavyDates: Array.from(heavyDates),
+        totalCommitmentMinutes: workloadSummaryReport ? workloadSummaryReport.summary.totalCommitmentMinutes : 0,
+        busiestDay: workloadSummaryReport ? workloadSummaryReport.summary.busiestDay : null
+      },
       freeTimeAnalysis: {
         totalAvailableFreeMinutes,
         totalStudyMinutesPlanned: totalDurationMinutes,
@@ -828,7 +950,7 @@ class StudyPlanningService {
       plan: persistedPlan,
       items: finalItems,
       summary,
-      warnings
+      warnings: warningsCollector
     };
   }
 
@@ -1414,6 +1536,62 @@ class StudyPlanningService {
     if (sessionIndex === 0) return `Initial Research: ${assignment.title}`;
     if (sessionIndex === totalSessions - 1) return `Final Polish: ${assignment.title}`;
     return `Deep Work & Problem Solving: ${assignment.title}`;
+  }
+
+  /**
+   * Resolves effective priority for an assignment based on its base priority and deadline proximity.
+   * Approaching deadlines elevate priority deterministically.
+   *
+   * @param {Assignment|object} assignment
+   * @param {number} referenceTime - Epoch ms (e.g. startDate or now)
+   * @returns {string} 'low' | 'medium' | 'high' | 'urgent'
+   */
+  _resolveEffectiveAssignmentPriority(assignment, referenceTime) {
+    const basePriority = assignment.priority || 'medium';
+    if (basePriority === 'urgent') return 'urgent';
+
+    const hoursUntilDue = (assignment.due_date - referenceTime) / 3600000;
+    // Approaching within 24 hours -> urgent
+    if (hoursUntilDue <= 24) {
+      return 'urgent';
+    }
+    // Approaching within 48 hours -> at least high
+    if (hoursUntilDue <= 48) {
+      return 'high';
+    }
+    // Approaching within 72 hours -> at least medium
+    if (hoursUntilDue <= 72 && basePriority === 'low') {
+      return 'medium';
+    }
+
+    return basePriority;
+  }
+
+  /**
+   * Resolves effective priority for a goal milestone based on target date proximity and progress.
+   *
+   * @param {Goal|object} goal
+   * @param {number} referenceTime - Epoch ms (e.g. startDate or now)
+   * @returns {string} 'low' | 'medium' | 'high' | 'urgent'
+   */
+  _resolveEffectiveGoalPriority(goal, referenceTime) {
+    if (!goal.target_date) return 'medium';
+
+    const daysUntilTarget = (goal.target_date - referenceTime) / 86400000;
+    // Target date within 2 days -> urgent
+    if (daysUntilTarget <= 2) {
+      return 'urgent';
+    }
+    // Target date within 7 days -> high
+    if (daysUntilTarget <= 7) {
+      return 'high';
+    }
+    // Low progress (< 25%) with target date within 14 days -> high
+    if (daysUntilTarget <= 14 && (goal.progress || 0) < 25) {
+      return 'high';
+    }
+
+    return 'medium';
   }
 }
 
