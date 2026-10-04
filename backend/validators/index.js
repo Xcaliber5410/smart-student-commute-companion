@@ -96,7 +96,9 @@ const {
   generateStudyPlanSchema,
   recalculateStudyPlanSchema,
   updateStudyPlanItemStatusSchema,
-  planItemsDateQuerySchema
+  planItemsDateQuerySchema,
+  planningInsightsQuerySchema,
+  processPlanningRemindersSchema
 } = require('./studyPlanValidators');
 
 module.exports = {
@@ -189,7 +191,11 @@ module.exports = {
   generateStudyPlanSchema,
   recalculateStudyPlanSchema,
   updateStudyPlanItemStatusSchema,
-  planItemsDateQuerySchema
+  planItemsDateQuerySchema,
+  planningInsightsQuerySchema,
+  processPlanningRemindersSchema
 };
+
+
 
 

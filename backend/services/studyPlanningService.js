@@ -23,6 +23,9 @@ const { StudyPlanItem } = require('../models/StudyPlanItem');
 const { ValidationError, NotFoundError, ForbiddenError, ConflictError } = require('../errors');
 const { getDateKeyIST, IST_OFFSET_MS, formatInMumbaiTime } = require('../utils/timezone');
 
+const { notificationService } = require('./notificationService');
+const { getConnection } = require('../db/connection');
+
 // Priority weight multipliers for deterministic ranking
 const PRIORITY_WEIGHTS = {
   urgent: 4,
@@ -41,8 +44,14 @@ class StudyPlanningService {
     this.courseRepo = options.courseRepo || courseRepository;
     this.workloadService = options.workloadService || workloadAnalysisService;
     this.resourceService = options.resourceService || resourceContextService;
+    this.notificationService = options.notificationService || notificationService;
     this.db = options.db || null;
   }
+
+  get database() {
+    return this.db || getConnection();
+  }
+
 
   /**
    * Evaluates pending academic work, active goals, and existing calendar commitments
@@ -1593,7 +1602,418 @@ class StudyPlanningService {
 
     return 'medium';
   }
+
+  /**
+   * Generates actionable planning insights connecting study plans with analytics:
+   * - Planned vs completed study work (counts and minutes)
+   * - Plan completion rate
+   * - Overdue planned work
+   * - Missed planned sessions
+   * - Upcoming overloaded periods
+   * - Unplanned urgent assignments
+   * - Insufficient preparation warnings
+   *
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}] - { now, days = 7, startDate, endDate, planId }
+   * @returns {Promise<object>} Comprehensive planning insights
+   */
+  async getPlanningInsights(userId, options = {}) {
+    if (!userId || typeof userId !== 'string') {
+      throw new ValidationError('Student user ID is required');
+    }
+
+    const now = options.now !== undefined ? Number(options.now) : Date.now();
+    const windowDays = Math.min(60, Math.max(1, Number(options.days) || 7));
+    const windowEnd = now + (windowDays * 86400000);
+
+    // 1. Fetch relevant study plan items
+    let allItems = [];
+    if (options.planId) {
+      allItems = this.studyPlanRepo.findItemsByPlanId(options.planId, userId);
+    } else if (options.startDate && options.endDate) {
+      allItems = this.studyPlanRepo.findInRange(userId, Number(options.startDate), Number(options.endDate));
+    } else {
+      const stmt = this.database.prepare(`
+        SELECT * FROM study_plan_items
+        WHERE user_id = ?
+        ORDER BY planned_date ASC, order_index ASC
+      `);
+      const rows = stmt.all(userId);
+      allItems = rows.map(r => StudyPlanItem.fromRow(r));
+    }
+
+    // 2. Planned vs completed work calculation
+    const totalPlannedItems = allItems.length;
+    let completedItemsCount = 0;
+    let pendingItemsCount = 0;
+    let inProgressItemsCount = 0;
+    let skippedItemsCount = 0;
+
+    let totalPlannedMinutes = 0;
+    let completedMinutes = 0;
+    let pendingMinutes = 0;
+
+    for (const item of allItems) {
+      const duration = Number(item.duration_minutes) || 0;
+      totalPlannedMinutes += duration;
+
+      if (item.status === 'completed') {
+        completedItemsCount++;
+        completedMinutes += duration;
+      } else if (item.status === 'planned') {
+        pendingItemsCount++;
+        pendingMinutes += duration;
+      } else if (item.status === 'in_progress') {
+        inProgressItemsCount++;
+        pendingMinutes += duration;
+      } else if (item.status === 'skipped') {
+        skippedItemsCount++;
+      }
+    }
+
+    const completionRate = totalPlannedItems > 0
+      ? Math.round((completedItemsCount / totalPlannedItems) * 100)
+      : 0;
+    const completionRateMinutes = totalPlannedMinutes > 0
+      ? Math.round((completedMinutes / totalPlannedMinutes) * 100)
+      : 0;
+
+    // 3. Overdue planned work: status in ('planned', 'in_progress') and planned_date < now
+    const overdueList = allItems.filter(item => 
+      (item.status === 'planned' || item.status === 'in_progress') &&
+      item.planned_date < now
+    );
+    const overdueTotalMinutes = overdueList.reduce((sum, item) => sum + (Number(item.duration_minutes) || 0), 0);
+
+    // 4. Missed planned sessions: status in ('planned', 'in_progress') and (planned_date + duration) < now
+    const missedList = allItems.filter(item => {
+      if (item.status !== 'planned' && item.status !== 'in_progress') return false;
+      const sessionEnd = item.planned_date + ((Number(item.duration_minutes) || 0) * 60000);
+      return sessionEnd < now;
+    });
+    const missedTotalMinutes = missedList.reduce((sum, item) => sum + (Number(item.duration_minutes) || 0), 0);
+
+    // 5. Upcoming overloaded periods
+    let overloadedPeriods = {
+      status: 'manageable',
+      heavyDaysCount: 0,
+      busiestDay: null,
+      overloadedDates: [],
+      windowDays
+    };
+
+    try {
+      const workloadSummary = await this.workloadService.getWorkloadSummary(userId, {
+        start: now,
+        days: windowDays,
+        now
+      });
+
+      const heavyDays = (workloadSummary.distribution || []).filter(d => d.level === 'heavy' || d.level === 'high' || (d.totalHours || 0) >= 6);
+      const heavyDates = heavyDays.map(d => d.date);
+
+      overloadedPeriods = {
+        status: heavyDays.length > 0 ? 'overloaded' : ((workloadSummary.averageDailyHours || 0) >= 4 ? 'high_load' : 'manageable'),
+        heavyDaysCount: heavyDays.length,
+        busiestDay: workloadSummary.busiestDay || null,
+        overloadedDates: heavyDates,
+        averageDailyHours: workloadSummary.averageDailyHours || 0,
+        windowDays
+      };
+    } catch (e) {
+      // Graceful fallback if workload service encounters an issue
+    }
+
+    // 6. Unplanned urgent assignments & insufficient preparation warnings
+    const activeAsgnStmt = this.database.prepare(`
+      SELECT * FROM assignments
+      WHERE user_id = ?
+        AND status NOT IN ('completed', 'cancelled')
+      ORDER BY due_date ASC
+    `);
+    const activeAssignments = activeAsgnStmt.all(userId);
+
+    const unplannedUrgent = [];
+    const prepWarnings = [];
+
+    for (const asgn of activeAssignments) {
+      const isDueSoon = asgn.due_date && asgn.due_date <= (now + (48 * 3600000));
+      const isHighPriority = asgn.priority === 'urgent' || asgn.priority === 'high';
+
+      // Check planned items for this assignment
+      const linkedItems = allItems.filter(item => 
+        (item.assignment_id === asgn.id || (item.payload && item.payload.assignmentId === asgn.id)) &&
+        item.status !== 'skipped'
+      );
+
+      // Total planned minutes before deadline
+      const plannedMinutesForAsgn = linkedItems
+        .filter(item => asgn.due_date ? item.planned_date <= asgn.due_date : true)
+        .reduce((sum, item) => sum + (Number(item.duration_minutes) || 0), 0);
+
+      const hoursUntilDue = asgn.due_date ? Math.round(((asgn.due_date - now) / 3600000) * 10) / 10 : null;
+
+      // If urgent or due within 48h and has zero planned items
+      if ((isDueSoon || isHighPriority) && linkedItems.length === 0) {
+        unplannedUrgent.push({
+          assignmentId: asgn.id,
+          title: asgn.title,
+          dueDate: asgn.due_date,
+          priority: asgn.priority,
+          courseId: asgn.course_id,
+          hoursUntilDue
+        });
+      }
+
+      // Check insufficient preparation warnings for assignments due within next 7 days
+      if (asgn.due_date && asgn.due_date > now && asgn.due_date <= windowEnd) {
+        const recommendedMinutes = asgn.estimated_hours
+          ? Number(asgn.estimated_hours) * 60
+          : (asgn.priority === 'urgent' ? 180 : (asgn.priority === 'high' ? 120 : 60));
+
+        if (plannedMinutesForAsgn < recommendedMinutes) {
+          prepWarnings.push({
+            assignmentId: asgn.id,
+            title: asgn.title,
+            dueDate: asgn.due_date,
+            priority: asgn.priority,
+            plannedMinutes: plannedMinutesForAsgn,
+            recommendedMinutes,
+            deficitMinutes: recommendedMinutes - plannedMinutesForAsgn,
+            hoursUntilDue
+          });
+        }
+      }
+    }
+
+    return {
+      studentId: userId,
+      asOfTimestamp: now,
+      plannedVsCompleted: {
+        totalPlannedItems,
+        completedItemsCount,
+        pendingItemsCount,
+        inProgressItemsCount,
+        skippedItemsCount,
+        totalPlannedMinutes,
+        completedMinutes,
+        pendingMinutes,
+        completionRate,
+        completionRateMinutes
+      },
+      overduePlannedWork: {
+        count: overdueList.length,
+        totalMinutes: overdueTotalMinutes,
+        items: overdueList.map(item => ({
+          id: item.id,
+          planId: item.plan_id,
+          title: item.title,
+          plannedDate: item.planned_date,
+          durationMinutes: item.duration_minutes,
+          priority: item.priority,
+          assignmentId: item.assignment_id,
+          goalId: item.goal_id
+        }))
+      },
+      missedPlannedSessions: {
+        count: missedList.length,
+        totalMinutes: missedTotalMinutes,
+        items: missedList.map(item => ({
+          id: item.id,
+          planId: item.plan_id,
+          title: item.title,
+          plannedDate: item.planned_date,
+          durationMinutes: item.duration_minutes,
+          priority: item.priority,
+          assignmentId: item.assignment_id,
+          goalId: item.goal_id
+        }))
+      },
+      upcomingOverloadedPeriods: overloadedPeriods,
+      unplannedUrgentAssignments: {
+        count: unplannedUrgent.length,
+        assignments: unplannedUrgent
+      },
+      insufficientPreparationWarnings: {
+        count: prepWarnings.length,
+        warnings: prepWarnings
+      }
+    };
+  }
+
+  /**
+   * Processes reminders for planned study work, overdue sessions, and prep warnings:
+   * - Upcoming planned study work (with configurable lead time, default 60 mins)
+   * - Overdue planned items (scheduled start elapsed)
+   * - Deadline preparation warnings (deficit prep time on impending deadlines)
+   *
+   * Enforces strict duplicate prevention and spam suppression via NotificationRepository.
+   *
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}] - { now, leadTimeMinutes = 60 }
+   * @returns {Promise<object>} Processing report with dispatched notifications
+   */
+  async processPlanningReminders(userId, options = {}) {
+    if (!userId || typeof userId !== 'string') {
+      throw new ValidationError('Student user ID is required');
+    }
+
+    const now = options.now !== undefined ? Number(options.now) : Date.now();
+    const leadTimeMinutes = Math.min(1440, Math.max(5, Number(options.leadTimeMinutes) || 60));
+    const leadTimeMs = leadTimeMinutes * 60000;
+
+    const sentUpcoming = [];
+    const sentOverdue = [];
+    const sentPrepWarnings = [];
+
+    // 1. Upcoming planned study work
+    const upcomingStmt = this.database.prepare(`
+      SELECT * FROM study_plan_items
+      WHERE user_id = ?
+        AND status = 'planned'
+        AND planned_date > ?
+        AND planned_date <= ?
+      ORDER BY planned_date ASC
+    `);
+    const upcomingRows = upcomingStmt.all(userId, now, now + leadTimeMs);
+
+    for (const row of upcomingRows) {
+      const item = StudyPlanItem.fromRow(row);
+      // Duplicate prevention: already notified for this upcoming item?
+      const existing = this.notificationService.findByResource(
+        userId,
+        'study_plan_item_upcoming',
+        item.id
+      );
+
+      if (existing && existing.length > 0) {
+        continue;
+      }
+
+      const minutesUntil = Math.max(1, Math.round((item.planned_date - now) / 60000));
+      const notifPriority = item.priority === 'urgent' || item.priority === 'high' ? 'high' : 'medium';
+
+      const notif = this.notificationService.createNotification(userId, {
+        type: 'reminder',
+        title: `Upcoming Study: ${item.title}`,
+        message: `Your planned study session "${item.title}" starts in ${minutesUntil} minute${minutesUntil === 1 ? '' : 's'}.`,
+        priority: notifPriority,
+        related_resource_type: 'study_plan_item_upcoming',
+        related_resource_id: item.id,
+        payload: {
+          planId: item.plan_id,
+          itemId: item.id,
+          plannedDate: item.planned_date,
+          durationMinutes: item.duration_minutes
+        }
+      });
+
+      sentUpcoming.push(notif);
+    }
+
+    // 2. Overdue planned items: scheduled start in past (within past 48 hours), still planned
+    const overdueCutoff = now - (48 * 3600000);
+    const overdueStmt = this.database.prepare(`
+      SELECT * FROM study_plan_items
+      WHERE user_id = ?
+        AND status = 'planned'
+        AND planned_date < ?
+        AND planned_date >= ?
+      ORDER BY planned_date ASC
+    `);
+    const overdueRows = overdueStmt.all(userId, now, overdueCutoff);
+
+    for (const row of overdueRows) {
+      const item = StudyPlanItem.fromRow(row);
+      // Duplicate prevention: already sent overdue notification for this item?
+      const existing = this.notificationService.findByResource(
+        userId,
+        'study_plan_item_overdue',
+        item.id
+      );
+
+      if (existing && existing.length > 0) {
+        continue;
+      }
+
+      const notif = this.notificationService.createNotification(userId, {
+        type: 'reminder',
+        title: `Overdue Study Session: ${item.title}`,
+        message: `Your planned study session "${item.title}" scheduled for ${new Date(item.planned_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} is currently overdue.`,
+        priority: 'high',
+        related_resource_type: 'study_plan_item_overdue',
+        related_resource_id: item.id,
+        payload: {
+          planId: item.plan_id,
+          itemId: item.id,
+          plannedDate: item.planned_date,
+          durationMinutes: item.duration_minutes
+        }
+      });
+
+      sentOverdue.push(notif);
+    }
+
+    // 3. Deadline preparation warnings:
+    // Important deadlines (due <= 48h) with insufficient planned preparation
+    const insights = await this.getPlanningInsights(userId, { now, days: 7 });
+    const warnings = (insights.insufficientPreparationWarnings?.warnings || []).filter(w => 
+      w.hoursUntilDue !== null && w.hoursUntilDue <= 48
+    );
+
+    for (const warning of warnings) {
+      const existing = this.notificationService.findByResource(
+        userId,
+        'assignment_prep_warning',
+        warning.assignmentId
+      );
+
+      // Throttling / spam prevention: do not send if sent within the last 24 hours
+      if (existing && existing.length > 0) {
+        const mostRecentTime = Math.max(...existing.map(n => n.created_at || 0));
+        if (now - mostRecentTime < (24 * 3600000)) {
+          continue;
+        }
+      }
+
+      const notif = this.notificationService.createNotification(userId, {
+        type: 'reminder',
+        title: `Preparation Warning: ${warning.title}`,
+        message: `Assignment "${warning.title}" is due in ${warning.hoursUntilDue}h with only ${warning.plannedMinutes}m of planned study (${warning.deficitMinutes}m deficit).`,
+        priority: 'high',
+        related_resource_type: 'assignment_prep_warning',
+        related_resource_id: warning.assignmentId,
+        payload: {
+          assignmentId: warning.assignmentId,
+          dueDate: warning.dueDate,
+          plannedMinutes: warning.plannedMinutes,
+          recommendedMinutes: warning.recommendedMinutes,
+          deficitMinutes: warning.deficitMinutes,
+          hoursUntilDue: warning.hoursUntilDue
+        }
+      });
+
+      sentPrepWarnings.push(notif);
+    }
+
+    return {
+      processedAt: now,
+      studentId: userId,
+      remindersSent: {
+        upcomingCount: sentUpcoming.length,
+        overdueCount: sentOverdue.length,
+        prepWarningCount: sentPrepWarnings.length,
+        totalCount: sentUpcoming.length + sentOverdue.length + sentPrepWarnings.length
+      },
+      notifications: [
+        ...sentUpcoming,
+        ...sentOverdue,
+        ...sentPrepWarnings
+      ]
+    };
+  }
 }
+
 
 const studyPlanningService = new StudyPlanningService();
 

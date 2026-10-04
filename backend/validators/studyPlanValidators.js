@@ -320,6 +320,32 @@ const planItemsDateQuerySchema = z.object({
   goalId: data.goal_id || data.goalId
 }));
 
+const planningInsightsQuerySchema = z.object({
+  now: z.coerce.number().int().positive().optional(),
+  days: z.coerce.number().int().min(1).max(60).optional(),
+  startDate: z.coerce.number().int().positive().optional(),
+  start_date: z.coerce.number().int().positive().optional(),
+  endDate: z.coerce.number().int().positive().optional(),
+  end_date: z.coerce.number().int().positive().optional(),
+  planId: z.string().optional(),
+  plan_id: z.string().optional()
+}).transform(data => ({
+  now: data.now,
+  days: data.days,
+  startDate: data.start_date || data.startDate,
+  endDate: data.end_date || data.endDate,
+  planId: data.plan_id || data.planId
+}));
+
+const processPlanningRemindersSchema = z.object({
+  now: z.coerce.number().int().positive().optional(),
+  leadTimeMinutes: z.coerce.number().int().min(1).max(1440).optional(),
+  lead_time_minutes: z.coerce.number().int().min(1).max(1440).optional()
+}).transform(data => ({
+  now: data.now,
+  leadTimeMinutes: data.lead_time_minutes || data.leadTimeMinutes
+}));
+
 module.exports = {
   studyPlanStatusEnum,
   studyPlanItemStatusEnum,
@@ -333,5 +359,8 @@ module.exports = {
   generateStudyPlanSchema,
   recalculateStudyPlanSchema,
   updateStudyPlanItemStatusSchema,
-  planItemsDateQuerySchema
+  planItemsDateQuerySchema,
+  planningInsightsQuerySchema,
+  processPlanningRemindersSchema
 };
+

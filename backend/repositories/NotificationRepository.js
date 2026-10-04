@@ -185,6 +185,15 @@ class NotificationRepository {
     const result = stmt.run(now);
     return result.changes;
   }
+
+  findByResource(userId, relatedResourceType, relatedResourceId) {
+    if (!userId || !relatedResourceType || !relatedResourceId) return [];
+    const stmt = this.database.prepare(
+      'SELECT * FROM notifications WHERE user_id = ? AND related_resource_type = ? AND related_resource_id = ?'
+    );
+    const rows = stmt.all(userId, relatedResourceType, relatedResourceId);
+    return rows.map(r => Notification.fromRow(r));
+  }
 }
 
 const notificationRepository = new NotificationRepository();

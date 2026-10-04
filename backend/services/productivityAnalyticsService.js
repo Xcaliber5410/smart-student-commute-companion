@@ -447,6 +447,43 @@ class ProductivityAnalyticsService {
       }
     }
 
+    // -------------------------------------------------------------
+    // 6. Study Planning Aggregation (Single SQL Query)
+    // -------------------------------------------------------------
+    const planStmt = db.prepare(`
+      SELECT
+        COUNT(*) as total_planned_items,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_items,
+        SUM(CASE WHEN status = 'planned' THEN 1 ELSE 0 END) as pending_items,
+        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_items,
+        SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) as skipped_items,
+        SUM(COALESCE(duration_minutes, 0)) as total_planned_minutes,
+        SUM(CASE WHEN status = 'completed' THEN COALESCE(duration_minutes, 0) ELSE 0 END) as completed_minutes,
+        SUM(CASE WHEN status = 'planned' AND planned_date < ? THEN 1 ELSE 0 END) as overdue_items,
+        SUM(CASE WHEN status = 'planned' AND (planned_date + (duration_minutes * 60000)) < ? THEN 1 ELSE 0 END) as missed_sessions
+      FROM study_plan_items
+      WHERE user_id = ?
+        AND status != 'cancelled'
+        AND planned_date >= ?
+        AND planned_date <= ?
+    `);
+    const planStats = planStmt.get(now, now, studentUserId, start, end);
+    const totalPlannedItems = Number(planStats?.total_planned_items || 0);
+    const completedPlannedItems = Number(planStats?.completed_items || 0);
+    const pendingPlannedItems = Number(planStats?.pending_items || 0);
+    const inProgressPlannedItems = Number(planStats?.in_progress_items || 0);
+    const skippedPlannedItems = Number(planStats?.skipped_items || 0);
+    const totalPlannedMinutes = Number(planStats?.total_planned_minutes || 0);
+    const completedPlannedMinutes = Number(planStats?.completed_minutes || 0);
+    const overduePlannedItems = Number(planStats?.overdue_items || 0);
+    const missedPlannedSessions = Number(planStats?.missed_sessions || 0);
+    const planCompletionRate = totalPlannedItems > 0
+      ? Math.round((completedPlannedItems / totalPlannedItems) * 100)
+      : 0;
+    const planCompletionRateMinutes = totalPlannedMinutes > 0
+      ? Math.round((completedPlannedMinutes / totalPlannedMinutes) * 100)
+      : 0;
+
     return {
       studentId: studentUserId,
       asOfTimestamp: now,
@@ -501,8 +538,22 @@ class ProductivityAnalyticsService {
         totalHours: Math.round((totalCalendarMinutes / 60) * 10) / 10,
         byType: eventsByType
       },
+      studyPlanning: {
+        totalPlannedItems,
+        completedItems: completedPlannedItems,
+        pendingItems: pendingPlannedItems,
+        inProgressItems: inProgressPlannedItems,
+        skippedItems: skippedPlannedItems,
+        totalPlannedMinutes,
+        completedMinutes: completedPlannedMinutes,
+        overdueItems: overduePlannedItems,
+        missedSessions: missedPlannedSessions,
+        completionRate: planCompletionRate,
+        completionRateMinutes: planCompletionRateMinutes
+      },
       dailyBreakdown
     };
+
   }
 }
 

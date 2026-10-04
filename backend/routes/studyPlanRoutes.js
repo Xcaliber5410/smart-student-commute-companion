@@ -21,7 +21,9 @@ const {
   generateStudyPlanSchema,
   recalculateStudyPlanSchema,
   updateStudyPlanItemStatusSchema,
-  planItemsDateQuerySchema
+  planItemsDateQuerySchema,
+  planningInsightsQuerySchema,
+  processPlanningRemindersSchema
 } = require('../validators');
 
 function createStudyPlanRoutes() {
@@ -31,7 +33,7 @@ function createStudyPlanRoutes() {
   router.use('/student/study-plans', authenticate);
 
   // -----------------------------------------------------------------
-  // 1. Generation, Recalculation & Overview (Specific paths before :id)
+  // 1. Generation, Recalculation, Insights & Reminders (Specific paths before :id)
   // -----------------------------------------------------------------
   router.post(
     '/student/study-plans/generate',
@@ -48,6 +50,18 @@ function createStudyPlanRoutes() {
   router.get(
     '/student/study-plans/current',
     studyPlanController.getCurrentPlan
+  );
+
+  router.get(
+    '/student/study-plans/insights',
+    validate(planningInsightsQuerySchema, 'query'),
+    studyPlanController.getPlanningInsights
+  );
+
+  router.post(
+    '/student/study-plans/reminders/process',
+    validate(processPlanningRemindersSchema, 'body'),
+    studyPlanController.processReminders
   );
 
   // -----------------------------------------------------------------

@@ -55,6 +55,15 @@ class StudentInsightsService {
     this.productivitySvc = productivitySvc;
     this.db = dbInstance;
     this._searchSvc = searchSvc;
+    this._planningSvc = null;
+  }
+
+  get planningSvc() {
+    if (!this._planningSvc) {
+      const { studyPlanningService } = require('./studyPlanningService');
+      this._planningSvc = studyPlanningService;
+    }
+    return this._planningSvc;
   }
 
   get searchSvc() {
@@ -224,6 +233,17 @@ class StudentInsightsService {
       to: options.to
     });
 
+    // 10. Study planning insights (planned vs completed, overdue items, missed sessions, unplanned urgent assignments)
+    let planningInsights = null;
+    try {
+      planningInsights = await this.planningSvc.getPlanningInsights(studentUserId, {
+        now,
+        days: upcomingDays
+      });
+    } catch (e) {
+      // Graceful fallback if study planning encounters an error
+    }
+
     return {
       student: {
         id: user.id,
@@ -237,7 +257,12 @@ class StudentInsightsService {
         upcomingAssignmentsCount: upcomingAssignments.length,
         overdueAssignmentsCount: overdueAssignments.length,
         todayEventsCount: (todayCalendar.events || []).length,
-        upcomingStudySessionsCount: upcomingStudySessions.length
+        upcomingStudySessionsCount: upcomingStudySessions.length,
+        plannedStudyItemsCount: planningInsights?.plannedVsCompleted?.totalPlannedItems || 0,
+        planCompletionRate: planningInsights?.plannedVsCompleted?.completionRate || 0,
+        overduePlannedWorkCount: planningInsights?.overduePlannedWork?.count || 0,
+        missedPlannedSessionsCount: planningInsights?.missedPlannedSessions?.count || 0,
+        unplannedUrgentAssignmentsCount: planningInsights?.unplannedUrgentAssignments?.count || 0
       },
       activeGoals,
       goalProgress,
@@ -247,9 +272,11 @@ class StudentInsightsService {
       upcomingStudySessions,
       unreadNotificationsCount,
       workloadSummary,
-      productivityMetrics
+      productivityMetrics,
+      planningInsights
     };
   }
+
 
   /**
    * Contextual search integration for student insights:

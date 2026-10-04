@@ -58,6 +58,7 @@
     "test:study-planning-api": "node scripts/integration_study_planning_api_test.js",
     "test:planning-conflicts": "node scripts/integration_planning_calendar_conflicts_test.js",
     "test:planning-goals-resources": "node scripts/integration_planning_goals_resources_workload_test.js",
+    "test:planning-insights-reminders": "node scripts/integration_planning_insights_reminders_test.js",
     "test": "node scripts/smoke_test.js",
     "test:db": "node scripts/integration_db_test.js",
     "test:api": "node scripts/integration_api_test.js",

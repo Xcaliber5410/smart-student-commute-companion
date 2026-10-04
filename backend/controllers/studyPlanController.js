@@ -247,6 +247,41 @@ async function deletePlanItem(req, res, next) {
   }
 }
 
+/**
+ * Retrieves actionable planning insights (planned vs completed, overdue items,
+ * missed sessions, upcoming overloaded periods, unplanned urgent assignments, prep warnings).
+ */
+async function getPlanningInsights(req, res, next) {
+  try {
+    const studentId = req.user.id;
+    const insights = await studyPlanningService.getPlanningInsights(studentId, req.query);
+
+    return success(res, {
+      insights
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Dispatches notifications/reminders for upcoming planned study sessions,
+ * overdue items, and deadline preparation warnings with duplicate suppression.
+ */
+async function processReminders(req, res, next) {
+  try {
+    const studentId = req.user.id;
+    const result = await studyPlanningService.processPlanningReminders(studentId, req.body);
+
+    return success(res, {
+      message: 'Planning reminders processed successfully',
+      result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   generatePlan,
   recalculatePlan,
@@ -259,5 +294,8 @@ module.exports = {
   getPlanItem,
   updatePlanItem,
   updatePlanItemStatus,
-  deletePlanItem
+  deletePlanItem,
+  getPlanningInsights,
+  processReminders
 };
+

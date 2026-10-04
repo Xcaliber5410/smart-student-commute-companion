@@ -168,6 +168,14 @@ class NotificationService {
     this.notifRepo.delete(id);
     return { success: true };
   }
+
+  /**
+   * Retrieves notifications by related resource for a student (useful for idempotency and duplicate checking).
+   */
+  findByResource(userId, relatedResourceType, relatedResourceId) {
+    if (!userId || !relatedResourceType || !relatedResourceId) return [];
+    return this.notifRepo.findByResource(userId, relatedResourceType, relatedResourceId);
+  }
 }
 
 const notificationService = new NotificationService();
