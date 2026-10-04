@@ -5,7 +5,7 @@
 > 2. `docs/project-context/CURRENT_STATE.md` (what exists now, blockers)
 > 3. `docs/project-context/FEATURES.md` (status inventory)
 > 4. **Only** the latest relevant `docs/project-context/days/DAY-0X.md` when continuing
->    daily work (e.g., DAY-12.md to continue from Day 12). Older day logs = archaeology,
+>    daily work (e.g., DAY-13.md to continue from Day 13). Older day logs = archaeology,
 >    not instructions.
 
 ---
@@ -15,7 +15,7 @@
 Mumbai student commute PWA: React 18 + Vite + Tailwind frontend (`frontend/`, the
 **Xcaliber** role — client-side only) + Express/SQLite backend (`backend/`, the
 **Skan** role). Daily frontend work happens on `frontfeat` in 7 fixed-message commits
-per "Day", merged to `main` at day end. Currently at **Day 12** (HEAD `96e8288`).
+per "Day", merged to `main` at day end. Currently at **Day 13** (HEAD `bef9454`).
 
 ## 2. Which branch to work on
 
@@ -55,6 +55,10 @@ branch; never force-push; never delete `frontfeat`.
   `ui/UnreadCountBadge` + `utils/uiPreferences.js` helpers — read marks persist on
   device and drive the nav badges; don't add a second read-state store or re-derive
   unread counts in components.
+- Quiet hours / notification preferences: Day 13 `PreferencesDialog` notifications
+  section + `ui/TimeRangeInput` + `isQuietHoursActive()` in `utils/uiPreferences.js` —
+  both pop-up paths (live-report toasts, OS device alerts) consult it per event;
+  don't build a second preferences surface or duplicate the window math.
 - The `verify-frontend.js` suite — **extend**, never weaken; add a numbered section.
 - Any backend route/DB code (Skan's domain — off limits).
 
@@ -95,7 +99,7 @@ documented exception).
 ## 8. Verification workflow (before every commit)
 
 ```bash
-cd frontend && npm run verify    # must be 100%, currently 285 checks
+cd frontend && npm run verify    # must be 100%, currently 310 checks
 cd frontend && npm run build     # must succeed (chunk >500kB warning is pre-existing)
 ```
 

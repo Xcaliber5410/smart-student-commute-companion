@@ -25,16 +25,16 @@ side working in parallel.
 
 ## 2. Current development state (as of this documentation)
 
-- Frontend daily cycle has reached **Day 12** (last frontend commit `96e8288`,
-  2026-10-04: `test(frontend): verify Day 12 frontend implementation`; docs commit
+- Frontend daily cycle has reached **Day 13** (last frontend commit `bef9454`,
+  2026-10-04: `test(frontend): verify Day 13 frontend implementation`; docs commit
   follows).
-- `main` was at `9e3a5ed` (Day-11 docs) when Day 12 started; Day-12
+- `main` was at `03fc35b` (Day-12 docs) when Day 13 started; Day-13
   work was merged `frontfeat` → `main` at day end per `GIT_WORKFLOW.md`.
 - Backend has progressed at least through its own "Day 10" goals/productivity suite
   (per `backend/docs/goal_and_productivity_workflows.md`, commits through `a8f8d80`,
   2026-10-01), plus the Day-11 start-of-day merge brought the study-resources suite
   (`df275de`, 2026-10-03).
-- Frontend verification: `npm run verify` = **285/285 checks passing** (21 named
+- Frontend verification: `npm run verify` = **310/310 checks passing** (22 named
   sections), `npm run build` succeeds.
 
 ## 3. Purpose of the frontend/PWA
@@ -234,7 +234,7 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 ## 17. Testing / lint / type-check / build
 
 - **Tests**: `cd frontend && npm run verify` (alias `npm test`) → `verify-frontend.js`,
-  a Node script performing **285 static source checks across 21 sections** (structure,
+  a Node script performing **310 static source checks across 22 sections** (structure,
   config, design system, PWA, and per-day feature checks). These are source-level
   assertions, not runtime unit tests. No Jest/Vitest/Playwright exists.
 - **Lint**: **none configured** (no eslint config or script — verified).

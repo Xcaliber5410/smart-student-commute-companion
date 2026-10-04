@@ -1,7 +1,7 @@
 # Feature Inventory — Smart Student Companion
 
 > Replacement for the missing `completed_features.md`. Statuses verified against source
-> code and Git history at frontend Day 12 (`96e8288`). Statuses: **IMPLEMENTED**,
+> code and Git history at frontend Day 13 (`bef9454`). Statuses: **IMPLEMENTED**,
 > **PARTIAL**, **BLOCKED**, **PLANNED**. "Not verified from repository history" marks
 > anything unconfirmable.
 
@@ -125,7 +125,7 @@
 
 ### 16. Verification suite — Day 1, extended daily
 - **Status**: IMPLEMENTED
-- **Files**: `frontend/verify-frontend.js` (285 checks, 21 sections)
+- **Files**: `frontend/verify-frontend.js` (310 checks, 22 sections)
 - **API**: none
 
 ### 17. PWA analytics & monitoring dashboard — Day 10
@@ -169,14 +169,33 @@
   failure-safe)
 - **Notes**: read state survives reloads; mark-all-as-read with toast + focus handoff;
   visible "Unread" text badge (never color alone); filter options show live counts;
-  "You're all caught up" empty state; polite live announcements of read progress.
+  "You're all caught up" empty state;  polite live announcements of read progress.
+
+### 20. Notification preferences with quiet hours — Day 13
+- **Status**: IMPLEMENTED (device-local; implements the documented client-side slice of
+  the "User notification preferences" roadmap item)
+- **Route**: existing preferences dialog (`?tab=notifications` home screen is the
+  Notifications page; preferences are dialog-based, Day 9 precedent)
+- **Files**: `pages/PreferencesDialog.jsx`, `ui/TimeRangeInput.jsx` (new),
+  `ui/Toggle` reuse, `utils/uiPreferences.js` (`quietHoursEnabled/Start/End`+helpers),
+  App wiring (`isQuietHoursActive` gating of both pop-up paths), `pages/DeviceAlertsPage.jsx`
+- **API**: none new — the two pop-up paths (live-report toasts, OS device alerts)
+  read the preference store and `isQuietHoursActive()` per event; reports still
+  reach the feed so nothing is hidden, only interrupted while the window is active
+- **Notes**: quiet window defaults 22:00–07:00 (overnight wrap handled; empty window
+  guarded); currently suppressed: live-report toasts + OS device alerts; per-field
+  `HH:MM` validation with forgiving blur revert; live "active now" status
+  (60s recompute); honest `role="alert"` pause explanation on the Device alerts
+  screen; dialog sections are real headings with polite live status; 310-check verify
+  suite passes (section 22).
 
 ---
 
 ## PARTIALLY IMPLEMENTED
 
 ### P1. Notifications center
-- **Status**: PARTIAL (client-side complete as of Day 12 — see #19)
+- **Status**: PARTIAL (client-side complete as of Day 13 — see #19 and #20; the
+  server feed itself remains blocked)
 - **Route**: `?tab=notifications`
 - **Files**: `pages/NotificationsPage.jsx`, `components/NotificationItem.jsx`
 - **What exists**: full UI — search, all/unread filter with live counts, per-item read
@@ -258,9 +277,10 @@ Only items verifiable from project documentation/roadmap files:
 - **Source**: `frontend/PWA_SUMMARY.md` "⏳ Requires Browser Testing" checklist
   (install prompt, real devices, Lighthouse audit — unticked).
 
-### R3. Frontend work beyond Day 12
+### R3. Frontend work beyond Day 13
 - **Status**: Not verified from repository history.
 
 (Former planned items "PWA Analytics & Monitoring (Day 10)", "offline request
-queueing (Day 11)" and "persistent notification read state (Day 12)" are now
-**IMPLEMENTED** as #17, #18 and #19.)
+queueing (Day 11)", "persistent notification read state (Day 12)" and
+"notification preferences with quiet hours (Day 13)" are now **IMPLEMENTED** as
+#17, #18, #19 and #20.)

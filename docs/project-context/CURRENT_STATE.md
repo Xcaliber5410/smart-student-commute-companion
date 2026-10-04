@@ -1,7 +1,7 @@
 # Current State — Smart Student Companion
 
-> Verified against the repository working tree and Git history at frontend Day 12
-> (HEAD `96e8288`, 2026-10-04, `frontfeat`; end-of-day merge to `main` follows this
+> Verified against the repository working tree and Git history at frontend Day 13
+> (HEAD `bef9454`, 2026-10-04, `frontfeat`; end-of-day merge to `main` follows this
 > docs commit). Anything unverifiable is marked
 > "Not verified from repository history."
 
@@ -11,8 +11,8 @@
 
 | Branch | State |
 |---|---|
-| `main` | At `9e3a5ed` (Day-11 docs on top of backend study-resources suite `df275de`) before Day 12's end-of-day merge; receives completed frontend days. |
-| `frontfeat` | At Day-12 HEAD (`96e8288` + docs). Xcaliber's working branch — Day-12 work merged to `main` at day end. |
+| `main` | At `03fc35b` (Day-11 + Day-12 docs) before Day 13's end-of-day merge; receives completed frontend days. |
+| `frontfeat` | At Day-13 HEAD (`bef9454` + docs). Xcaliber's working branch — Day-13 work merged to `main` at day end. |
 | `origin/day-01-foundation` | Historical Day-1 branch (tip `e8facbb`), unused now. |
 | `fix/budget-and-mode-filtering` | Local stale branch from the hackathon era; outside the daily workflow. |
 
@@ -50,12 +50,16 @@
   own metrics store); Day-11 offline report queue in `smart_commute_offline_queue`
   (via `services/offlineQueue.js`, bounded at 50 items, failure-safe envelope); Day-12
   notification read state in `smart_commute_notification_read_state` (via
-  `utils/uiPreferences.js` helpers, bounded at 300 ids, failure-safe).
+  `utils/uiPreferences.js` helpers, bounded at 300 ids, failure-safe); Day-13
+  notification preferences (quiet-hours switch + start/end times) ride the existing
+  `smart_commute_app_preferences` store via the same validated helpers.
 - **Notifications (UI)**: `Toast` queue (polite `role=status`; errors `role=alert`) +
   `NotificationsPage` (client-side view over loaded live reports with search, all/unread
   view, per-item read state **persisted on device since Day 12**, mark-all-as-read,
   live read counts, "all caught up" state) + unread `UnreadCountBadge` in all three
-  nav surfaces + Day-7 device alerts.
+  nav surfaces + Day-7 device alerts; Day-13 quiet hours (device-local preference)
+  mute the pop-up paths (live-report toasts, OS device alerts) while the window is
+  active — reports still reach the feed.
 - **Forms**: controlled components built on `ui/FormField` + `utils/validation.js`
   (client-side validation only; submissions go through `api.js` services).
 - **Responsive behavior**: Tailwind breakpoints; icon/short/full-label scaling in
@@ -184,15 +188,16 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 - **Framework**: none (no Jest/Vitest/Playwright — verified no such deps).
 - **Test command**: `cd frontend && npm run verify` (= `npm test`) →
-  `frontend/verify-frontend.js`, Node script, currently **285 checks / 21 sections**,
-  all passing; exit code gates CI-less workflow. Static source assertions (files exist,
+  `frontend/verify-frontend.js`, Node script, currently **310 checks / 22 sections**, all
+  passing; exit code gates CI-less workflow. Static source assertions (files exist,
   patterns present), not runtime tests.
 - **Lint**: not configured (no eslint config/script — verified). Report as N/A.
 - **Type-check**: not configured (no TypeScript — verified). Report as N/A.
 - **Build**: `npm run build` (Vite) — passes; known warning: chunk > 500 kB.
 - **PWA checks**: section 6 of `verify-frontend.js` (manifest/SW/meta), section 19
   (Day-10 analytics), section 20 (Day-11 offline queue), section 21 (Day-12
-  notification read state), + manual browser testing
+  notification read state), section 22 (Day-13 notification preferences / quiet
+  hours), + manual browser testing
   documented in `frontend/PWA_TESTING.md`.
   Browser-based responsive/a11y audits used during Days 7–10 were **session-local
   tools, not committed** — "Not verified from repository history" as reusable repo
@@ -219,12 +224,11 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 ## Next Logical Work (from repository/roadmap evidence only — no product decisions)
 
-- **Frontend Day 12 is complete** (Notification Read State & Unread Badges —
-  `days/DAY-12.md`); the same 7-commit cycle would continue for any Day 13+ on
-  `frontfeat`. Next roadmap items still open: Background Sync / push support
-  (push needs a server; Background Sync would require re-architecting the Day-11 queue
-  because service workers cannot read localStorage) and real-device Lighthouse PWA
-  testing (`frontend/PWA_SUMMARY.md` medium-term + browser-testing checklists).
+- **Frontend Day 13 is complete** (notification preferences with quiet hours —
+  `days/DAY-13.md`); the same 7-commit cycle would continue for any Day 14+ on
+  `frontfeat`. Remaining *user-facing* roadmap checkboxes: install-promotion/
+  shortcuts tuning, and a future background-sync for the Day-11 queue (documented
+  risk: no duplicate reports — see `days/DAY-13.md`).
 - `frontend/PWA_SETUP.md` "Future PWA Roadmap" still lists **Day 10: Analytics &
   Monitoring** as unchecked (doc drift — implemented in code in Day 10); the file's
   Day 8–9 boxes are likewise stale.
