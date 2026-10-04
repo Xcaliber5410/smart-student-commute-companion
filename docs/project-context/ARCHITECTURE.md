@@ -36,7 +36,7 @@
 
 ## Page structure
 
-- **Where**: `src/pages/*` — 8 pages, presentation-only: they receive data/callbacks via
+- **Where**: `src/pages/*` — 10 pages, presentation-only: they receive data/callbacks via
   props, render `<header><h1>…</h1></header>` + labelled `<section>`s, and use
   `ui/` loading/empty/error components. Existing pattern examples:
   `DeviceAlertsPage.jsx` (status + settings), `InstallShareHubPage.jsx` (multi-section).

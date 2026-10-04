@@ -1,7 +1,7 @@
 # Feature Inventory — Smart Student Companion
 
 > Replacement for the missing `completed_features.md`. Statuses verified against source
-> code and Git history at frontend Day 10 (`0f5f756`). Statuses: **IMPLEMENTED**,
+> code and Git history at frontend Day 11 (`fbdb302`). Statuses: **IMPLEMENTED**,
 > **PARTIAL**, **BLOCKED**, **PLANNED**. "Not verified from repository history" marks
 > anything unconfirmable.
 
@@ -15,8 +15,9 @@
 - **Files**: `layouts/AppShell.jsx`, `layouts/MainLayout.jsx`, `components/Navbar.jsx`
 - **API**: none (socket status indicator only)
 - **Notes**: sticky header with privacy banner, desktop nav, mobile drawer, fixed
-  9-item bottom nav; responsive label scaling (icon-only <1536px, short 2xl→1919px,
-  full ≥1920px — re-tiered Day 10).
+  10-item bottom nav (tightened Day 11 for ten tabs); responsive label scaling
+  (icon-only <1536px, short 2xl→2199px, full ≥2200px — re-tiered Day 10 for nine tabs,
+  re-measured Day 11 for ten).
 
 ### 2. Route planner — screen structure Day 3 (planner itself dates to the hackathon MVP)
 - **Status**: IMPLEMENTED
@@ -124,7 +125,7 @@
 
 ### 16. Verification suite — Day 1, extended daily
 - **Status**: IMPLEMENTED
-- **Files**: `frontend/verify-frontend.js` (231 checks, 19 sections)
+- **Files**: `frontend/verify-frontend.js` (262 checks, 20 sections)
 - **API**: none
 
 ### 17. PWA analytics & monitoring dashboard — Day 10
@@ -139,6 +140,21 @@
   the device (privacy stance)
 - **Notes**: install outcomes, offline periods, cache hit/miss rates, SW error
   monitoring; refresh/reset with toasts; loading/empty/error/retry states.
+
+### 18. Offline report queue — Day 11
+- **Status**: IMPLEMENTED (device-local; delivers through the existing report contract)
+- **Route**: `?tab=offlinequeue`
+- **Files**: `pages/OfflineQueuePage.jsx`, `ui/QueueReportItem.jsx`,
+  `services/offlineQueue.js`, App wiring (`queue` state, enqueue on network failure,
+  `online` auto-flush), `components/Navbar.jsx` (tenth nav item)
+- **API**: `POST /api/live-reports` via the existing `services/liveReports.js →
+  createReport()` — no new endpoint; delivery only runs in the page (online event /
+  manual Sync now / next launch), no Background Sync
+- **Notes**: reports whose submission fails with `err.isNetwork` are saved to
+  `smart_commute_offline_queue` (bounded 50, failure-safe storage) instead of being
+  lost; HTTP rejections become visible `failed` items with Try again / Discard actions
+  (discard gated by ConfirmDialog); filter chips, polite live status, focus handoff,
+  loading/empty/error/retry states.
 
 ---
 
@@ -156,12 +172,12 @@
 - **API dependency**: BLOCKED on auth (see Backend Dependent #B4).
 
 ### P2. Offline support
-- **Status**: PARTIAL (by design so far)
-- **What exists**: cached static shell + offline banner + retry states.
-- **What's missing**: offline request queueing / Background Sync / data caching —
-  listed as "not implemented (intentionally)" in `frontend/PWA_SUMMARY.md` and absent
-  from `sw.js` (verified).
-- **Notes**: upgrading this is a product decision, not implied here.
+- **Status**: PARTIAL (offline queueing done in Day 11; the rest intentionally open)
+- **What exists**: cached static shell + offline banner + retry states; since Day 11,
+  failed report submissions queue locally and auto-deliver on reconnect (see #18).
+- **What's missing**: Background Sync / data caching — still absent from `sw.js`
+  (verified).
+- **Notes**: upgrading further is a product decision, not implied here.
 
 ### P3. Roadmap checkboxes in `frontend/PWA_SETUP.md`
 - **Status**: PARTIAL (doc drift)
@@ -217,15 +233,16 @@ Only items verifiable from project documentation/roadmap files:
 ### R1. Advanced offline features
 - **Status**: PLANNED
 - **Source**: `frontend/PWA_SUMMARY.md` "Medium Term (Days 4-7)": background sync, push
-  notification support, offline request queueing, enhanced offline UX.
+  notification support, enhanced offline UX. (Offline request queueing from that list
+  is now implemented in code — Day 11 #18 — but the file itself was not edited.)
 
 ### R2. Real-device / Lighthouse PWA testing
 - **Status**: PLANNED
 - **Source**: `frontend/PWA_SUMMARY.md` "⏳ Requires Browser Testing" checklist
   (install prompt, real devices, Lighthouse audit — unticked).
 
-### R3. Frontend work beyond Day 10
+### R3. Frontend work beyond Day 11
 - **Status**: Not verified from repository history.
 
-(Former planned item "PWA Analytics & Monitoring (Day 10)" is now **IMPLEMENTED** as
-#17.)
+(Former planned items "PWA Analytics & Monitoring (Day 10)" and "offline request
+queueing (Day 11)" are now **IMPLEMENTED** as #17 and #18.)

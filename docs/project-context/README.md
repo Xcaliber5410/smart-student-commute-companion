@@ -25,24 +25,27 @@ side working in parallel.
 
 ## 2. Current development state (as of this documentation)
 
-- Frontend daily cycle has reached **Day 10** (last frontend commit `0f5f756`,
-  2026-10-03: `test(frontend): verify Day 10 feature`; docs commit follows).
-- `main` was at `57c5c51` (backend search work) when Day 10 started; Day-10 work was
-  merged `frontfeat` → `main` at day end per `GIT_WORKFLOW.md`.
+- Frontend daily cycle has reached **Day 11** (last frontend commit `fbdb302`,
+  2026-10-03: `test(frontend): verify Day 11 frontend implementation`; docs commit
+  follows).
+- `main` was at `df275de` (backend study-resources suite) when Day 11 started; Day-11
+  work was merged `frontfeat` → `main` at day end per `GIT_WORKFLOW.md`.
 - Backend has progressed at least through its own "Day 10" goals/productivity suite
   (per `backend/docs/goal_and_productivity_workflows.md`, commits through `a8f8d80`,
-  2026-10-01).
-- Frontend verification: `npm run verify` = **231/231 checks passing** (19 named
+  2026-10-01), plus the Day-11 start-of-day merge brought the study-resources suite
+  (`df275de`, 2026-10-03).
+- Frontend verification: `npm run verify` = **262/262 checks passing** (20 named
   sections), `npm run build` succeeds.
 
 ## 3. Purpose of the frontend/PWA
 
 The frontend is the entire student-facing product: route planning, live disruption feed,
-ride pools, transit search, notifications view, device alerts, and PWA installation/
-sharing. It is designed as an installable PWA (home-screen launch, offline app shell,
-share target, shortcuts) so students can use it cheaply on mobile. It talks to the backend
-over a small set of JSON endpoints and a Socket.IO channel; it holds **no user accounts**
-client-side.
+ride pools, transit search, notifications view, device alerts, PWA installation/
+sharing, and an offline queue that keeps reports filed without connectivity until they
+can be delivered. It is designed as an installable PWA (home-screen launch, offline app
+shell, share target, shortcuts) so students can use it cheaply on mobile. It talks to
+the backend over a small set of JSON endpoints and a Socket.IO channel; it holds **no
+user accounts** client-side.
 
 ## 4. Role of Xcaliber
 
@@ -122,11 +125,11 @@ Browser (PWA)                                  Express backend (backend/)
 | Path | Contents |
 |---|---|
 | `frontend/src/` | All frontend source |
-| `frontend/src/pages/` | 8 feature pages (presentation, props-driven) |
+| `frontend/src/pages/` | 10 feature pages (presentation, props-driven) |
 | `frontend/src/components/` | Feature components (Navbar, modals, PlannerForm…) |
 | `frontend/src/components/ui/` | Reusable UI kit (~30 files) + barrel `index.js` + `README.md` |
 | `frontend/src/layouts/` | `AppShell`, `MainLayout`, `PageContainer`, `NotFound` |
-| `frontend/src/services/` | `api.js`, `planner`, `liveReports`, `rideGroups`, `transit`, `deviceAlerts`, `shareTarget`, `installPromotion`, `socket` |
+| `frontend/src/services/` | `api.js`, `planner`, `liveReports`, `rideGroups`, `transit`, `deviceAlerts`, `shareTarget`, `installPromotion`, `pwaAnalytics`, `offlineQueue`, `socket` |
 | `frontend/src/hooks/` | `useAsyncResource`, `usePwaInstall` |
 | `frontend/src/utils/` | `uiPreferences` (localStorage), `listControls`, `validation`, `registerSW` |
 | `frontend/src/config/index.js` | Env config (`VITE_API_BASE_URL` default `/api`), logger |
@@ -139,9 +142,10 @@ Browser (PWA)                                  Express backend (backend/)
 ## 10. Important routes (frontend "tabs")
 
 `NAV_ITEMS` in `frontend/src/components/Navbar.jsx` is the single source of truth —
-9 tabs: `planner` (Plan Route), `mycommutes`, `transit` (Transit Search), `together`
+10 tabs: `planner` (Plan Route), `mycommutes`, `transit` (Transit Search), `together`
 (Travel Together), `feed` (Live Alerts), `notifications`, `devicealerts`,
-`installshare` (Install & Share), `analytics` (PWA Analytics). Backend HTTP paths used
+`installshare` (Install & Share), `analytics` (PWA Analytics), `offlinequeue`
+(Offline Queue, Day 11). Backend HTTP paths used
 by the frontend are listed in
 `CURRENT_STATE.md`.
 
@@ -153,7 +157,8 @@ UI kit lives in `frontend/src/components/ui/` (barrel-exported). Most reused:
 `FormField`, `EmptyState`, `ErrorState`, `LoadingState`, `Spinner`, `Skeleton`/
 `ListSkeleton`, `Alert`, `Toast` (app-level, `components/Toast.jsx`), `ProgressBar`,
 `ComparisonBars`, `Toggle` (Day 7), `FeatureHighlight` + `InstallPromoDialog` (Day 9),
-`ShareableCard` + `InstallStatusCard` (Day 8). Component conventions are documented in
+`ShareableCard` + `InstallStatusCard` (Day 8), `EventLogList` (Day 10),
+`QueueReportItem` (Day 11). Component conventions are documented in
 `frontend/src/components/ui/README.md`.
 
 ## 12. Important frontend services
@@ -170,6 +175,10 @@ UI kit lives in `frontend/src/components/ui/` (barrel-exported). Most reused:
 - `services/installPromotion.js` — install-promo eligibility + snooze persistence.
 - `services/pwaAnalytics.js` — Day-10 device-local analytics snapshot (merged with the
   SW metrics store) + install/offline recording + SW message watch (no network calls).
+- `services/offlineQueue.js` — Day-11 offline report queue: localStorage persistence
+  (`smart_commute_offline_queue`), bounded enqueue/discard/retry helpers, and
+  `syncQueue()` which delivers through the existing `liveReports.createReport()`
+  contract (network errors stay pending; HTTP rejections become visible failures).
 - Browser-API-only services make **no network calls**; only `api.js`-based services do.
 
 ## 13. State management approach
@@ -223,7 +232,7 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 ## 17. Testing / lint / type-check / build
 
 - **Tests**: `cd frontend && npm run verify` (alias `npm test`) → `verify-frontend.js`,
-  a Node script performing **231 static source checks across 19 sections** (structure,
+  a Node script performing **262 static source checks across 20 sections** (structure,
   config, design system, PWA, and per-day feature checks). These are source-level
   assertions, not runtime unit tests. No Jest/Vitest/Playwright exists.
 - **Lint**: **none configured** (no eslint config or script — verified).
@@ -237,8 +246,9 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 - No frontend auth → authenticated backend domains unreachable (§16).
 - No lint/type-check gate; verification is static + build only.
 - Single bundle chunk exceeds Vite's 500 kB warning threshold.
-- Offline support = static shell only; no offline data queue/Background Sync (documented
-  as intentionally out of scope in `frontend/PWA_SUMMARY.md`).
+- Offline support = static shell + a device-local offline report queue (Day 11); no
+  Background Sync / push / offline data caching (queueing was previously documented as
+  intentionally out of scope in `frontend/PWA_SUMMARY.md` — that file was not edited).
 - Roadmap checkboxes in `frontend/PWA_SETUP.md` are stale (e.g., Day 8–9 items are
   implemented in code but still `- [ ]` in that file).
 - **Day 6 anomaly**: seven *empty* commits carrying Day-6 messages exist
@@ -248,7 +258,7 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 ## 19. Known blockers
 
 - **JWT auth gap** (§16) — the only structural blocker for frontend features.
-- Missing backend capability that has *not* blocked anything so far: none; all Days 1–10
+- Missing backend capability that has *not* blocked anything so far: none; all Days 1–11
   frontend features were completable client-side.
 - Environment: browser-PWA features (install prompt, share target) can only be truly
   exercised in a real/installable browser context; headless checks approximate them.
