@@ -277,6 +277,21 @@ import { QueueReportItem } from '@/components/ui';
 
 **Statuses**: `pending` (Waiting), `sending` (Sending), `failed` (Rejected)
 
+### UnreadCountBadge
+Numeric unread/new count pill (Day 12). Used by the Notifications screen header and the navigation badges. Clamps large counts (`9+`) so tight layouts (e.g. the ten-item bottom nav) never overflow, hides itself when the count is zero, and announces the full meaning to screen readers via a visually hidden label.
+
+```jsx
+import { UnreadCountBadge } from '@/components/ui';
+
+// Nav badge — announces "5 unread notifications"
+<UnreadCountBadge count={5} />
+
+// Header — adjacent text carries the meaning; pass srLabel={null}
+<UnreadCountBadge count={3} srLabel={null} />
+```
+
+**Props**: `count` (number, renders nothing ≤ 0), `max` (clamp, default 9), `srLabel` (string | null), `variant` (`emerald` | `amber`), `size` (`sm` | `md`), `className`
+
 ## Import Patterns
 
 **Recommended** (barrel import):

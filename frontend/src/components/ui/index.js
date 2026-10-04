@@ -62,3 +62,6 @@ export { default as EventLogList } from './EventLogList';
 
 // Reusable Offline Queue Row (Day 11)
 export { default as QueueReportItem } from './QueueReportItem';
+
+// Reusable Unread Count Badge (Day 12)
+export { default as UnreadCountBadge } from './UnreadCountBadge';

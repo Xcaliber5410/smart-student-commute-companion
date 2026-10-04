@@ -1,6 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Bell, RefreshCw } from 'lucide-react';
-import { Alert, EmptyState, ErrorState, LoadingState, SearchInput, Select } from '../components/ui';
+import {
+  Alert,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  SearchInput,
+  Select,
+  UnreadCountBadge,
+} from '../components/ui';
 import NotificationItem from '../components/NotificationItem';
 
 export default function NotificationsPage({
@@ -50,8 +58,11 @@ export default function NotificationsPage({
           <p className="text-sm text-slate-400">
             Recent commute updates from the student community
           </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {unread} unread · {readTotal} read
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+            <UnreadCountBadge count={unread} srLabel="unread notifications" />
+            <span>
+              {readTotal} of {reports.length} read
+            </span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
