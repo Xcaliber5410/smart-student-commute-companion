@@ -229,6 +229,97 @@ const studyPlanItemFilterSchema = z.object({
   end_date: data.end_date || data.endDate
 }));
 
+// =========================================================================
+// STUDY PLAN GENERATION & RECALCULATION SCHEMAS
+// =========================================================================
+
+const generateStudyPlanSchema = z.object({
+  title: z.string().max(150).optional(),
+  description: z.string().max(1000).optional().nullable(),
+  startDate: z.coerce.number().int().positive().optional(),
+  start_date: z.coerce.number().int().positive().optional(),
+  endDate: z.coerce.number().int().positive().optional(),
+  end_date: z.coerce.number().int().positive().optional(),
+  days: z.coerce.number().int().min(1).max(30).optional().default(7),
+  dailyLimitMinutes: z.coerce.number().int().min(60).max(600).optional(),
+  daily_limit_minutes: z.coerce.number().int().min(60).max(600).optional(),
+  defaultSessionDuration: z.coerce.number().int().min(30).max(120).optional(),
+  default_session_duration: z.coerce.number().int().min(30).max(120).optional(),
+  includeAssignments: z.coerce.boolean().optional().default(true),
+  include_assignments: z.coerce.boolean().optional(),
+  includeGoals: z.coerce.boolean().optional().default(true),
+  include_goals: z.coerce.boolean().optional(),
+  courseId: z.string().optional().nullable(),
+  course_id: z.string().optional().nullable(),
+  replaceExisting: z.coerce.boolean().optional().default(true),
+  replace_existing: z.coerce.boolean().optional(),
+  autoPersist: z.coerce.boolean().optional().default(true)
+}).transform(data => ({
+  title: data.title ? data.title.trim() : undefined,
+  description: data.description !== undefined ? data.description : undefined,
+  startDate: data.start_date || data.startDate,
+  endDate: data.end_date || data.endDate,
+  days: data.days,
+  dailyLimitMinutes: data.daily_limit_minutes || data.dailyLimitMinutes,
+  defaultSessionDuration: data.default_session_duration || data.defaultSessionDuration,
+  includeAssignments: data.include_assignments !== undefined ? data.include_assignments : data.includeAssignments,
+  includeGoals: data.include_goals !== undefined ? data.include_goals : data.includeGoals,
+  courseId: data.course_id !== undefined ? data.course_id : data.courseId,
+  replaceExisting: data.replace_existing !== undefined ? data.replace_existing : data.replaceExisting,
+  autoPersist: data.autoPersist
+}));
+
+const recalculateStudyPlanSchema = z.object({
+  planId: z.string().optional(),
+  plan_id: z.string().optional(),
+  days: z.coerce.number().int().min(1).max(30).optional(),
+  dailyLimitMinutes: z.coerce.number().int().min(60).max(600).optional(),
+  daily_limit_minutes: z.coerce.number().int().min(60).max(600).optional(),
+  defaultSessionDuration: z.coerce.number().int().min(30).max(120).optional(),
+  default_session_duration: z.coerce.number().int().min(30).max(120).optional()
+}).transform(data => ({
+  planId: data.plan_id || data.planId,
+  days: data.days,
+  dailyLimitMinutes: data.daily_limit_minutes || data.dailyLimitMinutes,
+  defaultSessionDuration: data.default_session_duration || data.defaultSessionDuration
+}));
+
+const updateStudyPlanItemStatusSchema = z.object({
+  status: studyPlanItemStatusEnum
+});
+
+const planItemsDateQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format').optional(),
+  startDate: z.coerce.number().int().positive().optional(),
+  start_date: z.coerce.number().int().positive().optional(),
+  endDate: z.coerce.number().int().positive().optional(),
+  end_date: z.coerce.number().int().positive().optional(),
+  status: studyPlanItemStatusEnum.optional(),
+  priority: studyPlanItemPriorityEnum.optional(),
+  planId: z.string().optional(),
+  plan_id: z.string().optional(),
+  courseId: z.string().optional(),
+  course_id: z.string().optional(),
+  assignmentId: z.string().optional(),
+  assignment_id: z.string().optional(),
+  goalId: z.string().optional(),
+  goal_id: z.string().optional()
+}).transform(data => ({
+  page: data.page,
+  limit: data.limit,
+  date: data.date,
+  startDate: data.start_date || data.startDate,
+  endDate: data.end_date || data.endDate,
+  status: data.status,
+  priority: data.priority,
+  planId: data.plan_id || data.planId,
+  courseId: data.course_id || data.courseId,
+  assignmentId: data.assignment_id || data.assignmentId,
+  goalId: data.goal_id || data.goalId
+}));
+
 module.exports = {
   studyPlanStatusEnum,
   studyPlanItemStatusEnum,
@@ -238,5 +329,9 @@ module.exports = {
   studyPlanFilterSchema,
   createStudyPlanItemSchema,
   updateStudyPlanItemSchema,
-  studyPlanItemFilterSchema
+  studyPlanItemFilterSchema,
+  generateStudyPlanSchema,
+  recalculateStudyPlanSchema,
+  updateStudyPlanItemStatusSchema,
+  planItemsDateQuerySchema
 };

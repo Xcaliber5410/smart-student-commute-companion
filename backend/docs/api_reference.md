@@ -532,5 +532,110 @@ Retrieves contextual study resources deterministically tailored to a student's c
   - `limit`: `1-50` (default: 20)
 - **Response**: `200 OK` with contextual payload, summaries, direct resources, and deterministically ranked unified resources.
 
+---
+
+## 12. Student Study Plans & Work Scheduling
+
+### `POST /api/student/study-plans/generate` (or `POST /api/student/study-plans`)
+Deterministically generates a practical, conflict-free study sprint based on actual upcoming assignment deadlines, priorities, active goals, and calendar availability. Prevents duplicate planned items.
+
+- **Auth**: `Bearer <token>`
+- **Body**:
+  ```json
+  {
+    "title": "Midterm Prep Sprint",
+    "description": "Deterministic study schedule for upcoming assignments and goals",
+    "days": 7,
+    "startDate": 1791100000000,
+    "endDate": 1791704800000,
+    "dailyLimitMinutes": 240,
+    "defaultSessionDuration": 60,
+    "includeAssignments": true,
+    "includeGoals": true,
+    "courseId": "crs-123",
+    "replaceExisting": true
+  }
+  ```
+- **Response**: `201 Created` with `{ "success": true, "plan": { ... }, "items": [ ... ], "summary": { ... }, "warnings": [ ... ] }`
+
+### `POST /api/student/study-plans/recalculate` (or `POST /api/student/study-plans/:id/recalculate`)
+Recalculates a study plan to adjust to updated assignment deadlines, completed work, and goal progress without creating duplicate planned items.
+
+- **Auth**: `Bearer <token>`
+- **Body**: `{ "planId": "...", "dailyLimitMinutes": 240, "defaultSessionDuration": 60 }`
+- **Response**: `200 OK` with recalculated plan, updated items, and summary.
+
+### `GET /api/student/study-plans/current`
+Retrieves the student's active upcoming study plan, planned study items, and progress summary.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK` with `{ "success": true, "plan": { ... }, "items": [ ... ], "summary": { "progressPercentage": 45, ... } }`
+
+### `GET /api/student/study-plans`
+Retrieves paginated study plans for the authenticated student.
+
+- **Auth**: `Bearer <token>`
+- **Query Parameters**: `page` (default 1), `limit` (default 20, max 50), `status` (`active`, `completed`, `archived`), `startDate`, `endDate`.
+- **Response**: `200 OK` with paginated plans array.
+
+### `GET /api/student/study-plans/:id`
+Retrieves details of a specific study plan and its child planned work items.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK` with `{ "success": true, "plan": { ... }, "items": [ ... ], "summary": { ... } }`
+
+### `PATCH /api/student/study-plans/:id`
+Updates study plan title, description, or status.
+
+- **Auth**: `Bearer <token>`
+- **Body**: `{ "title": "...", "description": "...", "status": "active|completed|archived" }`
+- **Response**: `200 OK`
+
+### `DELETE /api/student/study-plans/:id`
+Deletes a study plan and all associated planned study work items.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK` with `{ "success": true, "message": "Study plan deleted successfully" }`
+
+### `GET /api/student/study-plans/items`
+Retrieves planned study work items with date, date-range, and deliverable filters.
+
+- **Auth**: `Bearer <token>`
+- **Query Parameters**:
+  - `date`: `YYYY-MM-DD` (Asia/Kolkata date filter)
+  - `startDate`, `endDate`: epoch timestamp range
+  - `status`: `planned`, `in_progress`, `completed`, `skipped`
+  - `priority`: `urgent`, `high`, `medium`, `low`
+  - `planId`, `courseId`, `assignmentId`, `goalId`
+  - `page`, `limit`
+- **Response**: `200 OK` with paginated items.
+
+### `GET /api/student/study-plans/items/:id`
+Retrieves a specific planned study work item by ID.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK` with `{ "success": true, "item": { ... } }`
+
+### `PATCH /api/student/study-plans/items/:id`
+Updates planned work item details or reschedules its target date with deterministic conflict and deadline validation.
+
+- **Auth**: `Bearer <token>`
+- **Body**: `{ "plannedDate": 1791200000000, "durationMinutes": 60, "priority": "high", "title": "..." }`
+- **Response**: `200 OK`
+
+### `PATCH /api/student/study-plans/items/:id/status`
+Updates item completion status (`planned`, `in_progress`, `completed`, `skipped`). Automatically sets `completed_at` on completion.
+
+- **Auth**: `Bearer <token>`
+- **Body**: `{ "status": "completed" }`
+- **Response**: `200 OK`
+
+### `DELETE /api/student/study-plans/items/:id`
+Removes / cancels an individual planned study work item.
+
+- **Auth**: `Bearer <token>`
+- **Response**: `200 OK` with `{ "success": true, "message": "Study plan item removed successfully" }`
+
+
 
 

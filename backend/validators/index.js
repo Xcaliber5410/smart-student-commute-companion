@@ -92,7 +92,11 @@ const {
   studyPlanFilterSchema,
   createStudyPlanItemSchema,
   updateStudyPlanItemSchema,
-  studyPlanItemFilterSchema
+  studyPlanItemFilterSchema,
+  generateStudyPlanSchema,
+  recalculateStudyPlanSchema,
+  updateStudyPlanItemStatusSchema,
+  planItemsDateQuerySchema
 } = require('./studyPlanValidators');
 
 module.exports = {
@@ -181,7 +185,11 @@ module.exports = {
   studyPlanFilterSchema,
   createStudyPlanItemSchema,
   updateStudyPlanItemSchema,
-  studyPlanItemFilterSchema
+  studyPlanItemFilterSchema,
+  generateStudyPlanSchema,
+  recalculateStudyPlanSchema,
+  updateStudyPlanItemStatusSchema,
+  planItemsDateQuerySchema
 };
 
 

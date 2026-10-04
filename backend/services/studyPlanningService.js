@@ -533,6 +533,27 @@ class StudyPlanningService {
     let finalItems = plannedItemsData.map(d => StudyPlanItem.create(d));
 
     if (autoPersist) {
+      // Prevent duplicate planned items: find existing active plans in this window
+      if (options.replaceExisting !== false) {
+        const activePlans = this.studyPlanRepo.findPlansByUserId(userId, {
+          status: 'active',
+          startDate,
+          endDate,
+          limit: 50
+        });
+
+        for (const oldPlan of activePlans.data) {
+          // Cleanly delete uncompleted planned items from previous plan in this window
+          this.studyPlanRepo.database.prepare(`
+            DELETE FROM study_plan_items
+            WHERE plan_id = ? AND user_id = ? AND status = 'planned'
+          `).run(oldPlan.id, userId);
+
+          // Archive the old plan
+          this.studyPlanRepo.updatePlan(oldPlan.id, userId, { status: 'archived' });
+        }
+      }
+
       persistedPlan = this.studyPlanRepo.createPlan(planEntity);
       plannedItemsData.forEach(item => { item.plan_id = persistedPlan.id; });
       finalItems = this.studyPlanRepo.createItemsBatch(plannedItemsData, userId);
@@ -655,6 +676,373 @@ class StudyPlanningService {
     });
 
     return updated;
+  }
+
+  /**
+   * Recalculates an existing study plan (or the student's current active plan)
+   * by removing obsolete uncompleted items and generating fresh study work
+   * from current assignments and goals, strictly avoiding duplicate items.
+   *
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}] - { planId, days, dailyLimitMinutes, defaultSessionDuration }
+   * @returns {Promise<{ plan: StudyPlan, items: StudyPlanItem[], summary: object, warnings: string[] }>}
+   */
+  async recalculateStudyPlan(userId, options = {}) {
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    let targetPlan = null;
+    if (options.planId) {
+      targetPlan = this.studyPlanRepo.findPlanById(options.planId, userId);
+      if (!targetPlan) {
+        throw new NotFoundError('Study plan not found or does not belong to you');
+      }
+    } else {
+      const activePlans = this.studyPlanRepo.findPlansByUserId(userId, { status: 'active', limit: 1 });
+      if (activePlans.data.length === 0) {
+        throw new NotFoundError('No active study plan found to recalculate');
+      }
+      targetPlan = activePlans.data[0];
+    }
+
+    // 1. Delete existing uncompleted planned items for this plan to avoid duplicates
+    this.studyPlanRepo.database.prepare(`
+      DELETE FROM study_plan_items
+      WHERE plan_id = ? AND user_id = ? AND status = 'planned'
+    `).run(targetPlan.id, userId);
+
+    // 2. Determine forward planning window
+    const now = Date.now();
+    const effectiveStart = Math.max(now, targetPlan.start_date);
+    const effectiveEnd = targetPlan.end_date;
+
+    if (effectiveEnd <= effectiveStart) {
+      // Plan period has already passed
+      const remainingItems = this.studyPlanRepo.findItemsByPlanId(targetPlan.id, userId);
+      return {
+        plan: targetPlan,
+        items: remainingItems,
+        summary: {
+          totalItemsPlanned: remainingItems.length,
+          recalculated: true,
+          message: 'Plan end date has already passed. Existing completed items preserved.'
+        },
+        warnings: ['Plan end date has already passed; no forward study work generated.']
+      };
+    }
+
+    // 3. Generate fresh schedule for the remaining window without auto-persisting
+    const planGenResult = await this.generateStudyPlan(userId, {
+      ...options,
+      startDate: effectiveStart,
+      endDate: effectiveEnd,
+      replaceExisting: false,
+      autoPersist: false
+    });
+
+    // 4. Attach generated items to targetPlan and batch insert
+    const newItemsData = planGenResult.items.map(item => ({
+      ...item.toRow(),
+      plan_id: targetPlan.id,
+      user_id: userId
+    }));
+
+    const savedNewItems = this.studyPlanRepo.createItemsBatch(newItemsData, userId);
+
+    // 5. Update plan timestamp
+    const updatedPlan = this.studyPlanRepo.updatePlan(targetPlan.id, userId, {
+      updated_at: now
+    });
+
+    // 6. Fetch complete items (including any previously completed ones)
+    const allPlanItems = this.studyPlanRepo.findItemsByPlanId(targetPlan.id, userId);
+    const progressSummary = this._computePlanProgressSummary(updatedPlan, allPlanItems);
+
+    return {
+      plan: updatedPlan,
+      items: allPlanItems,
+      summary: {
+        ...planGenResult.summary,
+        ...progressSummary,
+        recalculated: true,
+        newItemsScheduledCount: savedNewItems.length
+      },
+      warnings: planGenResult.warnings
+    };
+  }
+
+  /**
+   * Retrieves the current / active upcoming study plan for a student,
+   * including its planned items and progress statistics.
+   *
+   * @param {string} userId - Student user ID
+   * @returns {object|null} Current plan object or null if none active
+   */
+  async getCurrentPlan(userId) {
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const activePlans = this.studyPlanRepo.findPlansByUserId(userId, {
+      status: 'active',
+      limit: 10
+    });
+
+    if (activePlans.data.length === 0) return null;
+
+    const now = Date.now();
+    // Prioritize active plan whose end_date is in the future
+    const current = activePlans.data.find(p => p.end_date >= now) || activePlans.data[0];
+    const items = this.studyPlanRepo.findItemsByPlanId(current.id, userId);
+    const summary = this._computePlanProgressSummary(current, items);
+
+    return {
+      plan: current.toJSON ? current.toJSON() : current,
+      items: items.map(i => (i.toJSON ? i.toJSON() : i)),
+      summary
+    };
+  }
+
+  /**
+   * Retrieves a study plan by ID with student ownership verification.
+   *
+   * @param {string} id - Plan ID
+   * @param {string} userId - Student user ID
+   * @returns {object} Plan, items, and progress summary
+   */
+  async getPlanById(id, userId) {
+    if (!id) throw new ValidationError('Study plan ID is required');
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const plan = this.studyPlanRepo.findPlanById(id, userId);
+    if (!plan) {
+      throw new NotFoundError('Study plan not found or does not belong to you');
+    }
+
+    const items = this.studyPlanRepo.findItemsByPlanId(id, userId);
+    const summary = this._computePlanProgressSummary(plan, items);
+
+    return {
+      plan: plan.toJSON ? plan.toJSON() : plan,
+      items: items.map(i => (i.toJSON ? i.toJSON() : i)),
+      summary
+    };
+  }
+
+  /**
+   * Lists study plans for the student with pagination and filtering.
+   *
+   * @param {string} userId
+   * @param {object} [options={}]
+   * @returns {object} Paginated list of plans
+   */
+  async getPlans(userId, options = {}) {
+    if (!userId) throw new ValidationError('Student user ID is required');
+    return this.studyPlanRepo.findPlansByUserId(userId, options);
+  }
+
+  /**
+   * Updates an existing study plan with ownership verification.
+   *
+   * @param {string} id
+   * @param {string} userId
+   * @param {object} updates
+   * @returns {StudyPlan}
+   */
+  async updatePlan(id, userId, updates = {}) {
+    if (!id) throw new ValidationError('Study plan ID is required');
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const existing = this.studyPlanRepo.findPlanById(id, userId);
+    if (!existing) {
+      throw new NotFoundError('Study plan not found or does not belong to you');
+    }
+
+    return this.studyPlanRepo.updatePlan(id, userId, updates);
+  }
+
+  /**
+   * Deletes a study plan and cascades child items.
+   *
+   * @param {string} id
+   * @param {string} userId
+   * @returns {boolean}
+   */
+  async deletePlan(id, userId) {
+    if (!id) throw new ValidationError('Study plan ID is required');
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const existing = this.studyPlanRepo.findPlanById(id, userId);
+    if (!existing) {
+      throw new NotFoundError('Study plan not found or does not belong to you');
+    }
+
+    return this.studyPlanRepo.deletePlan(id, userId);
+  }
+
+  /**
+   * Retrieves planned study work items with rich date, date-range, and relational filtering.
+   *
+   * @param {string} userId - Student user ID
+   * @param {object} [options={}] - Filter options (date, startDate, endDate, status, priority, etc.)
+   * @returns {object} Paginated study plan items
+   */
+  async getPlanItems(userId, options = {}) {
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const filterOptions = { ...options };
+
+    // Support single date lookup ('YYYY-MM-DD' in Asia/Kolkata timezone)
+    if (filterOptions.date && typeof filterOptions.date === 'string') {
+      const parts = filterOptions.date.split('-').map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        const [yyyy, mm, dd] = parts;
+        const startOfDay = Date.UTC(yyyy, mm - 1, dd, 0, 0, 0, 0) - IST_OFFSET_MS;
+        const endOfDay = startOfDay + 86400000 - 1;
+        filterOptions.startDate = startOfDay;
+        filterOptions.endDate = endOfDay;
+      }
+    }
+
+    return this.studyPlanRepo.findItemsByUserId(userId, filterOptions);
+  }
+
+  /**
+   * Retrieves a single study plan item by ID with ownership verification.
+   *
+   * @param {string} id
+   * @param {string} userId
+   * @returns {StudyPlanItem}
+   */
+  async getPlanItemById(id, userId) {
+    if (!id) throw new ValidationError('Study plan item ID is required');
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const item = this.studyPlanRepo.findItemById(id, userId);
+    if (!item) {
+      throw new NotFoundError('Study plan item not found or does not belong to you');
+    }
+
+    return item;
+  }
+
+  /**
+   * Updates an existing planned study work item.
+   *
+   * @param {string} id
+   * @param {string} userId
+   * @param {object} updates
+   * @returns {StudyPlanItem}
+   */
+  async updatePlanItem(id, userId, updates = {}) {
+    if (!id) throw new ValidationError('Study plan item ID is required');
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const existing = this.studyPlanRepo.findItemById(id, userId);
+    if (!existing) {
+      throw new NotFoundError('Study plan item not found or does not belong to you');
+    }
+
+    // If rescheduling planned_date, run through rescheduling safety
+    if (updates.planned_date || updates.plannedDate) {
+      const newDate = updates.planned_date || updates.plannedDate;
+      return this.reschedulePlanItem(userId, id, newDate, {
+        allowConflict: updates.allowConflict === true
+      });
+    }
+
+    return this.studyPlanRepo.updateItem(id, userId, updates);
+  }
+
+  /**
+   * Updates the status of a planned study work item (e.g. planned -> completed | skipped).
+   *
+   * @param {string} id
+   * @param {string} userId
+   * @param {string} status - 'planned' | 'in_progress' | 'completed' | 'skipped'
+   * @returns {StudyPlanItem}
+   */
+  async updatePlanItemStatus(id, userId, status) {
+    if (!id) throw new ValidationError('Study plan item ID is required');
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const existing = this.studyPlanRepo.findItemById(id, userId);
+    if (!existing) {
+      throw new NotFoundError('Study plan item not found or does not belong to you');
+    }
+
+    const validStatuses = ['planned', 'in_progress', 'completed', 'skipped'];
+    if (!validStatuses.includes(status)) {
+      throw new ValidationError(`Invalid item status '${status}'. Expected one of: ${validStatuses.join(', ')}`);
+    }
+
+    const updates = { status };
+    if (status === 'completed') {
+      updates.completed_at = Date.now();
+    } else {
+      updates.completed_at = null;
+    }
+
+    return this.studyPlanRepo.updateItem(id, userId, updates);
+  }
+
+  /**
+   * Deletes / removes a planned study work item.
+   *
+   * @param {string} id
+   * @param {string} userId
+   * @returns {boolean}
+   */
+  async deletePlanItem(id, userId) {
+    if (!id) throw new ValidationError('Study plan item ID is required');
+    if (!userId) throw new ValidationError('Student user ID is required');
+
+    const existing = this.studyPlanRepo.findItemById(id, userId);
+    if (!existing) {
+      throw new NotFoundError('Study plan item not found or does not belong to you');
+    }
+
+    return this.studyPlanRepo.deleteItem(id, userId);
+  }
+
+  /**
+   * Calculates progress and duration metrics for a study plan.
+   */
+  _computePlanProgressSummary(plan, items) {
+    const totalItems = items.length;
+    let completedItems = 0;
+    let inProgressItems = 0;
+    let skippedItems = 0;
+    let plannedItems = 0;
+    let totalMinutes = 0;
+    let completedMinutes = 0;
+
+    for (const item of items) {
+      totalMinutes += item.duration_minutes;
+      if (item.status === 'completed') {
+        completedItems++;
+        completedMinutes += item.duration_minutes;
+      } else if (item.status === 'in_progress') {
+        inProgressItems++;
+      } else if (item.status === 'skipped') {
+        skippedItems++;
+      } else {
+        plannedItems++;
+      }
+    }
+
+    const progressPercentage = totalItems > 0
+      ? Math.min(100, Math.round((completedItems / totalItems) * 100))
+      : 0;
+
+    return {
+      totalItems,
+      completedItems,
+      inProgressItems,
+      skippedItems,
+      plannedItems,
+      totalMinutes,
+      completedMinutes,
+      remainingMinutes: Math.max(0, totalMinutes - completedMinutes),
+      progressPercentage
+    };
   }
 
   // =========================================================================
