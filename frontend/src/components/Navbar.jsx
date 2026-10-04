@@ -209,7 +209,11 @@ export default function Navbar({
                   key={item.id}
                   onClick={() => handleSelectTab(item.id)}
                   aria-current={isActive ? 'page' : undefined}
-                  aria-label={item.label}
+                  aria-label={
+                    item.id === 'notifications' && unreadNotificationsCount > 0
+                      ? `${item.label}, ${unreadNotificationsCount} unread notifications`
+                      : item.label
+                  }
                   title={item.label}
                   className={`px-2 xl:px-2.5 2xl:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
                     isActive

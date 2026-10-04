@@ -50,6 +50,18 @@ export default function NotificationsPage({
     if (onToggleRead) onToggleRead(id);
   };
 
+  const handleMarkAllClick = () => {
+    if (onMarkAllRead) onMarkAllRead();
+    // Marking everything read disables the button the user just pressed, which
+    // silently drops keyboard focus on <body>. Hand focus to the summary line
+    // (project focus-handoff pattern) so the new "X of Y read" state is read.
+    const summary = document.getElementById('notifications-summary');
+    if (summary) {
+      summary.setAttribute('tabindex', '-1');
+      summary.focus();
+    }
+  };
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -58,7 +70,12 @@ export default function NotificationsPage({
           <p className="max-w-2xl text-sm text-slate-400">
             Recent commute updates from the student community
           </p>
-          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+          <p
+            id="notifications-summary"
+            role="status"
+            aria-live="polite"
+            className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500"
+          >
             <UnreadCountBadge count={unread} srLabel="unread notifications" />
             <span>
               {readTotal} of {reports.length} read
@@ -69,7 +86,7 @@ export default function NotificationsPage({
           {onMarkAllRead && reports.length > 0 && (
             <button
               type="button"
-              onClick={onMarkAllRead}
+              onClick={handleMarkAllClick}
               disabled={!hasUnread}
               className="flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
             >
@@ -163,32 +180,51 @@ export default function NotificationsPage({
               Showing {visibleReports.length} of {reports.length} notifications
             </p>
             {visibleReports.length === 0 ? (
-              <EmptyState
-                headingLevel={2}
-                icon={<Bell />}
-                title="No notifications match"
-                description="Try a different search or change the notification filter."
-                action={(
-                  <button
-                    type="button"
-                    onClick={() => { setQuery(''); setView('all'); }}
-                    className="min-h-10 rounded-xl bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
-                  >
-                    Clear filters
-                  </button>
-                )}
-              />
+              view === 'unread' && unread === 0 && !query.trim() ? (
+                <EmptyState
+                  headingLevel={2}
+                  icon={<Bell />}
+                  title="You're all caught up"
+                  description="Every notification has been read. New commute updates will appear here as they arrive."
+                  action={(
+                    <button
+                      type="button"
+                      onClick={() => { setQuery(''); setView('all'); }}
+                      className="min-h-10 rounded-xl bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                    >
+                      Show all notifications
+                    </button>
+                  )}
+                />
+              ) : (
+                <EmptyState
+                  headingLevel={2}
+                  icon={<Bell />}
+                  title="No notifications match"
+                  description="Try a different search or change the notification filter."
+                  action={(
+                    <button
+                      type="button"
+                      onClick={() => { setQuery(''); setView('all'); }}
+                      className="min-h-10 rounded-xl bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                />
+              )
             ) : (
-              <div className="mt-3 divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
+              <ul className="mt-3 divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
                 {visibleReports.map((report) => (
-                  <NotificationItem
-                    key={report.id}
-                    report={report}
-                    isRead={readIds.has(report.id)}
-                    onToggleRead={handleToggleRead}
-                  />
+                  <li key={report.id}>
+                    <NotificationItem
+                      report={report}
+                      isRead={readIds.has(report.id)}
+                      onToggleRead={handleToggleRead}
+                    />
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </>
         )}
