@@ -1515,6 +1515,197 @@ if (offlineQueuePage && offlineQueuePage.includes('<ol className="space-y-2">'))
 }
 
 // ============================================================
+// 21. DAY 12 NOTIFICATION READ STATE
+// ============================================================
+
+section('21. DAY 12 NOTIFICATION READ STATE');
+
+const notificationsPageDay12 = readFile('src/pages/NotificationsPage.jsx');
+if (fileExists('src/pages/NotificationsPage.jsx')) pass('Notifications screen exists');
+else fail('Notifications screen is missing');
+if (
+  notificationsPageDay12 &&
+  notificationsPageDay12.includes('Mark all as read') &&
+  notificationsPageDay12.includes('disabled={!hasUnread}') &&
+  notificationsPageDay12.includes('handleMarkAllClick')
+) {
+  pass('Screen offers a mark-all action that disables when nothing is unread');
+} else {
+  fail('Screen is missing the mark-all action or its disabled logic');
+}
+if (
+  notificationsPageDay12 &&
+  notificationsPageDay12.includes('{readTotal} of {reports.length} read') &&
+  notificationsPageDay12.includes('<UnreadCountBadge count={unread}')
+) {
+  pass('Header summarizes read/unread progress with the shared count badge');
+} else {
+  fail('Header read/unread summary is missing');
+}
+if (
+  notificationsPageDay12 &&
+  notificationsPageDay12.includes('Unread only (${unread})') &&
+  notificationsPageDay12.includes('Read only (${readTotal})')
+) {
+  pass('Filter options carry live unread/read counts');
+} else {
+  fail('Filter options are missing live counts');
+}
+if (appContent && appContent.includes('readIds={notificationReadIds}')) {
+  pass('App hydrates the screen with the shared read-id state');
+} else {
+  fail('App does not pass read-id state to the screen');
+}
+if (
+  appContent &&
+  appContent.includes('onMarkAllRead={handleMarkAllNotificationsRead}') &&
+  appContent.includes('unreadCount={unreadNotificationsCount}')
+) {
+  pass('App wires mark-all and unread-count props into the screen');
+} else {
+  fail('App is missing mark-all or unread-count wiring');
+}
+if (
+  appContent &&
+  appContent.includes('readNotificationReadIds()') &&
+  appContent.includes('writeNotificationReadIds(notificationReadIds)')
+) {
+  pass('App hydrates read state from storage and persists every change');
+} else {
+  fail('App is not wired to the read-state persistence helpers');
+}
+if (
+  appContent &&
+  appContent.includes('handleToggleNotificationRead') &&
+  appContent.includes('as read.')
+) {
+  pass('Read toggles live in App and mark-all confirms with a toast');
+} else {
+  fail('Read-state handlers or mark-all feedback are missing');
+}
+
+const prefsStoreDay12 = readFile('src/utils/uiPreferences.js');
+if (
+  prefsStoreDay12 &&
+  prefsStoreDay12.includes("'smart_commute_notification_read_state'") &&
+  prefsStoreDay12.includes('MAX_READ_NOTIFICATION_IDS') &&
+  prefsStoreDay12.includes('export function readNotificationReadIds') &&
+  prefsStoreDay12.includes('export function writeNotificationReadIds')
+) {
+  pass('Persistence helpers use a dedicated bounded smart_commute_ key');
+} else {
+  fail('Read-state persistence helpers are missing or unbounded');
+}
+if (
+  prefsStoreDay12 &&
+  prefsStoreDay12.includes('safeRead(NOTIFICATION_READ_KEY') &&
+  prefsStoreDay12.includes('safeWrite(NOTIFICATION_READ_KEY')
+) {
+  pass('Read-state storage reads/writes are failure-safe like other preferences');
+} else {
+  fail('Read-state storage is not failure-safe');
+}
+
+const unreadBadge = readFile('src/components/ui/UnreadCountBadge.jsx');
+if (fileExists('src/components/ui/UnreadCountBadge.jsx')) pass('Unread count badge component exists');
+else fail('Unread count badge component is missing');
+if (
+  unreadBadge &&
+  unreadBadge.includes('sr-only') &&
+  unreadBadge.includes('${max}+') &&
+  unreadBadge.includes('count <= 0) return null')
+) {
+  pass('Count badge clamps large counts, hides at zero and is screen-reader labelled');
+} else {
+  fail('Count badge is missing clamp, zero-state or screen-reader label');
+}
+const uiBarrelDay12 = readFile('src/components/ui/index.js');
+if (uiBarrelDay12 && uiBarrelDay12.includes("from './UnreadCountBadge'")) {
+  pass('UI barrel exports the count badge');
+} else {
+  fail('UI barrel is missing the count badge export');
+}
+const uiReadmeDay12 = readFile('src/components/ui/README.md');
+if (uiReadmeDay12 && uiReadmeDay12.includes('UnreadCountBadge')) {
+  pass('UI component docs cover the count badge');
+} else {
+  fail('UI component docs are missing the count badge');
+}
+if (
+  notificationItem &&
+  notificationItem.includes('>Unread</Badge>') &&
+  notificationItem.includes('aria-pressed')
+) {
+  pass('Notification rows show unread state as visible text, never color alone');
+} else {
+  fail('Notification rows lack a text unread label or pressed state');
+}
+
+if (navContent && navContent.includes('unreadNotificationsCount = 0')) {
+  pass('Navigation accepts the unread notifications count');
+} else {
+  fail('Navigation has no unread notifications count prop');
+}
+const unreadBadgeSites = (navContent.match(/unreadNotificationsCount > 0/g) || []).length;
+if (unreadBadgeSites >= 3) {
+  pass('Unread badge renders in desktop nav, drawer and bottom nav');
+} else {
+  fail(`Unread badge found in only ${unreadBadgeSites} navigation surface(s)`);
+}
+if (
+  navContent &&
+  navContent.includes('${unreadNotificationsCount} unread notifications')
+) {
+  pass('Desktop nav announces the unread count in its accessible name');
+} else {
+  fail('Desktop nav accessible name omits the unread count');
+}
+
+if (
+  notificationsPageDay12 &&
+  notificationsPageDay12.includes('id="notifications-summary"') &&
+  notificationsPageDay12.includes("setAttribute('tabindex', '-1')")
+) {
+  pass('Mark-all hands focus to the summary line instead of dropping it');
+} else {
+  fail('Mark-all flow has no focus-handoff behavior');
+}
+if (
+  notificationsPageDay12 &&
+  notificationsPageDay12.includes('id="notifications-summary"') &&
+  notificationsPageDay12.includes('role="status"') &&
+  notificationsPageDay12.includes('aria-live="polite"')
+) {
+  pass('Read progress announces politely through a live status region');
+} else {
+  fail('Read progress has no polite live announcement');
+}
+if (
+  notificationsPageDay12 &&
+  notificationsPageDay12.includes('<ul className="mt-3 divide-y') &&
+  notificationsPageDay12.includes('<li key={report.id}>')
+) {
+  pass('Notification rows render as a semantic list');
+} else {
+  fail('Notification rows are not a semantic list');
+}
+if (notificationsPageDay12 && notificationsPageDay12.includes("You're all caught up")) {
+  pass('Unread filter has an honest all-caught-up empty state');
+} else {
+  fail('Unread filter empty state is misleading');
+}
+if (
+  notificationsPageDay12 &&
+  notificationsPageDay12.includes('LoadingState') &&
+  notificationsPageDay12.includes('EmptyState') &&
+  notificationsPageDay12.includes('ErrorState')
+) {
+  pass('Screen keeps loading, empty and error states');
+} else {
+  fail('Screen lost a loading, empty or error state');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
