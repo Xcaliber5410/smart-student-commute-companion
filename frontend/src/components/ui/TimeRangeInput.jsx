@@ -22,6 +22,10 @@ import Input from './Input';
  * @param {Function} props.onChangeStart - (value) when the start changes
  * @param {Function} props.onChangeEnd - (value) when the end changes
  * @param {boolean} [props.disabled=false] - Disable both inputs together
+ * @param {string} [props.startError] - Validation error for the start input
+ * @param {string} [props.endError] - Validation error for the end input
+ * @param {Function} [props.onBlurStart] - Blur handler for the start input
+ * @param {Function} [props.onBlurEnd] - Blur handler for the end input
  * @param {React.ReactNode} [props.hint] - Hint/status rendered under the pair
  * @param {string} [props.className=''] - Extra classes for the wrapper
  *
@@ -47,6 +51,10 @@ export default function TimeRangeInput({
   onChangeStart,
   onChangeEnd,
   disabled = false,
+  startError,
+  endError,
+  onBlurStart,
+  onBlurEnd,
   hint,
   className = '',
 }) {
@@ -64,14 +72,18 @@ export default function TimeRangeInput({
           label={startLabel}
           type="time"
           value={startValue}
+          error={startError}
           onChange={(event) => onChangeStart(event.target.value)}
+          onBlur={onBlurStart}
         />
         <Input
           id={`${id}-end`}
           label={endLabel}
           type="time"
           value={endValue}
+          error={endError}
           onChange={(event) => onChangeEnd(event.target.value)}
+          onBlur={onBlurEnd}
         />
       </div>
       {hint && (

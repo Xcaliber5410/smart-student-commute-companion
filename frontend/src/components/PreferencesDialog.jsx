@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { Modal, Button, Toggle, TimeRangeInput } from './ui';
-import { DEFAULT_APP_PREFERENCES, isQuietHoursActive } from '../utils/uiPreferences';
+import {
+  DEFAULT_APP_PREFERENCES,
+  isQuietHoursActive,
+  isValidQuietHoursTime,
+} from '../utils/uiPreferences';
 
 /**
  * PreferencesDialog - Student personalization controls (client-side only)
@@ -35,6 +39,59 @@ export default function PreferencesDialog({
   onReset,
 }) {
   const prefs = { ...DEFAULT_APP_PREFERENCES, ...(preferences || {}) };
+
+  // Local drafts so half-typed times don't snap back on every keystroke.
+  // Valid HH:MM values persist immediately through onChange (optimistic —
+  // the store validates them again); invalid text only lives in the draft,
+  // flagged with an inline error until fixed or blurred away.
+  const [startDraft, setStartDraft] = useState(prefs.quietHoursStart);
+  const [endDraft, setEndDraft] = useState(prefs.quietHoursEnd);
+  const [timeErrors, setTimeErrors] = useState({ start: null, end: null });
+
+  // External changes (e.g. "Restore defaults") re-sync the drafts. When the
+  // value is unchanged this is a no-op, so typing is never clobbered.
+  useEffect(() => {
+    setStartDraft(prefs.quietHoursStart);
+  }, [prefs.quietHoursStart]);
+  useEffect(() => {
+    setEndDraft(prefs.quietHoursEnd);
+  }, [prefs.quietHoursEnd]);
+
+  // Recompute the "active now" status once a minute while the dialog is
+  // open so it never goes stale when the clock crosses the window boundary.
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const timer = setInterval(() => setClockTick((tick) => tick + 1), 60000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
+
+  const handleTimeChange = (field, value) => {
+    if (field === 'start') setStartDraft(value);
+    else setEndDraft(value);
+    if (isValidQuietHoursTime(value)) {
+      setTimeErrors((current) => ({ ...current, [field]: null }));
+      onChange(
+        field === 'start' ? { quietHoursStart: value } : { quietHoursEnd: value }
+      );
+    } else {
+      setTimeErrors((current) => ({
+        ...current,
+        [field]: 'Use HH:MM format, for example 22:00.',
+      }));
+    }
+  };
+
+  // Leaving an unparsable draft reverts to the stored value instead of
+  // trapping the student on an empty field.
+  const handleTimeBlur = (field) => {
+    const draft = field === 'start' ? startDraft : endDraft;
+    if (isValidQuietHoursTime(draft)) return;
+    if (field === 'start') setStartDraft(prefs.quietHoursStart);
+    else setEndDraft(prefs.quietHoursEnd);
+    setTimeErrors((current) => ({ ...current, [field]: null }));
+  };
+
   const quietActive = isQuietHoursActive(prefs);
   const quietStatus = !prefs.quietHoursEnabled
     ? 'Quiet hours are off — live pop-ups follow your toggles above.'
@@ -93,11 +150,15 @@ export default function PreferencesDialog({
             legend="Quiet window"
             startLabel="Start"
             endLabel="End"
-            startValue={prefs.quietHoursStart}
-            endValue={prefs.quietHoursEnd}
+            startValue={startDraft}
+            endValue={endDraft}
+            startError={timeErrors.start}
+            endError={timeErrors.end}
             disabled={!prefs.quietHoursEnabled}
-            onChangeStart={(value) => onChange({ quietHoursStart: value })}
-            onChangeEnd={(value) => onChange({ quietHoursEnd: value })}
+            onChangeStart={(value) => handleTimeChange('start', value)}
+            onChangeEnd={(value) => handleTimeChange('end', value)}
+            onBlurStart={() => handleTimeBlur('start')}
+            onBlurEnd={() => handleTimeBlur('end')}
             className="py-3"
           />
           <p className="pb-3 text-xs text-slate-500 leading-relaxed">{quietStatus}</p>
