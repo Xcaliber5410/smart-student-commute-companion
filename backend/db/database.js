@@ -5,9 +5,33 @@ const { getConnection, closeConnection, ping, getConnectionStatus } = require('.
 
 const db = getConnection();
 
-function initDb() {
+/**
+ * Defensively ensures a column exists on a table before creating indexes or executing queries.
+ * Prevents schema mismatches and SqliteError on pre-existing database files.
+ *
+ * @param {object} database - SQLite database instance
+ * @param {string} tableName - Name of target table
+ * @param {string} columnName - Name of column to check
+ * @param {string} columnDef - Column definition for ALTER TABLE
+ */
+function ensureColumnExists(database, tableName, columnName, columnDef) {
+  try {
+    const tableExists = database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(tableName);
+    if (!tableExists) return;
+    const columns = database.prepare(`PRAGMA table_info(${tableName})`).all().map(c => c.name);
+    if (!columns.includes(columnName)) {
+      database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef};`);
+    }
+  } catch (err) {
+    // Non-fatal if table or column alteration is redundant
+  }
+}
+
+function initDb(overrideDb) {
+  const activeDb = overrideDb || db;
+
   // 1. Geocoding Cache
-  db.exec(`
+  activeDb.exec(`
     CREATE TABLE IF NOT EXISTS geocoding_cache (
       query TEXT PRIMARY KEY,
       lat REAL,
@@ -18,7 +42,7 @@ function initDb() {
   `);
 
   // 2. Live Commute Reports
-  db.exec(`
+  activeDb.exec(`
     CREATE TABLE IF NOT EXISTS live_commute_reports (
       id TEXT PRIMARY KEY,
       pseudonym TEXT,
@@ -37,7 +61,7 @@ function initDb() {
   `);
 
   // 3. Live Report Confirmations
-  db.exec(`
+  activeDb.exec(`
     CREATE TABLE IF NOT EXISTS live_report_confirmations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       report_id TEXT,
@@ -49,7 +73,7 @@ function initDb() {
   `);
 
   // 4. Ride Groups (Travel Together)
-  db.exec(`
+  activeDb.exec(`
     CREATE TABLE IF NOT EXISTS ride_groups (
       id TEXT PRIMARY KEY,
       creator_pseudonym TEXT,
@@ -65,7 +89,7 @@ function initDb() {
   `);
 
   // 5. Feedback
-  db.exec(`
+  activeDb.exec(`
     CREATE TABLE IF NOT EXISTS feedback (
       id TEXT PRIMARY KEY,
       recommendation_id TEXT,
@@ -77,7 +101,7 @@ function initDb() {
   `);
 
   // 6. Users Table
-  db.exec(`
+  activeDb.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
@@ -93,7 +117,7 @@ function initDb() {
   `);
 
   // 7. Student Domain Relationships (Day 6)
-  db.exec(`
+  activeDb.exec(`
     CREATE TABLE IF NOT EXISTS student_profiles (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       home_area TEXT,
@@ -206,6 +230,28 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_courses_user_id ON courses(user_id);
     CREATE INDEX IF NOT EXISTS idx_courses_user_archived ON courses(user_id, archived);
 
+    -- 10. Student Goals & Progress (Day 11)
+    CREATE TABLE IF NOT EXISTS goals (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      target_date INTEGER,
+      status TEXT NOT NULL DEFAULT 'in_progress',
+      progress INTEGER NOT NULL DEFAULT 0,
+      target_value REAL,
+      current_value REAL NOT NULL DEFAULT 0,
+      unit TEXT,
+      completed_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
+    CREATE INDEX IF NOT EXISTS idx_goals_user_status ON goals(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_goals_course_id ON goals(course_id);
+    CREATE INDEX IF NOT EXISTS idx_goals_user_target_date ON goals(user_id, target_date);
+
     CREATE TABLE IF NOT EXISTS assignments (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -226,9 +272,8 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_assignments_user_status ON assignments(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_assignments_user_due ON assignments(user_id, due_date ASC);
     CREATE INDEX IF NOT EXISTS idx_assignments_course_id ON assignments(course_id);
-    CREATE INDEX IF NOT EXISTS idx_assignments_goal_id ON assignments(goal_id);
 
-    -- 10. Student Planning: Calendar Events & Study Sessions (Day 9)
+    -- 11. Student Planning: Calendar Events & Study Sessions (Day 9)
     CREATE TABLE IF NOT EXISTS calendar_events (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -273,29 +318,6 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_study_sessions_user_status ON study_sessions(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_study_sessions_course_id ON study_sessions(course_id);
     CREATE INDEX IF NOT EXISTS idx_study_sessions_assignment_id ON study_sessions(assignment_id);
-    CREATE INDEX IF NOT EXISTS idx_study_sessions_goal_id ON study_sessions(goal_id);
-
-    -- 11. Student Goals & Progress
-    CREATE TABLE IF NOT EXISTS goals (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
-      title TEXT NOT NULL,
-      description TEXT,
-      target_date INTEGER,
-      status TEXT NOT NULL DEFAULT 'in_progress',
-      progress INTEGER NOT NULL DEFAULT 0,
-      target_value REAL,
-      current_value REAL NOT NULL DEFAULT 0,
-      unit TEXT,
-      completed_at INTEGER,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
-    CREATE INDEX IF NOT EXISTS idx_goals_user_status ON goals(user_id, status);
-    CREATE INDEX IF NOT EXISTS idx_goals_course_id ON goals(course_id);
-    CREATE INDEX IF NOT EXISTS idx_goals_user_target_date ON goals(user_id, target_date);
 
     -- 12. Student Study Resources (Day 12)
     CREATE TABLE IF NOT EXISTS study_resources (
@@ -325,13 +347,79 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_study_resources_user_favorite ON study_resources(user_id, is_favorite);
     CREATE INDEX IF NOT EXISTS idx_study_resources_course_id ON study_resources(course_id);
     CREATE INDEX IF NOT EXISTS idx_study_resources_assignment_id ON study_resources(assignment_id);
-    CREATE INDEX IF NOT EXISTS idx_study_resources_goal_id ON study_resources(goal_id);
-    CREATE INDEX IF NOT EXISTS idx_study_resources_study_session_id ON study_resources(study_session_id);
     CREATE INDEX IF NOT EXISTS idx_study_resources_user_created ON study_resources(user_id, created_at DESC);
+
+    -- 13. Student Study Plans (Day 13)
+    CREATE TABLE IF NOT EXISTS study_plans (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      start_date INTEGER NOT NULL,
+      end_date INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_study_plans_user_id ON study_plans(user_id);
+    CREATE INDEX IF NOT EXISTS idx_study_plans_user_status ON study_plans(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_study_plans_user_dates ON study_plans(user_id, start_date, end_date);
+
+    CREATE TABLE IF NOT EXISTS study_plan_items (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      plan_id TEXT REFERENCES study_plans(id) ON DELETE CASCADE,
+      course_id TEXT REFERENCES courses(id) ON DELETE SET NULL,
+      assignment_id TEXT REFERENCES assignments(id) ON DELETE SET NULL,
+      goal_id TEXT REFERENCES goals(id) ON DELETE SET NULL,
+      study_session_id TEXT REFERENCES study_sessions(id) ON DELETE SET NULL,
+      resource_id TEXT REFERENCES study_resources(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      planned_date INTEGER NOT NULL,
+      duration_minutes INTEGER NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'medium',
+      status TEXT NOT NULL DEFAULT 'planned',
+      order_index INTEGER NOT NULL DEFAULT 0,
+      completed_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_user_id ON study_plan_items(user_id);
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_plan_id ON study_plan_items(plan_id);
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_user_date ON study_plan_items(user_id, planned_date);
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_user_status ON study_plan_items(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_course_id ON study_plan_items(course_id);
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_assignment_id ON study_plan_items(assignment_id);
+    CREATE INDEX IF NOT EXISTS idx_study_plan_items_goal_id ON study_plan_items(goal_id);
   `);
 
-  // 13. GTFS Tables
-  db.exec(`
+  // Defensively ensure columns added across Day 7-13 migrations exist on pre-existing database tables
+  ensureColumnExists(activeDb, 'assignments', 'goal_id', 'TEXT REFERENCES goals(id) ON DELETE SET NULL');
+  ensureColumnExists(activeDb, 'study_sessions', 'goal_id', 'TEXT REFERENCES goals(id) ON DELETE SET NULL');
+  ensureColumnExists(activeDb, 'study_resources', 'goal_id', 'TEXT REFERENCES goals(id) ON DELETE SET NULL');
+  ensureColumnExists(activeDb, 'study_resources', 'study_session_id', 'TEXT REFERENCES study_sessions(id) ON DELETE SET NULL');
+  ensureColumnExists(activeDb, 'study_resources', 'course_id', 'TEXT REFERENCES courses(id) ON DELETE SET NULL');
+  ensureColumnExists(activeDb, 'study_resources', 'assignment_id', 'TEXT REFERENCES assignments(id) ON DELETE SET NULL');
+
+  // Create indexes on migration-added columns now that columns are guaranteed to exist
+  activeDb.exec(`
+    CREATE INDEX IF NOT EXISTS idx_assignments_goal_id ON assignments(goal_id);
+    CREATE INDEX IF NOT EXISTS idx_study_sessions_goal_id ON study_sessions(goal_id);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_goal_id ON study_resources(goal_id);
+    CREATE INDEX IF NOT EXISTS idx_study_resources_study_session_id ON study_resources(study_session_id);
+  `);
+
+  // Automatically execute schema migrations to synchronize schema_migrations table
+  try {
+    const { runMigrations } = require('../migrations/migrationRunner');
+    runMigrations(activeDb);
+  } catch (migErr) {
+    // Non-fatal if runner has already executed or running in an isolated context
+  }
+
+  // 14. GTFS Tables
+  activeDb.exec(`
     CREATE TABLE IF NOT EXISTS gtfs_agency (
       agency_id TEXT PRIMARY KEY,
       agency_name TEXT,
@@ -381,21 +469,21 @@ function initDb() {
   `);
 
   // Seed GTFS if empty
-  const stopsCount = db.prepare('SELECT COUNT(*) as cnt FROM gtfs_stops').get().cnt;
+  const stopsCount = activeDb.prepare('SELECT COUNT(*) as cnt FROM gtfs_stops').get().cnt;
   if (stopsCount === 0) {
-    seedGtfsData();
+    seedGtfsData(activeDb);
   }
 
   // Seed Demo Reports if empty
-  const reportsCount = db.prepare('SELECT COUNT(*) as cnt FROM live_commute_reports').get().cnt;
+  const reportsCount = activeDb.prepare('SELECT COUNT(*) as cnt FROM live_commute_reports').get().cnt;
   if (reportsCount === 0) {
-    seedDemoReports();
+    seedDemoReports(activeDb);
   }
 
   // Seed Demo Ride Groups if empty
-  const groupsCount = db.prepare('SELECT COUNT(*) as cnt FROM ride_groups').get().cnt;
+  const groupsCount = activeDb.prepare('SELECT COUNT(*) as cnt FROM ride_groups').get().cnt;
   if (groupsCount === 0) {
-    seedDemoRideGroups();
+    seedDemoRideGroups(activeDb);
   }
 }
 
@@ -433,7 +521,7 @@ function parseCsv(content) {
   return rows;
 }
 
-function seedGtfsData() {
+function seedGtfsData(targetDb = db) {
   const gtfsDir = path.join(__dirname, '../../data/gtfs');
   if (!fs.existsSync(gtfsDir)) return;
 
@@ -443,8 +531,8 @@ function seedGtfsData() {
   const agencyFile = path.join(gtfsDir, 'agency.txt');
   if (fs.existsSync(agencyFile)) {
     const rows = parseCsv(fs.readFileSync(agencyFile, 'utf-8'));
-    const stmt = db.prepare('INSERT OR REPLACE INTO gtfs_agency VALUES (?, ?, ?, ?, ?)');
-    const insertMany = db.transaction((list) => {
+    const stmt = targetDb.prepare('INSERT OR REPLACE INTO gtfs_agency VALUES (?, ?, ?, ?, ?)');
+    const insertMany = targetDb.transaction((list) => {
       for (const r of list) {
         stmt.run(r.agency_id, r.agency_name, r.agency_url, r.agency_timezone, r.agency_lang);
       }
@@ -456,8 +544,8 @@ function seedGtfsData() {
   const routesFile = path.join(gtfsDir, 'routes.txt');
   if (fs.existsSync(routesFile)) {
     const rows = parseCsv(fs.readFileSync(routesFile, 'utf-8'));
-    const stmt = db.prepare('INSERT OR REPLACE INTO gtfs_routes VALUES (?, ?, ?, ?, ?, ?, ?)');
-    const insertMany = db.transaction((list) => {
+    const stmt = targetDb.prepare('INSERT OR REPLACE INTO gtfs_routes VALUES (?, ?, ?, ?, ?, ?, ?)');
+    const insertMany = targetDb.transaction((list) => {
       for (const r of list) {
         stmt.run(r.route_id, r.agency_id, r.route_short_name, r.route_long_name, parseInt(r.route_type) || 3, r.route_color, r.route_text_color);
       }
@@ -469,8 +557,8 @@ function seedGtfsData() {
   const stopsFile = path.join(gtfsDir, 'stops.txt');
   if (fs.existsSync(stopsFile)) {
     const rows = parseCsv(fs.readFileSync(stopsFile, 'utf-8'));
-    const stmt = db.prepare('INSERT OR REPLACE INTO gtfs_stops VALUES (?, ?, ?, ?, ?)');
-    const insertMany = db.transaction((list) => {
+    const stmt = targetDb.prepare('INSERT OR REPLACE INTO gtfs_stops VALUES (?, ?, ?, ?, ?)');
+    const insertMany = targetDb.transaction((list) => {
       for (const r of list) {
         stmt.run(r.stop_id, r.stop_name, parseFloat(r.stop_lat), parseFloat(r.stop_lon), parseInt(r.location_type) || 0);
       }
@@ -482,8 +570,8 @@ function seedGtfsData() {
   const tripsFile = path.join(gtfsDir, 'trips.txt');
   if (fs.existsSync(tripsFile)) {
     const rows = parseCsv(fs.readFileSync(tripsFile, 'utf-8'));
-    const stmt = db.prepare('INSERT OR REPLACE INTO gtfs_trips VALUES (?, ?, ?, ?, ?)');
-    const insertMany = db.transaction((list) => {
+    const stmt = targetDb.prepare('INSERT OR REPLACE INTO gtfs_trips VALUES (?, ?, ?, ?, ?)');
+    const insertMany = targetDb.transaction((list) => {
       for (const r of list) {
         stmt.run(r.route_id, r.service_id, r.trip_id, r.trip_headsign, parseInt(r.direction_id) || 0);
       }
@@ -495,8 +583,8 @@ function seedGtfsData() {
   const stopTimesFile = path.join(gtfsDir, 'stop_times.txt');
   if (fs.existsSync(stopTimesFile)) {
     const rows = parseCsv(fs.readFileSync(stopTimesFile, 'utf-8'));
-    const stmt = db.prepare('INSERT OR REPLACE INTO gtfs_stop_times VALUES (?, ?, ?, ?, ?)');
-    const insertMany = db.transaction((list) => {
+    const stmt = targetDb.prepare('INSERT OR REPLACE INTO gtfs_stop_times VALUES (?, ?, ?, ?, ?)');
+    const insertMany = targetDb.transaction((list) => {
       for (const r of list) {
         stmt.run(r.trip_id, r.arrival_time, r.departure_time, r.stop_id, parseInt(r.stop_sequence));
       }
@@ -507,7 +595,7 @@ function seedGtfsData() {
   console.log('Mumbai GTFS data indexed successfully!');
 }
 
-function seedDemoReports() {
+function seedDemoReports(targetDb = db) {
   const now = Date.now();
   const demoReports = [
     {
@@ -572,7 +660,7 @@ function seedDemoReports() {
     }
   ];
 
-  const stmt = db.prepare(`
+  const stmt = targetDb.prepare(`
     INSERT OR REPLACE INTO live_commute_reports 
     (id, pseudonym, area, route_name, route_id, mode, message, impact, status, created_at, expires_at, confirmation_count, contradiction_count)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -583,7 +671,7 @@ function seedDemoReports() {
   }
 }
 
-function seedDemoRideGroups() {
+function seedDemoRideGroups(targetDb = db) {
   const now = Date.now();
   const demoGroups = [
     {
@@ -624,7 +712,7 @@ function seedDemoRideGroups() {
     }
   ];
 
-  const stmt = db.prepare(`
+  const stmt = targetDb.prepare(`
     INSERT OR REPLACE INTO ride_groups
     (id, creator_pseudonym, origin_area, destination_college, departure_time, mode, max_members, current_members, notes, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

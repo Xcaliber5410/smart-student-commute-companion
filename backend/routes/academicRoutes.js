@@ -39,7 +39,7 @@ function createAcademicRoutes() {
   const router = express.Router();
 
   // All academic routes require student authentication
-  router.use(authenticate);
+  router.use('/academic', authenticate);
 
   // -------------------------------------------------------------
   // Course & Subject Endpoints

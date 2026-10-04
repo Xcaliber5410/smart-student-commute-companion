@@ -36,7 +36,7 @@ function createCalendarRoutes() {
   const router = express.Router();
 
   // All calendar endpoints require authenticated student
-  router.use(authenticate);
+  router.use('/calendar', authenticate);
 
   // -------------------------------------------------------------
   // Calendar Range, Workload & Conflict Endpoints

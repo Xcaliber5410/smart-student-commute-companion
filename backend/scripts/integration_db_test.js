@@ -16,7 +16,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 const { getConnection, closeConnection, ping, getConnectionStatus } = require('../db/connection');
-const { runMigrations, rollbackMigration, getMigrationStatus } = require('../migrations/migrationRunner');
+const { runMigrations, rollbackMigration, getMigrationStatus, getAvailableMigrations } = require('../migrations/migrationRunner');
 const { RideGroup } = require('../models/RideGroup');
 const { LiveReport } = require('../models/LiveReport');
 const { Feedback } = require('../models/Feedback');
@@ -138,7 +138,8 @@ async function main() {
 
     runTest('Migration status reports clean state with no pending migrations', () => {
       const status = getMigrationStatus(testDb);
-      assert.equal(status.applied.length, 4);
+      const allMigrations = getAvailableMigrations();
+      assert.equal(status.applied.length, allMigrations.length);
       assert.equal(status.pending.length, 0);
     });
 
@@ -380,20 +381,23 @@ async function main() {
     // Test Section 6: Schema Rollback & Re-migration
     // -------------------------------------------------------------
     runTest('Migration runner safely rolls back latest schema migration', () => {
+      const allMigrations = getAvailableMigrations();
+      const latestMigrationName = allMigrations[allMigrations.length - 1].name;
       const rollbackResult = rollbackMigration(testDb);
-      assert.equal(rollbackResult.rolledBack, '004_notifications_and_reminders');
+      assert.equal(rollbackResult.rolledBack, latestMigrationName);
 
       const statusAfterRollback = getMigrationStatus(testDb);
-      assert.equal(statusAfterRollback.applied.length, 3);
+      assert.equal(statusAfterRollback.applied.length, allMigrations.length - 1);
       assert.equal(statusAfterRollback.pending.length, 1);
     });
 
     runTest('Migration runner can cleanly re-apply migrations after rollback', () => {
+      const allMigrations = getAvailableMigrations();
       const reapplyResult = runMigrations(testDb);
       assert.equal(reapplyResult.applied.length, 1);
 
       const statusAfterReapply = getMigrationStatus(testDb);
-      assert.equal(statusAfterReapply.applied.length, 4);
+      assert.equal(statusAfterReapply.applied.length, allMigrations.length);
       assert.equal(statusAfterReapply.pending.length, 0);
     });
 

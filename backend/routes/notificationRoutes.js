@@ -20,8 +20,9 @@ const {
 function createNotificationRoutes() {
   const router = express.Router();
 
-  // Guard all notification and reminder endpoints with authentication
-  router.use(authenticate);
+  // Guard notification and reminder endpoints with authentication
+  router.use('/notifications', authenticate);
+  router.use('/reminders', authenticate);
 
   // -------------------------------------------------------------
   // Notification Endpoints
