@@ -9,6 +9,7 @@ const { courseRepository } = require('../repositories/CourseRepository');
 const { userRepository } = require('../repositories/UserRepository');
 const { assignmentRepository } = require('../repositories/AssignmentRepository');
 const { studySessionRepository } = require('../repositories/StudySessionRepository');
+const { studyResourceRepository } = require('../repositories/StudyResourceRepository');
 const { getConnection } = require('../db/connection');
 const { Goal } = require('../models/Goal');
 const {
@@ -24,7 +25,8 @@ class GoalService {
     userRepo = userRepository,
     asgnRepo = assignmentRepository,
     studyRepo = studySessionRepository,
-    dbInstance = null
+    dbInstance = null,
+    resourceRepo = studyResourceRepository
   ) {
     this.goalRepo = goalRepo;
     this.courseRepo = courseRepo;
@@ -32,6 +34,7 @@ class GoalService {
     this.asgnRepo = asgnRepo;
     this.studyRepo = studyRepo;
     this.db = dbInstance;
+    this.resourceRepo = resourceRepo;
   }
 
   get database() {
@@ -429,6 +432,86 @@ class GoalService {
     };
   }
 
+  getGoalResources(goalId, requestingUser) {
+    const goal = this.goalRepo.findById(goalId);
+    if (!goal) {
+      throw new NotFoundError(`Goal with id '${goalId}' not found`);
+    }
+    this.assertOwnership(goal, requestingUser);
+
+    const resources = this.resourceRepo.findByGoal(goalId, goal.user_id);
+    return {
+      goal: goal.toJSON(),
+      resources: resources.map(r => (r.toJSON ? r.toJSON() : r))
+    };
+  }
+
+  linkResources(goalId, resourceIds, requestingUser) {
+    const goal = this.goalRepo.findById(goalId);
+    if (!goal) {
+      throw new NotFoundError(`Goal with id '${goalId}' not found`);
+    }
+    this.assertOwnership(goal, requestingUser);
+
+    if (!Array.isArray(resourceIds) || resourceIds.length === 0) {
+      throw new BadRequestError('At least one resource ID must be provided');
+    }
+
+    // Pre-flight check: verify all resources exist and belong to the same student
+    const resources = [];
+    for (const rId of resourceIds) {
+      const res = this.resourceRepo.findById(rId);
+      if (!res) {
+        throw new NotFoundError(`Study resource with id '${rId}' not found`);
+      }
+      if (res.user_id !== goal.user_id) {
+        throw new ForbiddenError('Cannot link study resource belonging to another student to this goal');
+      }
+      resources.push(res);
+    }
+
+    // Execute atomic update inside transaction
+    const db = this.database;
+    const tx = db.transaction(() => {
+      for (const res of resources) {
+        this.resourceRepo.update(res.id, goal.user_id, { goal_id: goalId });
+      }
+    });
+    tx();
+
+    const updatedResources = this.resourceRepo.findByGoal(goalId, goal.user_id);
+    return {
+      goal: goal.toJSON(),
+      resources: updatedResources.map(r => (r.toJSON ? r.toJSON() : r))
+    };
+  }
+
+  unlinkResource(goalId, resourceId, requestingUser) {
+    const goal = this.goalRepo.findById(goalId);
+    if (!goal) {
+      throw new NotFoundError(`Goal with id '${goalId}' not found`);
+    }
+    this.assertOwnership(goal, requestingUser);
+
+    const res = this.resourceRepo.findById(resourceId);
+    if (!res) {
+      throw new NotFoundError(`Study resource with id '${resourceId}' not found`);
+    }
+    if (res.user_id !== goal.user_id) {
+      throw new ForbiddenError('Cannot manage study resource belonging to another student');
+    }
+    if (res.goal_id !== goalId) {
+      throw new BadRequestError(`Study resource '${resourceId}' is not associated with goal '${goalId}'`);
+    }
+
+    this.resourceRepo.update(resourceId, goal.user_id, { goal_id: null });
+
+    return {
+      goal: goal.toJSON(),
+      unlinkedResourceId: resourceId
+    };
+  }
+
   getGoalWorkSummary(goalId, requestingUser) {
     const goal = this.goalRepo.findById(goalId);
     if (!goal) {
@@ -442,12 +525,15 @@ class GoalService {
     const studySessions = this.studyRepo.findByGoalId(goalId);
     const studySessionSummary = this.studyRepo.getGoalStudySessionSummary(goalId);
 
+    const resources = this.resourceRepo.findByGoal(goalId, goal.user_id);
+
     return {
       goal: goal.toJSON(),
       assignments: assignments.map(a => a.toJSON()),
       assignmentSummary,
       studySessions: studySessions.map(s => s.toJSON()),
-      studySessionSummary
+      studySessionSummary,
+      resources: resources.map(r => (r.toJSON ? r.toJSON() : r))
     };
   }
 

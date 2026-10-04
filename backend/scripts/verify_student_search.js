@@ -245,6 +245,26 @@ async function run() {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(reminderA.id, reminderA.user_id, reminderA.title, reminderA.message, reminderA.scheduled_time, reminderA.reminder_type, reminderA.status, reminderA.created_at, reminderA.updated_at);
 
+  // 10. Study Resource (Student A)
+  const resourceA = {
+    id: `res-a1-${timestamp}`,
+    user_id: studentA.id,
+    course_id: courseA1.id,
+    title: 'Distributed Systems Raft Consensus Notes',
+    description: 'Lecture summary and architectural diagram for distributed state machine replication',
+    resource_type: 'note',
+    content: 'Notes on leader election, log replication, and safety properties in Raft protocol.',
+    tags: JSON.stringify(['raft', 'distributed', 'consensus', 'cloud']),
+    is_favorite: 1,
+    archived: 0,
+    created_at: timestamp,
+    updated_at: timestamp
+  };
+  db.prepare(`
+    INSERT INTO study_resources (id, user_id, course_id, title, description, resource_type, content, tags, is_favorite, archived, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(resourceA.id, resourceA.user_id, resourceA.course_id, resourceA.title, resourceA.description, resourceA.resource_type, resourceA.content, resourceA.tags, resourceA.is_favorite, resourceA.archived, resourceA.created_at, resourceA.updated_at);
+
   // Seed Student B Entities (for strict isolation verification)
   const courseB1 = {
     id: `course-b1-${timestamp}`,
@@ -260,19 +280,39 @@ async function run() {
   };
   insertCourse.run(courseB1.id, courseB1.user_id, courseB1.name, courseB1.code, courseB1.instructor, courseB1.color, courseB1.credits, courseB1.archived, courseB1.created_at, courseB1.updated_at);
 
+  const resourceB = {
+    id: `res-b1-${timestamp}`,
+    user_id: studentB.id,
+    course_id: courseB1.id,
+    title: 'Distributed Systems Private Notes (Student B)',
+    description: 'Private confidential notes',
+    resource_type: 'note',
+    content: 'Confidential student B content',
+    tags: JSON.stringify(['distributed', 'private']),
+    is_favorite: 0,
+    archived: 0,
+    created_at: timestamp,
+    updated_at: timestamp
+  };
+  db.prepare(`
+    INSERT INTO study_resources (id, user_id, course_id, title, description, resource_type, content, tags, is_favorite, archived, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(resourceB.id, resourceB.user_id, resourceB.course_id, resourceB.title, resourceB.description, resourceB.resource_type, resourceB.content, resourceB.tags, resourceB.is_favorite, resourceB.archived, resourceB.created_at, resourceB.updated_at);
+
   // -----------------------------------------------------------------
   // 1. Contract & Supported Entities
   // -----------------------------------------------------------------
-  await test('Contract: supports all 9 student-owned domain entities', async () => {
+  await test('Contract: supports all 10 student-owned domain entities', async () => {
     assert.ok(studentSearchService);
     assert.ok(studentSearchRepository);
-    assert.strictEqual(ALL_SEARCHABLE_TYPES.length, 9);
+    assert.strictEqual(ALL_SEARCHABLE_TYPES.length, 10);
     assert.deepStrictEqual(ALL_SEARCHABLE_TYPES, [
       'course',
       'assignment',
       'calendar_event',
       'study_session',
       'goal',
+      'study_resource',
       'saved_route',
       'schedule',
       'notification',
@@ -281,14 +321,14 @@ async function run() {
   });
 
   // -----------------------------------------------------------------
-  // 2. Cross-Domain Search Across All 9 Entities
+  // 2. Cross-Domain Search Across All 10 Entities
   // -----------------------------------------------------------------
-  await test('Cross-Domain Search: matches records across all 9 distinct student entities simultaneously', async () => {
+  await test('Cross-Domain Search: matches records across all 10 distinct student entities simultaneously', async () => {
     const response = studentSearchService.search(studentA.id, studentA, { query: 'distributed' });
     assert.strictEqual(response.query, 'distributed');
-    assert.ok(response.total >= 9, `Expected at least 9 results, received ${response.total}`);
+    assert.ok(response.total >= 10, `Expected at least 10 results, received ${response.total}`);
 
-    // Verify all 9 entity types exist in countsByType
+    // Verify all 10 entity types exist in countsByType
     assert.ok(response.countsByType.course >= 1, 'Should find course');
     assert.ok(response.countsByType.goal >= 1, 'Should find goal');
     assert.ok(response.countsByType.assignment >= 1, 'Should find assignment');
@@ -298,6 +338,7 @@ async function run() {
     assert.ok(response.countsByType.schedule >= 1, 'Should find commute schedule');
     assert.ok(response.countsByType.notification >= 1, 'Should find notification');
     assert.ok(response.countsByType.reminder >= 1, 'Should find reminder');
+    assert.ok(response.countsByType.study_resource >= 1, 'Should find study resource');
 
     // Verify normalized item structure
     for (const item of response.results) {
@@ -370,7 +411,7 @@ async function run() {
   // -----------------------------------------------------------------
   // 7. Course Enrichment on Child Entities (Zero N+1)
   // -----------------------------------------------------------------
-  await test('Enrichment: child items (assignment, event, session, goal) include course metadata', async () => {
+  await test('Enrichment: child items (assignment, event, session, goal, study_resource) include course metadata', async () => {
     const res = studentSearchService.search(studentA.id, studentA, { query: 'consensus' });
     const asgn = res.results.find(i => i.type === 'assignment');
     assert.ok(asgn);
@@ -378,6 +419,17 @@ async function run() {
     assert.strictEqual(asgn.course.id, courseA1.id);
     assert.strictEqual(asgn.course.name, 'Distributed Systems & Cloud');
     assert.strictEqual(asgn.course.code, 'CS401');
+
+    // Test study resource course enrichment
+    const resResource = studentSearchService.search(studentA.id, studentA, { query: 'Raft Consensus Notes' });
+    const resItem = resResource.results.find(i => i.type === 'study_resource');
+    assert.ok(resItem, 'Study resource should be returned');
+    assert.ok(resItem.course, 'Study resource must include course metadata');
+    assert.strictEqual(resItem.course.id, courseA1.id);
+    assert.strictEqual(resItem.course.name, 'Distributed Systems & Cloud');
+    assert.strictEqual(resItem.metadata.resourceType, 'note');
+    assert.strictEqual(resItem.metadata.isFavorite, true);
+    assert.ok(Array.isArray(resItem.metadata.tags));
   });
 
   // -----------------------------------------------------------------
@@ -397,6 +449,14 @@ async function run() {
       types: 'schedules,tasks'
     });
     assert.ok(res2.results.every(i => i.type === 'schedule' || i.type === 'assignment'));
+
+    // Resource aliases: "resources,notes" -> ['study_resource']
+    const res3 = studentSearchService.search(studentA.id, studentA, {
+      query: 'distributed',
+      types: 'resources,notes'
+    });
+    assert.ok(res3.results.length >= 1);
+    assert.ok(res3.results.every(i => i.type === 'study_resource'));
   });
 
   // -----------------------------------------------------------------
@@ -436,13 +496,13 @@ async function run() {
 
   await test('Isolation: student B search returns only student B records with zero bleed from student A', async () => {
     const resB = studentSearchService.search(studentB.id, studentB, { query: 'distributed' });
-    assert.strictEqual(resB.total, 1);
-    assert.strictEqual(resB.results[0].id, courseB1.id);
-    assert.strictEqual(resB.results[0].title, 'Distributed Systems & Cloud (Student B)');
+    assert.strictEqual(resB.total, 2);
+    assert.ok(resB.results.some(r => r.id === courseB1.id));
+    assert.ok(resB.results.some(r => r.id === resourceB.id));
 
     const studentAIds = new Set([
       courseA1.id, courseA2.id, goalA.id, asgnA1.id,
-      eventA.id, studyA.id, routeA.id, scheduleA.id, notifA.id, reminderA.id
+      eventA.id, studyA.id, routeA.id, scheduleA.id, notifA.id, reminderA.id, resourceA.id
     ]);
     for (const r of resB.results) {
       assert.strictEqual(studentAIds.has(r.id), false, `Foreign student data leaked into Student B search: ${r.id}`);

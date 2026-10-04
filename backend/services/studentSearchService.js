@@ -59,7 +59,16 @@ const CANONICAL_ENTITY_TYPES = {
   notifications: 'notification',
 
   reminder: 'reminder',
-  reminders: 'reminder'
+  reminders: 'reminder',
+
+  study_resource: 'study_resource',
+  study_resources: 'study_resource',
+  resource: 'study_resource',
+  resources: 'study_resource',
+  material: 'study_resource',
+  materials: 'study_resource',
+  note: 'study_resource',
+  notes: 'study_resource'
 };
 
 const ALL_SEARCHABLE_TYPES = [
@@ -68,6 +77,7 @@ const ALL_SEARCHABLE_TYPES = [
   'calendar_event',
   'study_session',
   'goal',
+  'study_resource',
   'saved_route',
   'schedule',
   'notification',
@@ -312,6 +322,13 @@ class StudentSearchService {
       const reminderRows = this.searchRepo.searchReminders(studentUserId, query, queryOptions);
       for (const row of reminderRows) {
         allCandidates.push(StudentSearchResult.fromReminder(row));
+      }
+    }
+
+    if (resolvedTypes.includes('study_resource')) {
+      const resourceRows = this.searchRepo.searchStudyResources(studentUserId, query, queryOptions);
+      for (const row of resourceRows) {
+        allCandidates.push(StudentSearchResult.fromStudyResource(row, courseMap));
       }
     }
 

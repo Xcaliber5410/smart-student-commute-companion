@@ -80,11 +80,53 @@ function deleteCourse(req, res, next) {
   }
 }
 
+function getCourseResources(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = courseService.getCourseResources(id, req.user);
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+function linkResources(req, res, next) {
+  try {
+    const { id } = req.params;
+    const resourceIds = req.body.resource_ids || req.body.resourceIds;
+    const result = courseService.linkResources(id, resourceIds, req.user);
+    return success(res, {
+      message: 'Resources linked to course successfully',
+      linkedCount: result.resources ? result.resources.length : (resourceIds ? resourceIds.length : 0),
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function unlinkResource(req, res, next) {
+  try {
+    const { id, resourceId } = req.params;
+    const result = courseService.unlinkResource(id, resourceId, req.user);
+    return success(res, {
+      message: 'Resource unlinked from course successfully',
+      unlinked: true,
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createCourse,
   listCourses,
   getCourse,
   updateCourse,
   archiveCourse,
-  deleteCourse
+  deleteCourse,
+  getCourseResources,
+  linkResources,
+  unlinkResource
 };

@@ -357,6 +357,54 @@ class StudentSearchRepository {
 
     return this.database.prepare(query).all(...queryParams);
   }
+
+  /**
+   * Searches study resources (notes, references, links, documents) belonging to the student.
+   *
+   * @param {string} userId - Owning student ID
+   * @param {string} searchTerm - Search query text
+   * @param {object} [options={}] - Filter and limit options
+   * @returns {Array<object>} Raw matching database rows
+   */
+  searchStudyResources(userId, searchTerm, options = {}) {
+    if (!userId) return [];
+    const limit = Math.min(50, Math.max(1, Number(options.limit) || 20));
+    const { clause, params } = buildSearchCondition(
+      ['sr.title', 'sr.description', 'sr.content', 'sr.resource_type', 'sr.tags', 'sr.file_name', 'sr.url', 'c.name', 'c.code'],
+      searchTerm
+    );
+
+    let query = `
+      SELECT sr.*, c.name AS course_name, c.code AS course_code, c.color AS course_color
+      FROM study_resources sr
+      LEFT JOIN courses c ON c.id = sr.course_id
+      WHERE sr.user_id = ? AND ${clause}
+    `;
+    const queryParams = [userId, ...params];
+
+    const courseFilter = options.courseId || options.course_id;
+    if (courseFilter) {
+      query += ' AND sr.course_id = ?';
+      queryParams.push(courseFilter);
+    }
+
+    if (options.status === 'active' || options.archived === false || options.archived === 0) {
+      query += ' AND sr.archived = 0';
+    } else if (options.status === 'archived' || options.archived === true || options.archived === 1) {
+      query += ' AND sr.archived = 1';
+    }
+
+    const typeFilter = options.resourceType || options.resource_type || options.type;
+    if (typeFilter && ['note', 'link', 'reference', 'document', 'other'].includes(typeFilter.toLowerCase())) {
+      query += ' AND LOWER(sr.resource_type) = ?';
+      queryParams.push(typeFilter.toLowerCase());
+    }
+
+    query += ' ORDER BY sr.is_favorite DESC, sr.created_at DESC LIMIT ?';
+    queryParams.push(limit);
+
+    return this.database.prepare(query).all(...queryParams);
+  }
 }
 
 const studentSearchRepository = new StudentSearchRepository();

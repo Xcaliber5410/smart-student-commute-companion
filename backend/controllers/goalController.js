@@ -190,6 +190,45 @@ function unlinkStudySession(req, res, next) {
   }
 }
 
+function getGoalResources(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = goalService.getGoalResources(id, req.user);
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+function linkResources(req, res, next) {
+  try {
+    const { id } = req.params;
+    const resourceIds = req.body.resource_ids || req.body.resourceIds;
+    const result = goalService.linkResources(id, resourceIds, req.user);
+    return success(res, {
+      message: 'Resources linked to goal successfully',
+      linkedCount: result.resources ? result.resources.length : (resourceIds ? resourceIds.length : 0),
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function unlinkResource(req, res, next) {
+  try {
+    const { id, resourceId } = req.params;
+    const result = goalService.unlinkResource(id, resourceId, req.user);
+    return success(res, {
+      message: 'Resource unlinked from goal successfully',
+      unlinked: true,
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createGoal,
   listGoals,
@@ -204,5 +243,8 @@ module.exports = {
   linkAssignments,
   unlinkAssignment,
   linkStudySessions,
-  unlinkStudySession
+  unlinkStudySession,
+  getGoalResources,
+  linkResources,
+  unlinkResource
 };

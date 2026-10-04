@@ -90,6 +90,45 @@ function getAcademicSummary(req, res, next) {
   }
 }
 
+function getAssignmentResources(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = assignmentService.getAssignmentResources(id, req.user);
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+function linkResources(req, res, next) {
+  try {
+    const { id } = req.params;
+    const resourceIds = req.body.resource_ids || req.body.resourceIds;
+    const result = assignmentService.linkResources(id, resourceIds, req.user);
+    return success(res, {
+      message: 'Resources linked to assignment successfully',
+      linkedCount: result.resources ? result.resources.length : (resourceIds ? resourceIds.length : 0),
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function unlinkResource(req, res, next) {
+  try {
+    const { id, resourceId } = req.params;
+    const result = assignmentService.unlinkResource(id, resourceId, req.user);
+    return success(res, {
+      message: 'Resource unlinked from assignment successfully',
+      unlinked: true,
+      ...result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createAssignment,
   listAssignments,
@@ -97,5 +136,8 @@ module.exports = {
   updateAssignment,
   updateStatus,
   deleteAssignment,
-  getAcademicSummary
+  getAcademicSummary,
+  getAssignmentResources,
+  linkResources,
+  unlinkResource
 };

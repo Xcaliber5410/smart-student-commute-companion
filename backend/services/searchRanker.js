@@ -114,11 +114,16 @@ function extractSearchableFields(item) {
       identifiers.push(normalizeText(t));
     }
   }
+  if (item.metadata?.resourceType) identifiers.push(normalizeText(item.metadata.resourceType));
+  if (item.metadata?.fileName) identifiers.push(normalizeText(item.metadata.fileName));
+  if (item.course?.code) identifiers.push(normalizeText(item.course.code));
 
   // Extract descriptive fields
   const descriptions = [];
+  if (item.course?.name) descriptions.push(normalizeText(item.course.name));
   if (item.description) descriptions.push(normalizeText(item.description));
   if (item.snippet) descriptions.push(normalizeText(item.snippet));
+  if (item.metadata?.content) descriptions.push(normalizeText(item.metadata.content));
   if (item.metadata?.notes) descriptions.push(normalizeText(item.metadata.notes));
   if (item.metadata?.summary) descriptions.push(normalizeText(item.metadata.summary));
   if (item.metadata?.department) descriptions.push(normalizeText(item.metadata.department));

@@ -29,6 +29,8 @@ const { productivityAnalyticsService, ProductivityAnalyticsService } = require('
 const { studentInsightsService, StudentInsightsService } = require('./studentInsightsService');
 const { studentSearchService, StudentSearchService } = require('./studentSearchService');
 const { searchAnalyticsService, SearchAnalyticsService } = require('./searchAnalyticsService');
+const { studyResourceService, StudyResourceService } = require('./studyResourceService');
+const { resourceContextService, ResourceContextService } = require('./resourceContextService');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -40,6 +42,10 @@ const searchRanker = require('./searchRanker');
 
 module.exports = {
   // Domain Services
+  studyResourceService,
+  StudyResourceService,
+  resourceContextService,
+  ResourceContextService,
   courseService,
   CourseService,
   assignmentService,

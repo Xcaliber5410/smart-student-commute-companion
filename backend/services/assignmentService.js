@@ -9,6 +9,8 @@ const { courseRepository } = require('../repositories/CourseRepository');
 const { userRepository } = require('../repositories/UserRepository');
 const { reminderRepository } = require('../repositories/ReminderRepository');
 const { goalRepository } = require('../repositories/GoalRepository');
+const { studyResourceRepository } = require('../repositories/StudyResourceRepository');
+const { getConnection } = require('../db/connection');
 const { Assignment } = require('../models/Assignment');
 const {
   NotFoundError,
@@ -22,13 +24,15 @@ class AssignmentService {
     courseRepo = courseRepository,
     userRepo = userRepository,
     remRepo = reminderRepository,
-    goalRepo = goalRepository
+    goalRepo = goalRepository,
+    resourceRepo = studyResourceRepository
   ) {
     this.assignmentRepo = assignmentRepo;
     this.courseRepo = courseRepo;
     this.userRepo = userRepo;
     this.remRepo = remRepo;
     this.goalRepo = goalRepo;
+    this.resourceRepo = resourceRepo;
   }
 
   getGoalService() {
@@ -299,6 +303,86 @@ class AssignmentService {
     }
 
     return { success: true, id };
+  }
+
+  getAssignmentResources(assignmentId, requestingUser) {
+    const assignment = this.assignmentRepo.findById(assignmentId);
+    if (!assignment) {
+      throw new NotFoundError(`Assignment with id '${assignmentId}' not found`);
+    }
+    this.assertOwnership(assignment, requestingUser);
+
+    const resources = this.resourceRepo.findByAssignment(assignmentId, assignment.user_id);
+    return {
+      assignment: assignment.toJSON(),
+      resources: resources.map(r => (r.toJSON ? r.toJSON() : r))
+    };
+  }
+
+  linkResources(assignmentId, resourceIds, requestingUser) {
+    const assignment = this.assignmentRepo.findById(assignmentId);
+    if (!assignment) {
+      throw new NotFoundError(`Assignment with id '${assignmentId}' not found`);
+    }
+    this.assertOwnership(assignment, requestingUser);
+
+    if (!Array.isArray(resourceIds) || resourceIds.length === 0) {
+      throw new BadRequestError('At least one resource ID must be provided');
+    }
+
+    // Pre-flight check: verify all resources exist and belong to the same student
+    const resources = [];
+    for (const rId of resourceIds) {
+      const res = this.resourceRepo.findById(rId);
+      if (!res) {
+        throw new NotFoundError(`Study resource with id '${rId}' not found`);
+      }
+      if (res.user_id !== assignment.user_id) {
+        throw new ForbiddenError('Cannot link study resource belonging to another student to this assignment');
+      }
+      resources.push(res);
+    }
+
+    // Execute atomic update inside transaction
+    const db = getConnection();
+    const tx = db.transaction(() => {
+      for (const res of resources) {
+        this.resourceRepo.update(res.id, assignment.user_id, { assignment_id: assignmentId });
+      }
+    });
+    tx();
+
+    const updatedResources = this.resourceRepo.findByAssignment(assignmentId, assignment.user_id);
+    return {
+      assignment: assignment.toJSON(),
+      resources: updatedResources.map(r => (r.toJSON ? r.toJSON() : r))
+    };
+  }
+
+  unlinkResource(assignmentId, resourceId, requestingUser) {
+    const assignment = this.assignmentRepo.findById(assignmentId);
+    if (!assignment) {
+      throw new NotFoundError(`Assignment with id '${assignmentId}' not found`);
+    }
+    this.assertOwnership(assignment, requestingUser);
+
+    const res = this.resourceRepo.findById(resourceId);
+    if (!res) {
+      throw new NotFoundError(`Study resource with id '${resourceId}' not found`);
+    }
+    if (res.user_id !== assignment.user_id) {
+      throw new ForbiddenError('Cannot manage study resource belonging to another student');
+    }
+    if (res.assignment_id !== assignmentId) {
+      throw new BadRequestError(`Study resource '${resourceId}' is not associated with assignment '${assignmentId}'`);
+    }
+
+    this.resourceRepo.update(resourceId, assignment.user_id, { assignment_id: null });
+
+    return {
+      assignment: assignment.toJSON(),
+      unlinkedResourceId: resourceId
+    };
   }
 }
 

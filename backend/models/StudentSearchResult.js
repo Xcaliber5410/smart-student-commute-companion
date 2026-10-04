@@ -18,7 +18,8 @@ const searchResultTypeEnum = z.enum([
   'saved_route',
   'schedule',
   'notification',
-  'reminder'
+  'reminder',
+  'study_resource'
 ]);
 
 const searchDomainEnum = z.enum(['academic', 'planning', 'commute', 'alerts']);
@@ -89,7 +90,7 @@ class StudentSearchResult {
    * @returns {boolean}
    */
   isAcademic() {
-    return this.domain === 'academic' || ['course', 'assignment', 'goal', 'study_session'].includes(this.type);
+    return this.domain === 'academic' || ['course', 'assignment', 'goal', 'study_session', 'study_resource'].includes(this.type);
   }
 
   /**
@@ -443,6 +444,63 @@ class StudentSearchResult {
         status: row.status,
         relatedResourceType: row.related_resource_type || null,
         relatedResourceId: row.related_resource_id || null
+      },
+      createdAt: row.created_at,
+      updatedAt: row.updated_at || row.created_at
+    });
+  }
+
+  static fromStudyResource(row, courseMap = null) {
+    if (!row) return null;
+    const course = courseMap && row.course_id ? courseMap.get(row.course_id) : null;
+    let parsedTags = [];
+    if (Array.isArray(row.tags)) {
+      parsedTags = row.tags;
+    } else if (typeof row.tags === 'string' && row.tags.trim()) {
+      try {
+        const parsed = JSON.parse(row.tags);
+        parsedTags = Array.isArray(parsed) ? parsed : [row.tags];
+      } catch (_) {
+        parsedTags = row.tags.split(',').map(t => t.trim()).filter(Boolean);
+      }
+    }
+
+    const subParts = [row.resource_type || 'note'];
+    if (course) subParts.push(course.code || course.name);
+    if (row.is_favorite) subParts.push('★ Favorite');
+    const sub = subParts.join(' • ');
+
+    const snippetText = row.description || row.content || (row.url ? `Link: ${row.url}` : '') || (row.file_name ? `File: ${row.file_name}` : '');
+
+    return new StudentSearchResult({
+      id: row.id,
+      type: 'study_resource',
+      title: row.title,
+      name: row.title,
+      subtitle: sub,
+      snippet: snippetText,
+      description: row.description || row.content || null,
+      status: row.archived ? 'archived' : 'active',
+      url: `/student/resources/${row.id}`,
+      course: course ? { id: course.id, name: course.name, code: course.code, color: course.color } : null,
+      date: row.created_at || null,
+      deadline: null,
+      relationship: 'owner',
+      domain: 'academic',
+      relevanceScore: 0,
+      metadata: {
+        resourceType: row.resource_type || 'note',
+        url: row.url || null,
+        fileName: row.file_name || null,
+        fileSize: row.file_size || null,
+        mimeType: row.mime_type || null,
+        tags: parsedTags,
+        isFavorite: Boolean(row.is_favorite),
+        archived: Boolean(row.archived),
+        courseId: row.course_id || null,
+        assignmentId: row.assignment_id || null,
+        goalId: row.goal_id || null,
+        studySessionId: row.study_session_id || null
       },
       createdAt: row.created_at,
       updatedAt: row.updated_at || row.created_at
