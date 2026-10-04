@@ -378,6 +378,28 @@ export default function App() {
   const groups = groupsResource.data || [];
   const savedCommutes = savedCommutesResource.data || [];
 
+  // Day 12 — notification read state lives at App level so the unread count
+  // can drive both the Notifications screen and navigation badges. In-memory
+  // for now; persistence is layered on in the service-integration commit.
+  const [notificationReadIds, setNotificationReadIds] = useState(() => new Set());
+
+  const handleToggleNotificationRead = (id) => {
+    setNotificationReadIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleMarkAllNotificationsRead = () => {
+    setNotificationReadIds(() => new Set(reports.map((report) => report.id)));
+  };
+
+  const unreadNotificationsCount = reports.filter(
+    (report) => !notificationReadIds.has(report.id)
+  ).length;
+
   // Transit Search query state (draft is preserved while navigating between screens)
   const [transitQuery, setTransitQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState(() => readRecentSearches());
@@ -976,6 +998,10 @@ export default function App() {
             onRefresh={handleRefreshReports}
             isConnectionLost={isConnectionLost}
             onReconnect={handleReconnect}
+            readIds={notificationReadIds}
+            onToggleRead={handleToggleNotificationRead}
+            onMarkAllRead={handleMarkAllNotificationsRead}
+            unreadCount={unreadNotificationsCount}
           />
         );
 

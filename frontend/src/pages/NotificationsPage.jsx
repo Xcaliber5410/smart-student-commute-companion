@@ -12,10 +12,20 @@ export default function NotificationsPage({
   onRefresh,
   isConnectionLost = false,
   onReconnect,
+  readIds = new Set(),
+  onToggleRead,
+  onMarkAllRead,
+  unreadCount,
 }) {
   const [query, setQuery] = useState('');
   const [view, setView] = useState('all');
-  const [readIds, setReadIds] = useState(() => new Set());
+
+  // Read state is owned by App (shared with navigation badges); derive counts
+  // here so the header summary always matches the visible data.
+  const readTotal = reports.filter((report) => readIds.has(report.id)).length;
+  const unread =
+    typeof unreadCount === 'number' ? unreadCount : reports.length - readTotal;
+  const hasUnread = unread > 0;
 
   const visibleReports = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -29,12 +39,7 @@ export default function NotificationsPage({
   }, [query, readIds, reports, view]);
 
   const handleToggleRead = (id) => {
-    setReadIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    if (onToggleRead) onToggleRead(id);
   };
 
   return (
@@ -45,19 +50,34 @@ export default function NotificationsPage({
           <p className="text-sm text-slate-400">
             Recent commute updates from the student community
           </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {unread} unread · {readTotal} read
+          </p>
         </div>
-        {onRefresh && (
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isLoading || isRefreshing}
-            aria-busy={isRefreshing}
-            className="flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {onMarkAllRead && reports.length > 0 && (
+            <button
+              type="button"
+              onClick={onMarkAllRead}
+              disabled={!hasUnread}
+              className="flex min-h-10 items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+            >
+              Mark all as read
+            </button>
+          )}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading || isRefreshing}
+              aria-busy={isRefreshing}
+              className="flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
+              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
+          )}
+        </div>
       </header>
 
       {isConnectionLost && !isLoading && !loadError && (
