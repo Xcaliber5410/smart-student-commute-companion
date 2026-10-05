@@ -49,7 +49,7 @@ function checkAreaGranularity(val) {
     if (pattern.test(trimmed)) {
       return {
         valid: false,
-        reason: 'Excessive location precision detected: Commute planning only accepts coarse area names or college landmarks (e.g. "Borivali West", "D.J. Sanghvi College"). Street addresses, flat numbers, building names, and GPS coordinates are strictly rejected to protect student privacy.'
+        reason: 'Excessive location precision detected: Exact flat/house numbers are not permitted. Commute planning only accepts coarse area names or college landmarks (e.g. "Borivali West", "D.J. Sanghvi College"). Street addresses, flat numbers, building names, and GPS coordinates are strictly rejected to protect student privacy.'
       };
     }
   }

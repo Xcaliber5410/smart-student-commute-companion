@@ -34,6 +34,14 @@ const { resourceContextService, ResourceContextService } = require('./resourceCo
 const { studyPlanningService, StudyPlanningService } = require('./studyPlanningService');
 const { transportDataService, TransportDataService } = require('./transportDataService');
 const { disruptionDataService, DisruptionDataService } = require('./disruptionDataService');
+const { commuteContextService, CommuteContextService } = require('./commuteContextService');
+const { disruptionImpactService, DisruptionImpactService } = require('./disruptionImpactService');
+const { candidateRouteService, CandidateRouteService } = require('./candidateRouteService');
+const { constraintFilterService, ConstraintFilterService } = require('./constraintFilterService');
+const { routeScoringService, RouteScoringService } = require('./routeScoringService');
+const { commutePersonalizationService, CommutePersonalizationService } = require('./commutePersonalizationService');
+const { commuteExplanationService, CommuteExplanationService } = require('./commuteExplanationService');
+const { commuteRecommendationPipeline, CommuteRecommendationPipeline } = require('./commuteRecommendationPipeline');
 const { getActiveReports, calculateFreshnessWeight, evaluateRouteDisruptions } = require('./disruptionService');
 const { geocodeArea, MUMBAI_KNOWN_LOCATIONS } = require('./geocodingService');
 const { findTransitCandidates, getStopById } = require('./gtfsService');
@@ -44,6 +52,24 @@ const { explainRoutePlan } = require('./aiPlannerService');
 const searchRanker = require('./searchRanker');
 
 module.exports = {
+  // Commute Recommendation Pipeline Services (P9)
+  commuteRecommendationPipeline,
+  CommuteRecommendationPipeline,
+  commuteContextService,
+  CommuteContextService,
+  disruptionImpactService,
+  DisruptionImpactService,
+  candidateRouteService,
+  CandidateRouteService,
+  constraintFilterService,
+  ConstraintFilterService,
+  routeScoringService,
+  RouteScoringService,
+  commutePersonalizationService,
+  CommutePersonalizationService,
+  commuteExplanationService,
+  CommuteExplanationService,
+
   // Domain Services
   transportDataService,
   TransportDataService,

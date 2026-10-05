@@ -226,6 +226,18 @@ class CommutePlanInputDTO {
     });
   }
 
+  get originArea() {
+    return this.startingArea;
+  }
+
+  get destinationArea() {
+    return this.collegeDestination;
+  }
+
+  get constraints() {
+    return this.toConstraint();
+  }
+
   /**
    * Produces an ephemeral parameter bundle for the routing engine.
    * Contains zero persistent IDs or PII.
