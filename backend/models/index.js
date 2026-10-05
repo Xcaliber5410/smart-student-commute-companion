@@ -102,8 +102,13 @@ module.exports = {
   // Commute Domain Contracts & Safe Input (P9)
   ...require('./CommuteContracts'),
   ...require('./CommuteArea'),
-  ...require('./CommutePlanInputDTO')
+  ...require('./CommutePlanInputDTO'),
+  ...require('./TransportService'),
+  ...require('./TransportStop'),
+  ...require('./TransportSchedule'),
+  ...require('./CommuteDisruption')
 };
+
 
 
 

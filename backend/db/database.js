@@ -488,6 +488,95 @@ function initDb(overrideDb) {
   if (groupsCount === 0) {
     seedDemoRideGroups(activeDb);
   }
+
+  // 15. Commute Transport & Disruption Data Tables (Day 14)
+  activeDb.exec(`
+    CREATE TABLE IF NOT EXISTS transport_services (
+      id TEXT PRIMARY KEY,
+      mode TEXT NOT NULL,
+      line_identifier TEXT NOT NULL,
+      name TEXT NOT NULL,
+      agency TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'OPERATIONAL',
+      origin_area TEXT NOT NULL,
+      destination_area TEXT NOT NULL,
+      headsign TEXT,
+      fare_type TEXT DEFAULT 'FLAT',
+      base_fare REAL DEFAULT 0,
+      provenance_tier TEXT NOT NULL DEFAULT 'VERIFIED',
+      provider TEXT NOT NULL DEFAULT 'Official Transit Timetable',
+      confidence TEXT NOT NULL DEFAULT 'HIGH',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_transport_services_mode ON transport_services(mode);
+    CREATE INDEX IF NOT EXISTS idx_transport_services_line ON transport_services(line_identifier);
+    CREATE INDEX IF NOT EXISTS idx_transport_services_status ON transport_services(status);
+
+    CREATE TABLE IF NOT EXISTS transport_stops (
+      id TEXT PRIMARY KEY,
+      service_id TEXT NOT NULL REFERENCES transport_services(id) ON DELETE CASCADE,
+      stop_id TEXT NOT NULL,
+      stop_name TEXT NOT NULL,
+      area TEXT NOT NULL,
+      stop_sequence INTEGER NOT NULL,
+      lat REAL NOT NULL,
+      lon REAL NOT NULL,
+      is_transit_hub INTEGER NOT NULL DEFAULT 0,
+      provenance_tier TEXT NOT NULL DEFAULT 'VERIFIED',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_transport_stops_service ON transport_stops(service_id);
+    CREATE INDEX IF NOT EXISTS idx_transport_stops_area ON transport_stops(area);
+
+    CREATE TABLE IF NOT EXISTS transport_schedules (
+      id TEXT PRIMARY KEY,
+      service_id TEXT NOT NULL REFERENCES transport_services(id) ON DELETE CASCADE,
+      trip_identifier TEXT NOT NULL,
+      from_stop_id TEXT NOT NULL,
+      to_stop_id TEXT NOT NULL,
+      departure_time TEXT NOT NULL,
+      arrival_time TEXT NOT NULL,
+      duration_minutes REAL NOT NULL,
+      operating_days TEXT NOT NULL DEFAULT '["Mon","Tue","Wed","Thu","Fri"]',
+      status TEXT NOT NULL DEFAULT 'OPERATIONAL',
+      provenance_tier TEXT NOT NULL DEFAULT 'VERIFIED',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_schedules_service ON transport_schedules(service_id);
+    CREATE INDEX IF NOT EXISTS idx_schedules_od ON transport_schedules(from_stop_id, to_stop_id);
+
+    CREATE TABLE IF NOT EXISTS commute_disruptions (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      affected_mode TEXT NOT NULL,
+      affected_route_id TEXT,
+      affected_area TEXT NOT NULL,
+      severity TEXT NOT NULL DEFAULT 'moderate',
+      description TEXT NOT NULL,
+      start_time INTEGER NOT NULL,
+      end_time INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      estimated_delay_minutes INTEGER NOT NULL DEFAULT 0,
+      provenance_tier TEXT NOT NULL DEFAULT 'USER_REPORTED',
+      provider TEXT NOT NULL DEFAULT 'Community Feed',
+      confidence TEXT NOT NULL DEFAULT 'MEDIUM',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_disruptions_status_time ON commute_disruptions(status, end_time);
+    CREATE INDEX IF NOT EXISTS idx_disruptions_mode_area ON commute_disruptions(affected_mode, affected_area);
+  `);
+
+  // Seed Prototype Transport & Disruption Data
+  try {
+    const { transportRepository } = require('../repositories/TransportRepository');
+    transportRepository.seedInitialTransportData();
+    const { disruptionRepository } = require('../repositories/DisruptionRepository');
+    disruptionRepository.seedInitialDisruptions();
+  } catch (seedErr) {
+    // Non-fatal if isolated context
+  }
 }
 
 function parseCsv(content) {

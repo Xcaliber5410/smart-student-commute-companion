@@ -52,6 +52,7 @@
     "verify:planning-engine": "node scripts/verify_study_planning_engine.js",
     "verify:commute-contracts": "node scripts/verify_commute_contracts.js",
     "verify:privacy-input": "node scripts/verify_privacy_commute_input.js",
+    "verify:transport-data": "node scripts/verify_transport_disruption_data.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",
     "test:study-resource-api": "node scripts/integration_study_resource_api_test.js",
     "test:study-resource-workflows": "node scripts/integration_study_resource_workflows_test.js",
