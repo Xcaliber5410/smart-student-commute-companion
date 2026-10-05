@@ -97,6 +97,10 @@ module.exports = {
   StudyPlanItem,
   studyPlanItemSchema,
   studyPlanItemStatusEnum,
-  studyPlanItemPriorityEnum
+  studyPlanItemPriorityEnum,
+
+  // Commute Domain Contracts (P9)
+  ...require('./CommuteContracts')
 };
+
 

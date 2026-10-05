@@ -100,9 +100,23 @@ const {
   planningInsightsQuerySchema,
   processPlanningRemindersSchema
 } = require('./studyPlanValidators');
+const {
+  commutePlanRequestSchema,
+  commuteDisruptionQuerySchema,
+  commuteFeedbackInputSchema,
+  sharedTravelQuerySchema,
+  preciseAddressPattern
+} = require('./commuteValidators');
 
 module.exports = {
   validate,
+  // Commute Domain (P9)
+  commutePlanRequestSchema,
+  commuteDisruptionQuerySchema,
+  commuteFeedbackInputSchema,
+  sharedTravelQuerySchema,
+  preciseAddressPattern,
+
   // Study Sessions
   createStudySessionSchema,
   updateStudySessionSchema,
