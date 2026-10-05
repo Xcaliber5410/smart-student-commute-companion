@@ -99,8 +99,11 @@ module.exports = {
   studyPlanItemStatusEnum,
   studyPlanItemPriorityEnum,
 
-  // Commute Domain Contracts (P9)
-  ...require('./CommuteContracts')
+  // Commute Domain Contracts & Safe Input (P9)
+  ...require('./CommuteContracts'),
+  ...require('./CommuteArea'),
+  ...require('./CommutePlanInputDTO')
 };
+
 
 

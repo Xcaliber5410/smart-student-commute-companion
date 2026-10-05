@@ -1,20 +1,17 @@
-const { z } = require('zod');
 const { ValidationError } = require('../errors');
 const { commutePlanService } = require('../services');
+const {
+  CommutePlanInputDTO,
+  findForbiddenPrivacyFields
+} = require('../models');
+const { commutePlanRequestSchema } = require('../validators');
 
-const planSchema = z.object({
-  origin: z.string().min(2, 'Origin area is required'),
-  destination: z.string().min(2, 'Destination college is required'),
-  desiredArrivalTime: z.string().optional().default('09:00'),
-  preferredModes: z.array(z.string()).optional().default(['train', 'metro', 'bus', 'auto', 'walk']),
-  preference: z.enum(['balanced', 'fastest', 'cheapest', 'rain-safe']).optional().default('balanced'),
-  walkingToleranceMinutes: z.number().min(5).max(60).optional().default(20),
-  maxBudgetRupees: z.number().min(0).max(2000).optional().default(100)
-});
+const planSchema = commutePlanRequestSchema;
 
 /**
  * Commute planner controller
- * Thin HTTP adapter delegating business logic to commutePlanService.
+ * Validates privacy-safe commute inputs, converts to CommutePlanInputDTO,
+ * and delegates ephemeral calculation to commutePlanService.
  *
  * @param {import('express').Request} req
  * @param {import('express').Response} res
@@ -22,12 +19,34 @@ const planSchema = z.object({
  */
 async function planCommute(req, res, next) {
   try {
-    const parsed = planSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return next(new ValidationError('Validation failed', parsed.error.format()));
+    // 1. Strict check for forbidden privacy/tracking fields
+    const forbidden = findForbiddenPrivacyFields(req.body);
+    if (forbidden.length > 0) {
+      return next(new ValidationError('Validation failed', {
+        privacy: {
+          _errors: [`Privacy violation: Prohibited field(s) detected: ${forbidden.join(', ')}. Commute Companion does not accept precise location history, GPS tracking, or home addresses.`]
+        }
+      }));
     }
 
-    const planResult = await commutePlanService.planCommute(parsed.data);
+    // 2. Validate input and construct DTO
+    let dto;
+    try {
+      dto = CommutePlanInputDTO.fromRequest(req.body);
+    } catch (err) {
+      if (err.name === 'ZodError') {
+        return next(new ValidationError('Validation failed', err.format()));
+      }
+      if (err.code === 'PRIVACY_VIOLATION') {
+        return next(new ValidationError('Validation failed', {
+          privacy: { _errors: [err.message] }
+        }));
+      }
+      throw err;
+    }
+
+    // 3. Delegate ephemeral routing parameters (no coordinates or history persisted)
+    const planResult = await commutePlanService.planCommute(dto.toEphemeralRoutingParams());
     return res.json(planResult);
   } catch (err) {
     next(err);

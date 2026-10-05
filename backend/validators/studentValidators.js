@@ -1,13 +1,21 @@
-/**
- * Student Workflow Request Validation Schemas
- */
-
 const { z } = require('zod');
+const { checkAreaGranularity } = require('../models/CommuteArea');
+
+const privacyAreaValidator = z.string().trim().superRefine((val, ctx) => {
+  if (!val) return;
+  const check = checkAreaGranularity(val);
+  if (!check.valid) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: check.reason
+    });
+  }
+});
 
 // 1. Profile / Context
 const studentProfileUpdateSchema = z.object({
-  home_area: z.string().max(100).optional(),
-  default_college: z.string().max(150).optional(),
+  home_area: privacyAreaValidator.pipe(z.string().max(100)).optional().or(z.literal('')),
+  default_college: privacyAreaValidator.pipe(z.string().max(150)).optional().or(z.literal('')),
   preferred_modes: z.array(z.string()).optional(),
   walking_tolerance_minutes: z.number().int().min(5).max(60).optional(),
   max_budget_rupees: z.number().int().min(0).max(2000).optional(),
@@ -53,8 +61,8 @@ const scheduleFilterSchema = z.object({
 // 3. Saved Routes
 const createSavedRouteSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  origin: z.string().min(2, 'Origin is required').max(150),
-  destination: z.string().min(2, 'Destination is required').max(150),
+  origin: privacyAreaValidator.pipe(z.string().min(2, 'Origin is required').max(150)),
+  destination: privacyAreaValidator.pipe(z.string().min(2, 'Destination is required').max(150)),
   preferred_mode: z.string().optional().default('balanced'),
   max_budget: z.number().int().min(0).max(2000).optional().default(100),
   summary: z.string().optional().default(''),
@@ -63,8 +71,8 @@ const createSavedRouteSchema = z.object({
 
 const updateSavedRouteSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  origin: z.string().min(2).max(150).optional(),
-  destination: z.string().min(2).max(150).optional(),
+  origin: privacyAreaValidator.pipe(z.string().min(2).max(150)).optional(),
+  destination: privacyAreaValidator.pipe(z.string().min(2).max(150)).optional(),
   preferred_mode: z.string().optional(),
   max_budget: z.number().int().min(0).max(2000).optional(),
   summary: z.string().optional(),
