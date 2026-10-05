@@ -66,3 +66,6 @@ export { default as UnreadCountBadge } from './UnreadCountBadge';
 
 // Reusable Time Range Field (Day 13)
 export { default as TimeRangeInput } from './TimeRangeInput';
+
+// Reusable Password Input with Reveal Toggle (Day 14)
+export { default as PasswordField } from './PasswordField';

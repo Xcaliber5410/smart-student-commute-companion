@@ -312,6 +312,24 @@ import { TimeRangeInput } from '@/components/ui';
 
 **Props**: `id` (base id), `legend`, `startLabel`/`endLabel`, `startValue`/`endValue`, `onChangeStart`/`onChangeEnd`, `disabled`, `hint` (node), `className`
 
+### PasswordField
+Labelled password input with a built-in show/hide reveal toggle (Day 14 Student Account). Shares `Input`'s contract — `label`, `error` (renders `role="alert"` + `aria-invalid`), `hint`, `required`, `disabled`, `autoComplete` — and adds an accessible reveal button (`aria-pressed`, always-named) that is component-local, so visibility never disturbs the form value or focus.
+
+```jsx
+import { PasswordField } from '@/components/ui';
+
+<PasswordField
+  id="account-password"
+  label="Password"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  autoComplete="current-password"
+  required
+/>
+```
+
+**Props**: `label`, `id`, `value`, `onChange`, `required`, `disabled`, `error`, `hint`, `autoComplete`, `placeholder`, `name`, `className`, `containerClassName`
+
 ## Import Patterns
 
 **Recommended** (barrel import):
