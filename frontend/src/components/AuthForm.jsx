@@ -2,6 +2,57 @@ import React, { useState } from 'react';
 import { LogIn, UserPlus, Mail } from 'lucide-react';
 import { Alert, Button, Input, Tabs, TabPanel } from './ui';
 import PasswordField from './ui/PasswordField';
+import {
+  focusFirstInvalid,
+  validateEmail,
+  validateForm,
+  validatePassword,
+  validateRequired,
+  validateText,
+} from '../utils/validation';
+
+// Field → DOM id map so failed submits hand focus to the first invalid field
+const AUTH_FIELD_IDS = {
+  email: 'account-email',
+  password: 'account-password',
+  full_name: 'account-full-name',
+  college_name: 'account-college',
+};
+
+/**
+ * Build the client-side rules for the active mode. The rules mirror the
+ * backend's `registerSchema` / `loginSchema` (same limits, same messages) so
+ * the form rejects exactly what the server would reject — never more.
+ *
+ * @param {boolean} isRegisterMode - Register rules vs sign-in rules
+ * @returns {Object} validateForm() schema
+ */
+function buildAuthSchema(isRegisterMode) {
+  const schema = {
+    email: [
+      (value) => validateRequired(value, 'Email address'),
+      (value) => (value && value.length > 255 ? 'Email cannot exceed 255 characters' : null),
+      (value) => validateEmail(value),
+    ],
+    password: [
+      (value) => validateRequired(value, 'Password'),
+      (value) => validatePassword(value, { registration: isRegisterMode }),
+    ],
+  };
+
+  if (isRegisterMode) {
+    schema.full_name = [
+      (value) => validateRequired(value, 'Full name'),
+      (value) => validateText(value, { minLength: 2, maxLength: 100, label: 'Full name' }),
+    ];
+    schema.college_name = [
+      (value) => validateRequired(value, 'College name'),
+      (value) => validateText(value, { minLength: 2, maxLength: 150, label: 'College name' }),
+    ];
+  }
+
+  return schema;
+}
 
 /**
  * AuthForm - Sign-in / create-account form for the Student Account screen
@@ -35,21 +86,71 @@ export default function AuthForm({
   const [fullName, setFullName] = useState('');
   const [collegeName, setCollegeName] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  // A field validates on blur once the student has engaged with it, or after
+  // the first submit attempt — tabbing past an untouched empty field never
+  // shouts "required" at them.
+  const [touched, setTouched] = useState({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const isRegisterMode = mode === 'register';
 
+  const currentValues = () =>
+    isRegisterMode
+      ? { email, password, full_name: fullName, college_name: collegeName }
+      : { email, password };
+
+  const validateSingle = (name, value) => {
+    const schema = buildAuthSchema(isRegisterMode);
+    if (!schema[name]) return null;
+    const { errors } = validateForm({ [name]: value }, { [name]: schema[name] });
+    return errors[name] || null;
+  };
+
+  const clearFieldError = (name) => {
+    setFieldErrors((current) =>
+      current[name] ? { ...current, [name]: undefined } : current
+    );
+  };
+
+  const handleModeChange = (nextMode) => {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    // Errors belong to the mode that produced them (sign-in rules differ from
+    // registration rules) — drop both field errors and the server message.
+    setFieldErrors({});
+    setTouched({});
+    setSubmitAttempted(false);
+    onDismissSubmitError?.();
+  };
+
+  const handleBlur = (name, value) => {
+    setTouched((current) => ({ ...current, [name]: true }));
+    const shouldValidate = submitAttempted || touched[name] ||
+      (typeof value === 'string' && value.trim().length > 0);
+    if (!shouldValidate) return;
+    const error = validateSingle(name, value);
+    setFieldErrors((current) => ({ ...current, [name]: error || undefined }));
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting) return; // ignore Enter/double-click while a request runs
+
+    const values = currentValues();
+    const { isValid, errors } = validateForm(values, buildAuthSchema(isRegisterMode));
+    setSubmitAttempted(true);
+
+    if (!isValid) {
+      setFieldErrors(errors);
+      focusFirstInvalid(errors, AUTH_FIELD_IDS);
+      return;
+    }
+
+    setFieldErrors({});
     if (isRegisterMode) {
-      onSubmitRegister?.({
-        email,
-        password,
-        full_name: fullName,
-        college_name: collegeName,
-      });
+      onSubmitRegister?.(values);
     } else {
-      onSubmitSignIn?.({ email, password });
+      onSubmitSignIn?.(values);
     }
   };
 
@@ -73,7 +174,7 @@ export default function AuthForm({
           { id: 'register', label: 'Create account', icon: UserPlus },
         ]}
         activeTab={mode}
-        onChange={setMode}
+        onChange={handleModeChange}
       />
 
       <TabPanel idPrefix="account-auth" tabId={mode}>
@@ -98,7 +199,11 @@ export default function AuthForm({
             autoComplete="email"
             placeholder="you@college.edu"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              clearFieldError('email');
+            }}
+            onBlur={(event) => handleBlur('email', event.target.value)}
             error={fieldErrors.email}
             icon={<Mail className="w-4 h-4" aria-hidden="true" />}
             required
@@ -111,7 +216,11 @@ export default function AuthForm({
             autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
             placeholder={isRegisterMode ? 'Choose a password' : 'Your password'}
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              clearFieldError('password');
+            }}
+            onBlur={(event) => handleBlur('password', event.target.value)}
             error={fieldErrors.password}
             required
             disabled={isSubmitting}
@@ -126,7 +235,11 @@ export default function AuthForm({
                 autoComplete="name"
                 placeholder="Your full name"
                 value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
+                onChange={(event) => {
+                  setFullName(event.target.value);
+                  clearFieldError('full_name');
+                }}
+                onBlur={(event) => handleBlur('full_name', event.target.value)}
                 error={fieldErrors.full_name}
                 required
                 disabled={isSubmitting}
@@ -138,7 +251,11 @@ export default function AuthForm({
                 autoComplete="organization"
                 placeholder="Your college"
                 value={collegeName}
-                onChange={(event) => setCollegeName(event.target.value)}
+                onChange={(event) => {
+                  setCollegeName(event.target.value);
+                  clearFieldError('college_name');
+                }}
+                onBlur={(event) => handleBlur('college_name', event.target.value)}
                 error={fieldErrors.college_name}
                 hint="At least 2 characters — shown on your student profile."
                 required

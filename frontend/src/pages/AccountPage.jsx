@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserRound } from 'lucide-react';
-import { ErrorState, LoadingState } from '../components/ui';
+import { ConfirmDialog, ErrorState, LoadingState } from '../components/ui';
 import AuthForm from '../components/AuthForm';
 import AccountProfileCard from '../components/AccountProfileCard';
 
@@ -53,6 +53,14 @@ export default function AccountPage({
   onSignOut,
 }) {
   const user = session?.user || null;
+  const [isConfirmingSignOut, setIsConfirmingSignOut] = useState(false);
+
+  // Sign-out is confirmed before it runs: losing the session switches the
+  // screen back to the guest forms, so the student always sees it coming.
+  const handleConfirmSignOut = () => {
+    setIsConfirmingSignOut(false);
+    onSignOut?.();
+  };
 
   const statusLine = isHydrating
     ? 'Checking your saved session…'
@@ -119,7 +127,7 @@ export default function AccountPage({
           isRefreshingSession={isRefreshingSession}
           lastVerifiedAt={lastVerifiedAt}
           refreshError={hydrateError}
-          onRequestSignOut={onSignOut}
+          onRequestSignOut={() => setIsConfirmingSignOut(true)}
         />
       )}
 
@@ -138,6 +146,17 @@ export default function AccountPage({
           />
         </section>
       )}
+
+      {/* Destructive-action confirmation (UI only; sign-out fires on confirm) */}
+      <ConfirmDialog
+        isOpen={isConfirmingSignOut}
+        onCancel={() => setIsConfirmingSignOut(false)}
+        onConfirm={handleConfirmSignOut}
+        title="Sign out of your account?"
+        message="You'll browse as a guest on this device. Your saved commutes, preferences, and offline queue stay on this device."
+        confirmLabel="Sign out"
+        destructive
+      />
     </div>
   );
 }

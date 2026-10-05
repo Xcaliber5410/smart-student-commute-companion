@@ -101,6 +101,31 @@ export function validateEmail(value, label = 'Email address') {
 }
 
 /**
+ * Validate a password against the backend's registration strength rules
+ * (mirrors `backend/utils/password.js#validatePasswordStrength` so the
+ * client rejects the same values the server would, with the same messages).
+ *
+ * Sign-in only needs a non-empty password — strength rules apply when
+ * creating an account (`registration: true`).
+ *
+ * @param {string} value - Password string
+ * @param {Object} [options]
+ * @param {boolean} [options.registration=false] - Apply strength rules
+ * @param {string} [options.label='Password'] - Human-readable label
+ * @returns {string|null} Error message or null if valid
+ */
+export function validatePassword(value, { registration = false, label = 'Password' } = {}) {
+  if (!registration) return null; // sign-in: presence is checked by validateRequired
+  if (typeof value !== 'string') return `${label} must be a string`;
+  if (value.length < 8) return `${label} must be at least 8 characters long`;
+  if (value.length > 128) return `${label} cannot exceed 128 characters`;
+  if (!/[a-z]/.test(value)) return `${label} must contain at least one lowercase letter`;
+  if (!/[A-Z]/.test(value)) return `${label} must contain at least one uppercase letter`;
+  if (!/[0-9]/.test(value)) return `${label} must contain at least one number`;
+  return null;
+}
+
+/**
  * Validate 24-hour time format (HH:MM)
  * 
  * @param {string} value - Time string
