@@ -59,6 +59,13 @@ import {
 } from './services/deviceAlerts';
 import { getSocket } from './services/socket';
 import {
+  signIn,
+  registerAccount,
+  fetchCurrentUser,
+  signOut,
+} from './services/auth';
+import { AUTH_SESSION_EXPIRED_EVENT } from './utils/authSession';
+import {
   clearShareTargetData,
   getShareTargetData,
   watchShareTargetDeliveries,
@@ -159,6 +166,22 @@ export default function App() {
   const analyticsResource = useAsyncResource(
     () => readAnalyticsSnapshot(),
     { errorMessage: 'Unable to read the metrics stored on this device. Check that site storage is allowed and try again.' }
+  );
+
+  // Day 14 — Student Account: verify any stored session against
+  // GET /api/auth/me on launch. Returns null when signed out (or when the
+  // token was rejected — fetchCurrentUser clears it), and only network/
+  // server failures become a retryable error state.
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [authSubmitError, setAuthSubmitError] = useState(null);
+  const [lastVerifiedAt, setLastVerifiedAt] = useState(null);
+  const sessionResource = useAsyncResource(
+    async () => {
+      const session = await fetchCurrentUser();
+      setLastVerifiedAt(session ? new Date().toISOString() : null);
+      return session;
+    },
+    { errorMessage: 'Unable to verify your saved session. Check your connection and try again.' }
   );
 
   // Client-side personalization preferences (device-local, no backend sync)
@@ -459,6 +482,8 @@ export default function App() {
     groupsResource.load();
     savedCommutesResource.load();
     analyticsResource.load();
+    // Day 14 — verify a stored Student Account session (no-op when signed out)
+    sessionResource.load();
 
     // 2. Setup Socket.IO
     const socket = getSocket();
@@ -748,6 +773,66 @@ export default function App() {
     }
     return result;
   };
+
+  // Day 14 — Student Account actions. Every call goes through the real
+  // /api/auth endpoints (services/auth.js); failures land in the form's
+  // error alert instead of being swallowed.
+  const handleSignIn = async (credentials) => {
+    if (isSubmittingAuth) return; // ignore double-submit while a request runs
+    setIsSubmittingAuth(true);
+    setAuthSubmitError(null);
+    try {
+      const session = await signIn(credentials);
+      sessionResource.setData(session);
+      setLastVerifiedAt(new Date().toISOString());
+      showToast('Signed in — your student profile is verified.', 'success');
+    } catch (err) {
+      setAuthSubmitError(err?.message || 'Unable to sign in right now. Please try again.');
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleRegisterAccount = async (payload) => {
+    if (isSubmittingAuth) return;
+    setIsSubmittingAuth(true);
+    setAuthSubmitError(null);
+    try {
+      const session = await registerAccount(payload);
+      sessionResource.setData(session);
+      setLastVerifiedAt(new Date().toISOString());
+      showToast("Account created — you're signed in!", 'success');
+    } catch (err) {
+      setAuthSubmitError(err?.message || 'Unable to create the account right now. Please try again.');
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    signOut();
+    sessionResource.setData(null);
+    setLastVerifiedAt(null);
+    setAuthSubmitError(null);
+    showToast('Signed out — you are browsing as a guest on this device.', 'info');
+  };
+
+  const handleRetrySessionCheck = () => {
+    setAuthSubmitError(null);
+    return sessionResource.load();
+  };
+
+  // Day 14 — the backend rejected the stored token (401): drop back to guest
+  // state everywhere and explain why, so the UI never pretends to be signed in.
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      sessionResource.setData(null);
+      setLastVerifiedAt(null);
+      showToast('Your session expired — please sign in again.', 'warning');
+    };
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+    return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+  }, []);
 
   // Day 10 — clear recorded analytics after the screen's confirmation dialog
   const handleResetAnalytics = () => {
@@ -1090,7 +1175,22 @@ export default function App() {
         );
 
       case 'account':
-        return <AccountPage />;
+        return (
+          <AccountPage
+            session={sessionResource.data}
+            isHydrating={sessionResource.isLoading}
+            hydrateError={sessionResource.loadError}
+            onRetryHydrate={handleRetrySessionCheck}
+            isRefreshingSession={sessionResource.isRefreshing}
+            lastVerifiedAt={lastVerifiedAt}
+            onSubmitSignIn={handleSignIn}
+            onSubmitRegister={handleRegisterAccount}
+            isSubmitting={isSubmittingAuth}
+            submitError={authSubmitError}
+            onDismissSubmitError={() => setAuthSubmitError(null)}
+            onSignOut={handleSignOut}
+          />
+        );
 
       default:
         return (

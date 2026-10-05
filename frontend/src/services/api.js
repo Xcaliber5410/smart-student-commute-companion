@@ -1,4 +1,9 @@
 import { API_BASE_URL, logger } from '../config/index.js';
+import {
+  readAuthToken,
+  clearAuthSession,
+  AUTH_SESSION_EXPIRED_EVENT,
+} from '../utils/authSession.js';
 
 /**
  * Frontend API Service Layer
@@ -9,10 +14,15 @@ import { API_BASE_URL, logger } from '../config/index.js';
  * - Network failure detection
  * - Frontend-friendly error conversion (no stack traces exposed)
  * - Anonymous user token management (UX, not security)
+ * - Optional Bearer session header for signed-in students (Day 14)
  *
  * SECURITY NOTE:
  * - No secrets or credentials are stored here.
- * - The user token is a privacy pseudonym for anonymous voting only.
+ * - The `smart_commute_user_token` is a privacy pseudonym for anonymous
+ *   voting only.
+ * - The Student Account JWT lives in `utils/authSession.js` (device-local)
+ *   and is attached to requests here only while a session exists; requests
+ *   made while signed out are byte-for-byte what they were before Day 14.
  * - All real authorization is enforced server-side.
  */
 
@@ -39,6 +49,9 @@ export class FrontendApiError extends Error {
 
 /**
  * Core fetch wrapper with timeout, error normalization, and safe logging.
+ * Exported so feature services (e.g. services/auth.js) reuse one request
+ * path — timeouts, error mapping, the Bearer header and session-expiry
+ * handling — instead of re-implementing fetch themselves.
  *
  * @param {string} path - API path (appended to API_BASE_URL)
  * @param {RequestInit} [options={}] - Standard fetch options
@@ -46,10 +59,18 @@ export class FrontendApiError extends Error {
  * @returns {Promise<any>} Parsed JSON response
  * @throws {FrontendApiError} On any network or HTTP error
  */
-async function request(path, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+export async function request(path, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const url = `${API_BASE_URL}${path}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Day 14 — attach the stored session token to authenticated calls.
+  // Credential endpoints authenticate through their request body, so they
+  // never carry a (possibly stale) Bearer header; while signed out this is
+  // a no-op and no Authorization header is sent at all.
+  const isCredentialEndpoint =
+    path.startsWith('/auth/login') || path.startsWith('/auth/register');
+  const authToken = isCredentialEndpoint ? null : readAuthToken();
 
   try {
     const response = await fetch(url, {
@@ -57,9 +78,22 @@ async function request(path, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...(options.headers || {})
       }
     });
+
+    if (response.status === 401 && authToken) {
+      // The backend rejected our stored session — it is no longer valid.
+      // Drop it from the device and tell the app, so the UI never keeps
+      // rendering a signed-in student that the server no longer accepts.
+      // (Bad credentials on /auth/login never reach this branch: those
+      // requests carry no Authorization header.)
+      clearAuthSession();
+      if (typeof window !== 'undefined' && typeof CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+      }
+    }
 
     if (!response.ok) {
       // Try to extract a server-provided message — but never expose raw internals
