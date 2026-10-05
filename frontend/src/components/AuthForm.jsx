@@ -191,7 +191,12 @@ export default function AuthForm({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          aria-busy={isSubmitting}
+          className="space-y-4"
+        >
           <Input
             id="account-email"
             label="Email address"
@@ -261,7 +266,7 @@ export default function AuthForm({
                 required
                 disabled={isSubmitting}
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 Password must be at least 8 characters and include an uppercase letter,
                 a lowercase letter, and a number.
               </p>

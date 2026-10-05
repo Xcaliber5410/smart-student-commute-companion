@@ -60,7 +60,7 @@ export default function AccountProfileCard({
 
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         <div className="bg-slate-950/50 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-0">
-          <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+          <dt className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
             College
           </dt>
           <dd className="text-slate-200 truncate flex items-center gap-1.5">
@@ -69,7 +69,7 @@ export default function AccountProfileCard({
           </dd>
         </div>
         <div className="bg-slate-950/50 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-0">
-          <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+          <dt className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
             Role
           </dt>
           <dd className="text-slate-200 capitalize truncate">{user.role || 'student'}</dd>
@@ -83,8 +83,8 @@ export default function AccountProfileCard({
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-slate-500 flex items-center gap-1.5 min-w-0">
-          <KeyRound className="w-3.5 h-3.5 text-slate-500 shrink-0" aria-hidden="true" />
+        <p className="text-xs text-slate-400 flex items-center gap-1.5 min-w-0">
+          <KeyRound className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
           <span className="min-w-0 truncate">
             {isRefreshingSession
               ? 'Refreshing your profile…'

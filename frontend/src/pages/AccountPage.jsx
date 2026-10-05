@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { UserRound } from 'lucide-react';
 import { ConfirmDialog, ErrorState, LoadingState } from '../components/ui';
 import AuthForm from '../components/AuthForm';
@@ -55,6 +55,33 @@ export default function AccountPage({
   const user = session?.user || null;
   const [isConfirmingSignOut, setIsConfirmingSignOut] = useState(false);
 
+  // Focus handoff between the screen's states (Day-12 pattern): signing in
+  // moves focus to the verified profile heading, signing out — or a dropped
+  // session — returns it to the first sign-in field, so keyboard and
+  // screen-reader focus never silently falls to <body> when the branches
+  // swap. The first pass only records the baseline: plain page loads never
+  // steal focus.
+  const prevBranchRef = useRef(null);
+  useEffect(() => {
+    const branch = isHydrating ? 'loading' : user ? 'profile' : hydrateError ? 'error' : 'form';
+    const prev = prevBranchRef.current;
+    prevBranchRef.current = branch;
+    if (prev === null) return;
+
+    const focusById = (id) => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.setAttribute('tabindex', '-1');
+      element.focus();
+    };
+
+    if (prev === 'form' && branch === 'profile') {
+      focusById('account-profile-heading'); // announced as a heading
+    } else if ((prev === 'profile' || prev === 'error') && branch === 'form') {
+      focusById('account-email'); // ready to type credentials again
+    }
+  }, [user, isHydrating, hydrateError]);
+
   // Sign-out is confirmed before it runs: losing the session switches the
   // screen back to the guest forms, so the student always sees it coming.
   const handleConfirmSignOut = () => {
@@ -89,7 +116,7 @@ export default function AccountPage({
             id="account-status"
             role="status"
             aria-live="polite"
-            className="min-h-[1rem] text-xs text-slate-500"
+            className="min-h-[1rem] text-xs text-slate-400"
           >
             {statusLine}
           </p>
