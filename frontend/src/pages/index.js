@@ -19,3 +19,4 @@ export { default as DeviceAlertsPage } from './DeviceAlertsPage';
 export { default as InstallShareHubPage } from './InstallShareHubPage';
 export { default as AnalyticsPage } from './AnalyticsPage';
 export { default as OfflineQueuePage } from './OfflineQueuePage';
+export { default as AccountPage } from './AccountPage';

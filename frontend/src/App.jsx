@@ -10,7 +10,7 @@ import FeedbackModal from './components/FeedbackModal';
 import PreferencesDialog from './components/PreferencesDialog';
 import PwaStatusBanner from './components/PwaStatusBanner';
 import InstallPromoBanner from './components/InstallPromoBanner';
-import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage, InstallShareHubPage, AnalyticsPage, OfflineQueuePage } from './pages';
+import { PlannerPage, MyCommutesPage, TravelTogetherPage, LiveAlertsPage, TransitSearchPage, NotificationsPage, DeviceAlertsPage, InstallShareHubPage, AnalyticsPage, OfflineQueuePage, AccountPage } from './pages';
 import { 
   requestPlan, 
   sendFeedback
@@ -1088,6 +1088,9 @@ export default function App() {
             lastSyncedAt={queue.lastSyncedAt}
           />
         );
+
+      case 'account':
+        return <AccountPage />;
 
       default:
         return (

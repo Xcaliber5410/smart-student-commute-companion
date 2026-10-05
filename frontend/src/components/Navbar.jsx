@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   BarChart3,
-  UploadCloud
+  UploadCloud,
+  UserRound
 } from 'lucide-react';
 import { ENABLE_DEMO_RESET } from '../config/index.js';
 import { ConfirmDialog, UnreadCountBadge } from './ui';
@@ -97,6 +98,13 @@ export const NAV_ITEMS = [
     shortLabel: 'Queue',
     icon: UploadCloud,
     description: 'Reports saved to send when you reconnect'
+  },
+  {
+    id: 'account',
+    label: 'Account',
+    shortLabel: 'Account',
+    icon: UserRound,
+    description: 'Sign in to your optional student account'
   }
 ];
 
