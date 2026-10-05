@@ -5,7 +5,7 @@
 > 2. `docs/project-context/CURRENT_STATE.md` (what exists now, blockers)
 > 3. `docs/project-context/FEATURES.md` (status inventory)
 > 4. **Only** the latest relevant `docs/project-context/days/DAY-0X.md` when continuing
->    daily work (e.g., DAY-13.md to continue from Day 13). Older day logs = archaeology,
+>    daily work (e.g., DAY-14.md to continue from Day 14). Older day logs = archaeology,
 >    not instructions. For what was already verified/fixed across all days, also read
 >    `days/DAY-01-13-AUDIT.md` once.
 
@@ -16,7 +16,7 @@
 Mumbai student commute PWA: React 18 + Vite + Tailwind frontend (`frontend/`, the
 **Xcaliber** role — client-side only) + Express/SQLite backend (`backend/`, the
 **Skan** role). Daily frontend work happens on `frontfeat` in 7 fixed-message commits
-per "Day", merged to `main` at day end. Currently at **Day 13 + full audit**
+per "Day", merged to `main` at day end. Currently at **Day 14 + full audit**
 (see `days/DAY-01-13-AUDIT.md`).
 
 ## 2. Which branch to work on
@@ -49,7 +49,7 @@ branch; never force-push; never delete `frontfeat`.
   SW `pwa-analytics-v1` metrics store — extend `recordAnalytics`, don't build a second
   monitoring surface.
 - Device alerts, notifications view, PWA banners, preferences dialog, toasts, saved
-  commutes, all 10 tabs, demo reset, share target, `?tab=` deep links.
+  commutes, all 11 tabs, demo reset, share target, `?tab=` deep links.
 - Offline report queue: Day 11 screen (`?tab=offlinequeue`) + `services/offlineQueue.js`
   + App wiring — a network-failed report submission is enqueued and auto-delivered on
   reconnect; extend `syncQueue`, don't build a second queueing path.
@@ -64,14 +64,23 @@ branch; never force-push; never delete `frontfeat`.
 - Share-target delivery: the SW→page channel is `navigator.serviceWorker` and the
   request type is `SHARE_TARGET_FETCH` (fixed in the Day 1–13 audit after a runtime
   reproduction) — don't re-listen on `window` only or invent a new message type.
+- Student Account / auth: Day 14 `?tab=account` screen + `services/auth.js` +
+  `utils/authSession.js` (device-local `smart_commute_auth_session`) + the Bearer /
+  401-expiry handling inside `services/api.js` — sign-in, registration and session
+  verification are done; extend them, don't build a second auth path, a login wall,
+  or a second token store.
 - The `verify-frontend.js` suite — **extend**, never weaken; add a numbered section.
 - Any backend route/DB code (Skan's domain — off limits).
 
 ## 5. Known API / auth blockers (do not work around by faking)
 
-- Backend `/auth`, `/student`, `/notifications`, `/academic`, `/calendar` require JWT;
-  the frontend has **no auth**. Those features are BLOCKED (FEATURES.md §Backend
-  Dependent). Do not invent endpoints, tokens, or fake login flows.
+- Since **Day 14** the frontend HAS a real optional login (`services/auth.js`,
+  `?tab=account`): `POST /auth/register`, `POST /auth/login` (public) and
+  `GET /auth/me` (Bearer) are live; `api.js` attaches the session token and clears
+  it on 401. Authenticated groups (`/student`, `/notifications`, `/academic`,
+  `/calendar`, `/student/study-plans`) are therefore **reachable with a session but
+  have no screens yet** — a future day can consume one; still never invent
+  endpoints, tokens, or fake responses.
 - Available unauthenticated endpoints are listed in `CURRENT_STATE.md` — verify a route
   exists before wiring it.
 
@@ -104,7 +113,7 @@ documented exception).
 ## 8. Verification workflow (before every commit)
 
 ```bash
-cd frontend && npm run verify    # must be 100%, currently 319 checks
+cd frontend && npm run verify    # must be 100%, currently 351 checks
 cd frontend && npm run build     # must succeed (chunk >500kB warning is pre-existing)
 ```
 

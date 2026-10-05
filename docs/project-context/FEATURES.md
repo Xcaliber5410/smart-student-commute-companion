@@ -1,7 +1,7 @@
 # Feature Inventory — Smart Student Companion
 
 > Replacement for the missing `completed_features.md`. Statuses verified against source
-> code and Git history at frontend Day 13 + the Day 1–13 full audit
+> code and Git history at frontend Day 14 + the Day 1–13 full audit
 > (`days/DAY-01-13-AUDIT.md`). Statuses: **IMPLEMENTED**,
 > **PARTIAL**, **BLOCKED**, **PLANNED**. "Not verified from repository history" marks
 > anything unconfirmable.
@@ -16,9 +16,9 @@
 - **Files**: `layouts/AppShell.jsx`, `layouts/MainLayout.jsx`, `components/Navbar.jsx`
 - **API**: none (socket status indicator only)
 - **Notes**: sticky header with privacy banner, desktop nav, mobile drawer, fixed
-  10-item bottom nav (tightened Day 11 for ten tabs); responsive label scaling
-  (icon-only <1536px, short 2xl→2199px, full ≥2200px — re-tiered Day 10 for nine tabs,
-  re-measured Day 11 for ten).
+  11-item bottom nav (Day 14 added the Account tab); responsive label scaling
+  (icon-only <1840px, short 1840–2599px, full ≥2600px — re-measured Day 14 for
+  eleven tabs; the brand keeps `min-w-10` so its logo cannot overlap the nav).
 
 ### 2. Route planner — screen structure Day 3 (planner itself dates to the hackathon MVP)
 - **Status**: IMPLEMENTED
@@ -133,7 +133,7 @@
 
 ### 16. Verification suite — Day 1, extended daily
 - **Status**: IMPLEMENTED
-- **Files**: `frontend/verify-frontend.js` (319 checks, 24 sections)
+- **Files**: `frontend/verify-frontend.js` (351 checks, 25 sections)
 - **API**: none
 
 ### 17. PWA analytics & monitoring dashboard — Day 10
@@ -197,6 +197,28 @@
   screen; dialog sections are real headings with polite live status; 310-check verify
   suite passes (section 22).
 
+### 21. Student Account — sign-in, registration & session — Day 14
+- **Status**: IMPLEMENTED (optional, device-local session; frontend slice of the
+  previously BLOCKED B1 below — anonymous-first app, no login wall)
+- **Route**: `?tab=account` (11th tab)
+- **Files**: `pages/AccountPage.jsx`, `components/AuthForm.jsx`,
+  `components/AccountProfileCard.jsx`, `ui/PasswordField.jsx` (new kit, barrel +
+  README), `utils/authSession.js` (new store), `services/auth.js` (new),
+  `services/api.js` (exported `request`, Bearer attach + 401 expiry),
+  `utils/validation.js` (`validatePassword` mirroring the backend rules), App wiring
+  (`sessionResource`, handlers, `auth-session-expired` listener), `Navbar.jsx`
+- **API**: `POST /api/auth/register` (public), `POST /api/auth/login` (public),
+  `GET /api/auth/me` (Bearer) — all exercised for real against a running backend
+- **Notes**: register → **real** auto-login (register returns no token); session
+  persisted in `smart_commute_auth_session` (token + profile, never a password,
+  failure-safe); Bearer attached only while signed out never on credential endpoints;
+  401/404 clears the session and returns the UI to guest with a notice; sign-out is
+  confirmed via `ConfirmDialog` and is device-local (no backend revocation endpoint);
+  client validation mirrors `registerSchema`/`loginSchema` exactly (same messages);
+  loading/error(+retry)/empty states, focus handoff between states, arrow-key tabs,
+  reveal toggle semantics; nav re-tiered for 11 tabs (measured 360–3000px, no
+  overflow); 351-check verify suite (section 25).
+
 ---
 
 ## PARTIALLY IMPLEMENTED
@@ -213,7 +235,8 @@
 - **What's missing**: backend notification feed (`GET /api/alerts` exists but requires
   JWT — see `backend/routes/notificationRoutes.js`) and persistent server-side read
   state across devices.
-- **API dependency**: BLOCKED on auth (see Backend Dependent #B4).
+- **API dependency**: was BLOCKED on auth (see Backend Dependent #B4); the server
+  feed is reachable since Day 14 (a session exists) but is not wired yet.
 
 ### P2. Offline support
 - **Status**: PARTIAL (offline queueing done in Day 11; the rest intentionally open)
@@ -239,31 +262,38 @@ All blocked by the same verified root cause: these backend groups require
 auth implementation**.
 
 ### B1. Student authentication (register/login/session UI)
-- **Status**: BLOCKED
+- **Status**: IMPLEMENTED at the frontend (Day 14, feature #21 above) — a real
+  register/login/session-verification UI against the existing backend contract.
+  Deliberately not built (not blocked): profile editing, password change,
+  cross-device sync, server-side token revocation.
 - **Backend**: `/api/auth/*` implemented (`backend/routes/authRoutes.js`,
   `backend/middleware/authMiddleware.js`)
-- **Frontend files**: none exist (no login page/component — verified)
-- **Notes**: implementing this requires a real auth decision; fake auth is forbidden.
+- **Frontend files**: `pages/AccountPage.jsx`, `components/AuthForm.jsx`,
+  `components/AccountProfileCard.jsx`, `services/auth.js`, `utils/authSession.js`
 
 ### B2. Academic domain (courses, subjects, assignments, tasks, goals, productivity)
-- **Status**: BLOCKED
+- **Status**: READY (reachable with a Day-14 session) — no screen exists yet
 - **Backend**: `/api/academic/*` (+ goals/productivity endpoints,
   `backend/routes/academicRoutes.js`) implemented through backend Day 10
 - **Frontend files**: none — no academic page exists
 
 ### B3. Calendar / planning screens (calendar events, study sessions, upcoming work,
 workload analytics)
-- **Status**: BLOCKED
-- **Backend**: `/api/calendar/*` implemented (`backend/routes/calendarRoutes.js`,
-  planning docs `backend/docs/planning_workflows.md`)
+- **Status**: READY (reachable with a Day-14 session) — no screen exists yet. The
+  Day-13 backend study-planning suite (`/api/student/study-plans/*`, merged into
+  `main` before Day 14 — `days/DAY-13-BACKEND.md`) is the largest unused contract.
+- **Backend**: `/api/calendar/*` implemented (`backend/routes/calendarRoutes.js`),
+  planning docs `backend/docs/planning_workflows.md`
 - **Frontend files**: none — no calendar page exists
 
 ### B4. Server-backed notification feed
-- **Status**: BLOCKED (frontend view exists — see P1)
+- **Status**: PARTIAL (frontend view exists — see P1; the server feed is now
+  reachable with a Day-14 session but not wired)
 - **Backend**: `GET /api/alerts` etc. in `backend/routes/notificationRoutes.js`
 
 ### B5. Student dashboard/context API
-- **Status**: BLOCKED
+- **Status**: READY (reachable with a Day-14 session) — `DashboardOverview` still uses
+  its client-side workaround
 - **Backend**: `GET /student/context`, `GET /student/dashboard`
   (`backend/routes/studentRoutes.js`)
 - **Notes**: current `DashboardOverview` works around this with client-side state.
@@ -285,7 +315,7 @@ Only items verifiable from project documentation/roadmap files:
 - **Source**: `frontend/PWA_SUMMARY.md` "⏳ Requires Browser Testing" checklist
   (install prompt, real devices, Lighthouse audit — unticked).
 
-### R3. Frontend work beyond Day 13
+### R3. Frontend work beyond Day 14
 - **Status**: Not verified from repository history.
 
 (Former planned items "PWA Analytics & Monitoring (Day 10)", "offline request

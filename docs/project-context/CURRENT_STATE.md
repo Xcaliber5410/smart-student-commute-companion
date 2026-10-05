@@ -1,7 +1,7 @@
 # Current State — Smart Student Companion
 
-> Verified against the repository working tree and Git history at frontend Day 13
-> (HEAD `bef9454`, 2026-10-04, `frontfeat`; end-of-day merge to `main` follows this
+> Verified against the repository working tree and Git history at frontend Day 14
+> (HEAD `1a7dcec`, 2026-10-05, `frontfeat`; end-of-day merge to `main` follows this
 > docs commit). Anything unverifiable is marked
 > "Not verified from repository history."
 
@@ -11,8 +11,8 @@
 
 | Branch | State |
 |---|---|
-| `main` | At `03fc35b` (Day-11 + Day-12 docs) before Day 13's end-of-day merge; receives completed frontend days. |
-| `frontfeat` | At Day-13 HEAD (`bef9454` + docs). Xcaliber's working branch — Day-13 work merged to `main` at day end. |
+| `main` | At `f36a12b` (Day-13 backend study-planning suite + audit follow-ups) before Day 14's end-of-day merge; receives completed frontend days. |
+| `frontfeat` | At Day-14 HEAD (`1a7dcec` + docs). Xcaliber's working branch — Day-14 work merged to `main` at day end. |
 | `origin/day-01-foundation` | Historical Day-1 branch (tip `e8facbb`), unused now. |
 | `fix/budget-and-mode-filtering` | Local stale branch from the hackathon era; outside the daily workflow. |
 
@@ -23,14 +23,15 @@
 - **Framework**: React 18.3 + Vite 6 + Tailwind CSS 3.4 (`frontend/`), JSX only.
 - **Application shell**: `src/layouts/AppShell.jsx` → `MainLayout.jsx` (sticky
   `Navbar` header + content + optional sidebar `MapView`) with `PwaStatusBanner` and the
-  Day-9  `InstallPromoBanner` above page content; fixed 10-item mobile bottom nav.
+  Day-9  `InstallPromoBanner` above page content; fixed 11-item mobile bottom nav.
 - **Routing**: none (no react-router). `App.jsx` renders a page by switching on
   `activeTab` (default `'planner'`). `?tab=<id>` deep links initialize the tab on load
   (validated against `NAV_ITEMS`; invalid → planner). Unknown tab → `NotFound`.
-- **Pages (10)** — `src/pages/index.js`: `PlannerPage`, `MyCommutesPage`,
+- **Pages (11)** — `src/pages/index.js`: `PlannerPage`, `MyCommutesPage`,
   `TravelTogetherPage`, `LiveAlertsPage`, `TransitSearchPage`, `NotificationsPage`,
   `DeviceAlertsPage`, `InstallShareHubPage`, `AnalyticsPage` (Day 10),
-  `OfflineQueuePage` (Day 11).
+  `OfflineQueuePage` (Day 11), `AccountPage` (Day 14 — Student Account sign-in /
+  registration / session).
 - **Components**: feature components in `src/components/` (Navbar, PlannerForm,
   RouteResults, MapView, CreateReportModal, CreateGroupModal, FeedbackModal,
   PreferencesDialog, DashboardOverview, SavedCommutes, TransitSearchForm,
@@ -42,8 +43,13 @@
   `useAsyncResource` hook for loading/error/retry; no global store library. Day 11
   added App-level offline-queue state (`queue`, `isSyncingQueue`) for the offline
   report queue; Day 12 added App-level `notificationReadIds` +
-  `unreadNotificationsCount` (drives the Notifications screen and nav badges).
-- **Persistence**: `src/utils/uiPreferences.js` localStorage helpers — app preferences,
+  `unreadNotificationsCount` (drives the Notifications screen and nav badges);
+  Day 14 added the auth `sessionResource` (+ `isSubmittingAuth`/`authSubmitError` /
+  `lastVerifiedAt`) driving the Account screen.
+- **Persistence**: `src/utils/authSession.js` (Day 14) — Student Account session
+  envelope `smart_commute_auth_session` (`{token, user, savedAt}`, never a password,
+  failure-safe, corrupt payload = signed out) — plus `src/utils/uiPreferences.js`
+  localStorage helpers — app preferences,
   transit sort, recent searches, saved commutes, device-alert pref, install-promo
   snooze (via `services/installPromotion.js`); Day-10 analytics snapshot in
   `smart_commute_pwa_analytics` (via `services/pwaAnalytics.js`, merged with the SW's
@@ -65,11 +71,13 @@
   `api.js` services). Note: the kit's `ui/FormField`/`ui/SuccessState` had zero
   consumers and were removed in the audit follow-up (previously mis-stated).
 - **Responsive behavior**: Tailwind breakpoints; icon/short/full-label scaling in
-  `Navbar` (ten tabs since Day 11: icon-only <1536px, short from 2xl → 2199px, full
-  labels ≥2200px — re-measured because ten full labels no longer fit at 1920px), mobile
-  drawer + fixed bottom nav (tightened to `text-[10px]`/`px-0.5` for ten items), grids
-  collapse `sm:`/`md:`. Verified by local audits at 360–1920 px (tooling was
-  session-local, not committed — see "Testing" below).
+  `Navbar` (**eleven tabs since Day 14**: icon-only <1840px, short labels 1840–2599px,
+  full labels ≥2600px — re-measured in Chrome because the eleventh tab overflowed the
+  old 1536/2200 thresholds by up to 113px; the brand keeps `min-w-10` so its logo can
+  no longer overlap the first nav item when the row is tight), mobile drawer + fixed
+  bottom nav (11 items fit 360px with ≥47px targets), grids collapse `sm:`/`md:`.
+  Verified by session-local headless-Chrome audits at 360–3000 px (tooling not
+  committed — see "Testing" below).
 
 ---
 
@@ -106,6 +114,8 @@ route files for these paths do **not** require authentication)
 | `GET /transit/search` | transit search |
 | `POST /feedback` | route feedback submission |
 | `POST /demo/reset` | demo reset |
+| `POST /auth/register`, `POST /auth/login` | Student Account (Day 14) — public |
+| `GET /auth/me` | Student Account session verification (Day 14; called **with** `Authorization: Bearer <JWT>` while signed in) |
 
 Plus **Socket.IO** events (client listens): `live_report_created`,
 `live_report_updated`, `live_report_expired`, `demo_reset`,
@@ -115,19 +125,23 @@ Plus **Socket.IO** events (client listens): `live_report_created`,
 `GET /live-reports/:id`, `GET /ride-groups/:id`, and `GET /feedback` — **not called**
 by the current frontend, verified against `api.js`.)
 
-### EXPECTED BUT NOT CURRENTLY AVAILABLE TO THE FRONTEND (backend exists but requires
-`Authorization: Bearer <JWT>` — the frontend has no auth, so these are unreachable)
+### REACHABLE WITH A SESSION, BUT NOT YET CONSUMED BY ANY SCREEN
 
-- `/api/auth/*` (`POST /auth/register`, `POST /auth/login`, `GET /auth/me`, user CRUD)
+Since Day 14 the frontend can obtain and attach a JWT, so these backend groups are
+no longer structurally blocked — but **no UI exists** for them yet (verified: only
+`/auth/*` paths appear in `frontend/src`):
+
 - `/api/student/*` (`GET /student/context`, `GET /student/dashboard` …)
 - `/api/notifications/*` (incl. `GET /alerts`) — while `NotificationsPage` currently
   renders client-side from loaded reports
 - `/api/academic/*` (courses, subjects, assignments, goals, productivity summaries)
 - `/api/calendar/*` (calendar events, study sessions, upcoming work, workload analytics)
+- `/api/student/study-plans/*` (Day-13 backend planning suite merged into `main`
+  before Day 14 — see `days/DAY-13-BACKEND.md`)
 
-Exact endpoint lists for the authenticated groups are in the route files
-(`backend/routes/{auth,student,notification,academic,calendar}Routes.js`); the
-frontend does not call any of them (verified: no such paths in `frontend/src`).
+Exact endpoint lists are in the route files
+(`backend/routes/{student,notification,academic,calendar,studyPlan}Routes.js`). Do not
+build screens for them without the real contract check, and never fake responses.
 
 ---
 
@@ -135,14 +149,21 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 - Backend: JWT Bearer auth implemented (`backend/middleware/authMiddleware.js`),
   applied via `router.use(authenticate)` in the auth/student/notification/academic/
-  calendar route files (verified by grep).
-- Frontend: **no authentication implementation whatsoever** — no login UI, no token
-  storage, no auth headers. The only token present is `smart_commute_user_token`, a
-  random client-generated pseudonym used **only** for crowd-vote de-duplication
-  (`x-user-token`), explicitly documented in `api.js` as "UX, not security".
-- Consequence / **documented blocker**: any feature requiring authenticated endpoints
-  is BLOCKED. Authentication must not be faked. (Not verified from repository history:
-  whether/when an auth story is planned for the frontend.)
+  calendar/study-plan route files (verified by grep).
+- Frontend (since **Day 14**): a real, **optional** auth slice — `services/auth.js`
+  (`signIn`/`registerAccount`/`fetchCurrentUser`/`signOut`) against the public
+  `POST /auth/register` + `POST /auth/login` and Bearer `GET /auth/me`; session
+  persisted device-local in `smart_commute_auth_session` (token + profile, never a
+  password); `services/api.js` attaches `Authorization: Bearer` only while a session
+  exists (never on credential endpoints) and on 401 clears the session + broadcasts
+  `auth-session-expired`. Sign-in is voluntary — the app stays anonymous-first and
+  every pre-Day-14 feature works signed out unchanged.
+- Still separate: `smart_commute_user_token`, a random client-generated pseudonym used
+  **only** for crowd-vote de-duplication (`x-user-token`), explicitly documented in
+  `api.js` as "UX, not security".
+- Remaining authentication gaps (honest limits): no profile-edit or password-change
+  UI, no token revocation server-side (sign-out is device-local; JWT TTL 24 h), no
+  cross-device sync, no login wall.
 
 ---
 
@@ -190,7 +211,7 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 - **Framework**: none (no Jest/Vitest/Playwright — verified no such deps).
 - **Test command**: `cd frontend && npm run verify` (= `npm test`) →
-  `frontend/verify-frontend.js`, Node script, currently **319 checks / 24 sections**, all
+  `frontend/verify-frontend.js`, Node script, currently **351 checks / 25 sections**, all
   passing; exit code gates CI-less workflow. Static source assertions (files exist,
   patterns present), not runtime tests.
 - **Lint**: not configured (no eslint config/script — verified). Report as N/A.
@@ -199,17 +220,23 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 - **PWA checks**: section 6 of `verify-frontend.js` (manifest/SW/meta), section 19
   (Day-10 analytics), section 20 (Day-11 offline queue), section 21 (Day-12
   notification read state), section 22 (Day-13 notification preferences / quiet
-  hours), section 23 (Day 1–13 audit regression locks), + manual browser testing
+  hours), section 23 (Day 1–13 audit regression locks), section 24 (audit follow-up
+  cleanup locks), section 25 (Day-14 Student Account), + manual browser testing
   documented in `frontend/PWA_TESTING.md`.
-  Browser-based responsive/a11y audits used during Days 7–10 were **session-local
-  tools, not committed** — "Not verified from repository history" as reusable repo
-  assets.
+  Browser-based responsive/a11y/auth-flow audits used during Days 7–14 were
+  **session-local tools, not committed** — "Not verified from repository history" as
+  reusable repo assets. Day 14's runtime evidence: 18/18 flow checks (register →
+  auto sign-in → reload rehydration via `/auth/me` → sign-out, bad credentials,
+  invalid-token expiry, failed-check retry), 10/10 a11y checks, 12/12 viewport
+  responsive checks (360–3000 px), all against a real local backend.
 
 ---
 
 ## Known Issues / Blockers (verified only)
 
-1. **JWT gap** (Authentication section) — authenticated backend domains unreachable.
+1. **Authenticated data domains unused** — since Day 14 a session exists, but no
+   screens consume `/student`, `/academic`, `/calendar`, `/notifications` or
+   `/student/study-plans` yet (Authentication + API sections above).
 2. No lint/type-check gates — style/typo regressions rely on code review + verify.
 3. Vite build warning: bundle chunk > 500 kB (pre-existing, flagged every build).
 4. `frontend/PWA_SETUP.md` roadmap checkboxes are stale (Day 8–11 items implemented in
@@ -227,11 +254,13 @@ frontend does not call any of them (verified: no such paths in `frontend/src`).
 
 ## Next Logical Work (from repository/roadmap evidence only — no product decisions)
 
-- **Frontend Day 13 is complete** (notification preferences with quiet hours —
-  `days/DAY-13.md`); the same 7-commit cycle would continue for any Day 14+ on
-  `frontfeat`. Remaining *user-facing* roadmap checkboxes: install-promotion/
-  shortcuts tuning, and a future background-sync for the Day-11 queue (documented
-  risk: no duplicate reports — see `days/DAY-13.md`).
+- **Frontend Day 14 is complete** (Student Account — sign-in, registration &
+  session — `days/DAY-14.md`); the same 7-commit cycle would continue for Day 15+ on
+  `frontfeat`. Natural next: a screen over an authenticated domain now that sessions
+  exist (e.g., study plans — contract merged into `main` before Day 14). Remaining
+  *user-facing* roadmap checkboxes: install-promotion/shortcuts tuning, and a future
+  background-sync for the Day-11 queue (documented risk: no duplicate reports — see
+  `days/DAY-13.md`).
 - `frontend/PWA_SETUP.md` "Future PWA Roadmap" still lists **Day 10: Analytics &
   Monitoring** as unchecked (doc drift — implemented in code in Day 10); the file's
   Day 8–9 boxes are likewise stale.

@@ -25,16 +25,18 @@ side working in parallel.
 
 ## 2. Current development state (as of this documentation)
 
-- Frontend daily cycle has reached **Day 13** (last frontend commit `bef9454`,
-  2026-10-04: `test(frontend): verify Day 13 frontend implementation`; docs commit
+- Frontend daily cycle has reached **Day 14** (last frontend commit `1a7dcec`,
+  2026-10-05: `test(frontend): verify Day 14 frontend implementation`; docs commit
   follows).
-- `main` was at `03fc35b` (Day-12 docs) when Day 13 started; Day-13
-  work was merged `frontfeat` → `main` at day end per `GIT_WORKFLOW.md`.
+- `main` was at `f36a12b` (Day-13 backend study-planning suite + audit follow-ups)
+  when Day 14 started; Day-14 work was merged `frontfeat` → `main` at day end per
+  `GIT_WORKFLOW.md`.
 - Backend has progressed at least through its own "Day 10" goals/productivity suite
   (per `backend/docs/goal_and_productivity_workflows.md`, commits through `a8f8d80`,
   2026-10-01), plus the Day-11 start-of-day merge brought the study-resources suite
-  (`df275de`, 2026-10-03).
-- Frontend verification: `npm run verify` = **319/319 checks passing** (24 named
+  (`df275de`, 2026-10-03) and the Day-14 start-of-day merge brought the
+  study-planning suite (`920d2da…f36a12b`, 2026-10-04/05).
+- Frontend verification: `npm run verify` = **351/351 checks passing** (25 named
   sections), `npm run build` succeeds. A full Day 1–13 audit (runtime tests in
   headless Chrome incl. offline + share-target flows) is recorded in
   `days/DAY-01-13-AUDIT.md`.
@@ -43,11 +45,14 @@ side working in parallel.
 
 The frontend is the entire student-facing product: route planning, live disruption feed,
 ride pools, transit search, notifications view, device alerts, PWA installation/
-sharing, and an offline queue that keeps reports filed without connectivity until they
-can be delivered. It is designed as an installable PWA (home-screen launch, offline app
+sharing, an offline queue that keeps reports filed without connectivity until they
+can be delivered, and (since Day 14) an optional Student Account (sign-in /
+registration / verified profile). It is designed as an installable PWA (home-screen
+launch, offline app
 shell, share target, shortcuts) so students can use it cheaply on mobile. It talks to
-the backend over a small set of JSON endpoints and a Socket.IO channel; it holds **no
-user accounts** client-side.
+the backend over a small set of JSON endpoints and a Socket.IO channel; user accounts
+are **optional** — the app is anonymous-first and every commute feature works signed
+out.
 
 ## 4. Role of Xcaliber
 
@@ -144,10 +149,10 @@ Browser (PWA)                                  Express backend (backend/)
 ## 10. Important routes (frontend "tabs")
 
 `NAV_ITEMS` in `frontend/src/components/Navbar.jsx` is the single source of truth —
-10 tabs: `planner` (Plan Route), `mycommutes`, `transit` (Transit Search), `together`
+11 tabs: `planner` (Plan Route), `mycommutes`, `transit` (Transit Search), `together`
 (Travel Together), `feed` (Live Alerts), `notifications`, `devicealerts`,
 `installshare` (Install & Share), `analytics` (PWA Analytics), `offlinequeue`
-(Offline Queue, Day 11). Backend HTTP paths used
+(Offline Queue, Day 11), `account` (Student Account, Day 14). Backend HTTP paths used
 by the frontend are listed in
 `CURRENT_STATE.md`.
 
@@ -166,9 +171,13 @@ UI kit lives in `frontend/src/components/ui/` (barrel-exported). Most reused:
 ## 12. Important frontend services
 
 - `services/api.js` — the **only** place that calls `fetch`; exports `FrontendApiError`,
-  `planCommute`, `fetchLiveReports`, `postLiveReport`, `confirmReport`,
+  `request` (shared wrapper — timeouts, error mapping, Bearer header, 401 session
+  expiry), `planCommute`, `fetchLiveReports`, `postLiveReport`, `confirmReport`,
   `contradictReport`, `fetchRideGroups`, `postRideGroup`, `joinRideGroup`,
   `searchTransitNetwork`, `submitFeedback`, `resetDemoState`, `checkHealth`.
+- `services/auth.js` — Day 14 Student Account: `signIn`, `registerAccount` (register
+  + real auto-login), `fetchCurrentUser` (GET `/auth/me` verification), `signOut`
+  against `/api/auth/*`; session persistence lives in `utils/authSession.js`.
 - `services/socket.js` — Socket.IO connection.
 - `services/planner.js`, `liveReports.js`, `rideGroups.js`, `transit.js` — domain-level
   helpers composed on top of `api.js`.
@@ -226,17 +235,21 @@ not authentication; all real authorization is server-side.
 ## 16. Authentication dependencies / blockers
 
 The backend exposes authenticated route groups that require `Authorization: Bearer <JWT>`:
-`/auth`, `/student`, `/notifications`, `/academic`, `/calendar` (verified:
-`router.use(authenticate)` in those route files). **The frontend has no authentication
-implementation at all** (no login UI, no token storage — by design so far). Any feature
-needing those endpoints is **BLOCKED** until a real auth story exists; do not fake it.
-The endpoints the frontend currently uses are all unauthenticated. See FEATURES.md
-"Backend Dependent".
+`/student`, `/notifications`, `/academic`, `/calendar`, `/student/study-plans`
+(verified: `router.use(authenticate)` in those route files).
+
+Since **Day 14** the frontend implements a real, optional auth story: it registers and
+logs in through the public `/api/auth/register` + `/api/auth/login`, persists the JWT
+device-local (`smart_commute_auth_session` via `utils/authSession.js`), attaches the
+Bearer header in `services/api.js` while a session exists, verifies it on launch with
+`GET /api/auth/me`, and clears it on 401. The authenticated groups above are therefore
+**reachable with a session but have no screens yet** (no screen may be built on a
+faked response — check the contract, as always). See FEATURES.md "Backend Dependent".
 
 ## 17. Testing / lint / type-check / build
 
 - **Tests**: `cd frontend && npm run verify` (alias `npm test`) → `verify-frontend.js`,
-  a Node script performing **319 static source checks across 24 sections** (structure,
+  a Node script performing **351 static source checks across 25 sections** (structure,
   config, design system, PWA, and per-day feature checks). These are source-level
   assertions, not runtime unit tests. No Jest/Vitest/Playwright exists.
 - **Lint**: **none configured** (no eslint config or script — verified).
@@ -247,7 +260,10 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 
 ## 18. Known limitations
 
-- No frontend auth → authenticated backend domains unreachable (§16).
+- Authenticated backend domains are reachable since Day 14 but have **no screens** —
+  consuming one (e.g., study plans) is future work (§16).
+- Auth limits: device-local optional session only — no profile edit/password change
+  UI, no server-side token revocation (24 h JWT), no cross-device sync.
 - No lint/type-check gate; verification is static + build only.
 - Single bundle chunk exceeds Vite's 500 kB warning threshold.
 - Offline support = static shell + a device-local offline report queue (Day 11); no
@@ -261,9 +277,11 @@ The endpoints the frontend currently uses are all unauthenticated. See FEATURES.
 
 ## 19. Known blockers
 
-- **JWT auth gap** (§16) — the only structural blocker for frontend features.
-- Missing backend capability that has *not* blocked anything so far: none; all Days 1–11
-  frontend features were completable client-side.
+- The historical **JWT auth gap** (§16) was closed at the frontend on Day 14
+  (optional sign-in); what remains is product work (screens over authenticated
+  domains), not a blocker.
+- Missing backend capability that has *not* blocked anything so far: none; all Days 1–14
+  frontend features were completable without new backend code.
 - Environment: browser-PWA features (install prompt, share target) can only be truly
   exercised in a real/installable browser context; headless checks approximate them.
 

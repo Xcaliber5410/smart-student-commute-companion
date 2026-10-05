@@ -78,9 +78,9 @@
   for `{ data, isLoading, loadError, load() }` request state; App-level `useState` for
   tab, live reports, socket status, toast queue, modal flags, PWA install state,
   preferences; everything passed by props.
-- **Persistence**: only via `src/utils/uiPreferences.js` helpers (validated reads,
-  failure-safe writes) and `services/installPromotion.js` for its snooze key. Keys are
-  prefixed `smart_commute_`.
+- **Persistence**: via `src/utils/uiPreferences.js` helpers (validated reads,
+  failure-safe writes), `src/utils/authSession.js` for the Day-14 session envelope, and
+  `services/installPromotion.js` for its snooze key. Keys are prefixed `smart_commute_`.
 - **How to interact**: keep new feature state local; lift to App only when a sibling
   (navbar badge, another page, socket) needs it. Do not introduce Redux/Context/global
   stores.
@@ -88,15 +88,16 @@
 ## API / service architecture
 
 - **Where**: `src/services/api.js` is the single fetch layer (timeout, error
-  normalization, `FrontendApiError`, anonymous vote token). Domain services
-  (`planner.js`, `liveReports.js`, `rideGroups.js`, `transit.js`) compose it and are the
+  normalization, `FrontendApiError`, anonymous vote token, Day-14 Bearer session header
+  + 401 expiry). Domain services (`planner.js`, `liveReports.js`, `rideGroups.js`,
+  `transit.js`, `auth.js`) compose it and are the
   only modules pages/hooks should import for data. Browser-API services
   (`deviceAlerts.js`, `shareTarget.js`, `installPromotion.js`) do no network I/O.
 - **How to add an endpoint**: add an exported function in `api.js` (or a domain service
   that calls it) using `request(path, options)`; path is relative to `API_BASE_URL`.
   **Never** call `fetch` in a component; **never** invent endpoints — confirm the
-  backend route exists and is unauthenticated (see `CURRENT_STATE.md`), otherwise treat
-  the feature as BLOCKED.
+  backend route exists and is either unauthenticated or reachable with the Day-14
+  session (see `CURRENT_STATE.md`), otherwise treat the feature as BLOCKED.
 - **Live data**: socket listeners are registered in `App.jsx` (`services/socket.js`
   connection); new events follow the same pattern (listen → update App state → props).
 
