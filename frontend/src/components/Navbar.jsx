@@ -182,7 +182,7 @@ export default function Navbar({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
           
           {/* Brand Logo & Title */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-10">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-indigo-600 p-0.5 shadow-lg shadow-emerald-500/20 shrink-0">
               <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
                 <Compass className="w-5 h-5 text-emerald-400" aria-hidden="true" />
@@ -231,19 +231,23 @@ export default function Navbar({
                 >
                   <Icon className={`w-3.5 h-3.5 ${item.id === 'feed' && !isActive ? 'text-amber-400' : ''}`} aria-hidden="true" />
                   {/*
-                    Labels scale with available width so ten tabs never
-                    overflow the header (measured with the install control
-                    present): icon-only below 2xl (phones, tablets, laptops,
-                    smaller desktops), short labels from 2xl up to 2199px,
-                    full labels only at >=2200px where the ten full labels
-                    plus the right-hand controls fit the viewport without
-                    horizontal scrolling (Day-11 re-measured: 9 labels fit
-                    at 1920, ten do not — crossover ~2110px).
+                    Labels scale with available width so eleven tabs never
+                    overflow the header (measured in Chrome with the install
+                    control present): icon-only below 1840px (phones,
+                    tablets, laptops, smaller desktops), short labels from
+                    1840px up to 2599px, full labels only at >=2600px where
+                    the eleven full labels plus the right-hand controls fit
+                    the viewport without horizontal scrolling (Day-14
+                    re-measured for the eleventh Account tab: short labels
+                    from 2xl/1536px overflowed by up to 89px, full labels at
+                    2200px by up to 113px — both thresholds moved up; the
+                    brand also keeps a min-w so its logo can no longer
+                    overlap the first nav item when the row gets tight).
                     aria-label/title keep the target named when only the
                     icon shows.
                   */}
-                  <span className="hidden min-[2200px]:inline">{item.label}</span>
-                  <span className="hidden 2xl:inline min-[2200px]:hidden">{item.shortLabel}</span>
+                  <span className="hidden min-[2600px]:inline">{item.label}</span>
+                  <span className="hidden min-[1840px]:inline min-[2600px]:hidden">{item.shortLabel}</span>
                   {item.hasBadge && reportsCount > 0 && (
                     <span 
                       className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ml-0.5 ${
