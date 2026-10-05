@@ -167,6 +167,8 @@ const expectedEndpoints = [
   { method: 'POST', path: '/student/study-plans/generate' },
   { method: 'POST', path: '/student/study-plans/recalculate' },
   { method: 'GET', path: '/student/study-plans/current' },
+  { method: 'GET', path: '/student/study-plans/insights' },
+  { method: 'POST', path: '/student/study-plans/reminders/process' },
   { method: 'GET', path: '/student/study-plans/items' },
   { method: 'GET', path: '/student/study-plans/items/:id' },
   { method: 'PATCH', path: '/student/study-plans/items/:id/status' },
