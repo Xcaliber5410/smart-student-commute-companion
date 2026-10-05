@@ -54,8 +54,9 @@ Map the existing backend codebase into:
 
 ---
 
-## 4. Verification & Testing
+## 4. Verification & Documentation Artifacts
 
 - `npm test`: Smoke tests executed and verified (5 passed, 0 failed).
 - `npm run verify:routes`: Centralized route registration test verified across all 162 endpoints (4 passed, 0 failed).
-- Full audit document created at: [`docs/project-context/COMMUTE_BACKEND_AUDIT.md`](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/docs/project-context/COMMUTE_BACKEND_AUDIT.md).
+- Audit Blueprint: [`docs/project-context/COMMUTE_BACKEND_AUDIT.md`](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/docs/project-context/COMMUTE_BACKEND_AUDIT.md).
+- Architecture Blueprint: [`docs/project-context/COMMUTE_ARCHITECTURE.md`](file:///c:/DJ%20Sanghvi%20College/Projects/smart-student-commute-companion/docs/project-context/COMMUTE_ARCHITECTURE.md).
