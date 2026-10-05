@@ -2021,6 +2021,308 @@ if (!fileExists('public/icons/convert-to-png.md') && fileExists('docs/icons/conv
 }
 
 // ============================================================
+section('25. DAY 14 STUDENT ACCOUNT (AUTHENTICATION)');
+
+const accountPageDay14 = readFile('src/pages/AccountPage.jsx');
+if (fileExists('src/pages/AccountPage.jsx')) pass('Account page exists');
+else fail('Account page is missing');
+const pagesBarrelDay14 = readFile('src/pages/index.js');
+if (pagesBarrelDay14 && pagesBarrelDay14.includes("from './AccountPage'")) {
+  pass('Page barrel exports the account page');
+} else {
+  fail('Page barrel is missing the account export');
+}
+if (
+  navContent &&
+  navContent.includes("id: 'account'") &&
+  navContent.includes("label: 'Account'") &&
+  navContent.includes('UserRound')
+) {
+  pass('Navigation exposes the account tab with an icon and labels');
+} else {
+  fail('Navigation is missing the account tab entry');
+}
+if (
+  appContent &&
+  appContent.includes("case 'account':") &&
+  appContent.includes('<AccountPage') &&
+  appContent.includes('sessionResource')
+) {
+  pass('App routes the account tab to the feature screen via its session resource');
+} else {
+  fail('App does not route the account tab to the feature screen');
+}
+
+// Screen states
+if (
+  accountPageDay14 &&
+  accountPageDay14.includes('id="account-title"') &&
+  accountPageDay14.includes('role="status"') &&
+  accountPageDay14.includes('aria-live="polite"')
+) {
+  pass('Account screen has a titled header with a polite session status line');
+} else {
+  fail('Account screen is missing its title or session status region');
+}
+if (
+  accountPageDay14 &&
+  accountPageDay14.includes('<LoadingState') &&
+  accountPageDay14.includes('<ErrorState') &&
+  accountPageDay14.includes('onRetryHydrate')
+) {
+  pass('Account screen renders loading, error and retry states for session checks');
+} else {
+  fail('Account screen is missing session loading/error/retry states');
+}
+if (
+  accountPageDay14 &&
+  accountPageDay14.includes('<AuthForm') &&
+  accountPageDay14.includes('<AccountProfileCard') &&
+  !accountPageDay14.includes('<form')
+) {
+  pass('Account screen composes the auth form and profile card components');
+} else {
+  fail('Account screen carries inline form markup instead of the shared components');
+}
+if (
+  accountPageDay14 &&
+  accountPageDay14.includes('<ConfirmDialog') &&
+  accountPageDay14.includes('destructive') &&
+  accountPageDay14.includes('handleConfirmSignOut')
+) {
+  pass('Sign-out is gated behind a destructive confirmation dialog');
+} else {
+  fail('Sign-out has no confirmation dialog');
+}
+if (
+  accountPageDay14 &&
+  accountPageDay14.includes('prevBranchRef') &&
+  accountPageDay14.includes("focusById('account-profile-heading')") &&
+  accountPageDay14.includes("focusById('account-email')")
+) {
+  pass('Focus hands off between guest form, profile and error states');
+} else {
+  fail('Account screen drops keyboard focus when its states swap');
+}
+
+// Auth form: modes, validation, guards
+const authFormDay14 = readFile('src/components/AuthForm.jsx');
+if (fileExists('src/components/AuthForm.jsx')) pass('Auth form component exists');
+else fail('Auth form component is missing');
+if (
+  authFormDay14 &&
+  authFormDay14.includes('<Tabs') &&
+  authFormDay14.includes("id: 'signin'") &&
+  authFormDay14.includes("id: 'register'")
+) {
+  pass('Auth form switches between sign-in and create-account modes');
+} else {
+  fail('Auth form is missing the mode switch');
+}
+if (
+  authFormDay14 &&
+  authFormDay14.includes('buildAuthSchema') &&
+  authFormDay14.includes('validateForm(') &&
+  authFormDay14.includes('focusFirstInvalid')
+) {
+  pass('Auth form validates client-side and focuses the first invalid field');
+} else {
+  fail('Auth form is missing client-side validation or focus handling');
+}
+if (
+  authFormDay14 &&
+  authFormDay14.includes('validatePassword(value, { registration: isRegisterMode })')
+) {
+  pass('Password strength rules apply only when creating an account');
+} else {
+  fail('Auth form applies password rules inconsistently');
+}
+if (
+  authFormDay14 &&
+  authFormDay14.includes('if (isSubmitting) return;') &&
+  authFormDay14.includes('aria-busy={isSubmitting}') &&
+  authFormDay14.includes('onDismissSubmitError')
+) {
+  pass('Auth form guards duplicate submits, marks busy state and clears stale errors');
+} else {
+  fail('Auth form is missing submit guards or busy/error state handling');
+}
+if (
+  authFormDay14 &&
+  authFormDay14.includes('handleModeChange') &&
+  authFormDay14.includes('setFieldErrors({})')
+) {
+  pass('Switching modes resets mode-specific field and server errors');
+} else {
+  fail('Mode switches keep stale validation errors');
+}
+
+// Password field (kit)
+const passwordFieldDay14 = readFile('src/components/ui/PasswordField.jsx');
+if (fileExists('src/components/ui/PasswordField.jsx')) pass('Password field component exists');
+else fail('Password field component is missing');
+if (
+  passwordFieldDay14 &&
+  passwordFieldDay14.includes('aria-pressed') &&
+  passwordFieldDay14.includes('type={visible ? \'text\' : \'password\'}') &&
+  passwordFieldDay14.includes('role="alert"') &&
+  passwordFieldDay14.includes('aria-describedby')
+) {
+  pass('Password field exposes a labelled reveal toggle with error wiring');
+} else {
+  fail('Password field lacks reveal semantics or error wiring');
+}
+const uiBarrelDay14 = readFile('src/components/ui/index.js');
+if (uiBarrelDay14 && uiBarrelDay14.includes("from './PasswordField'")) {
+  pass('UI barrel exports the password field');
+} else {
+  fail('UI barrel is missing the password field export');
+}
+const uiReadmeDay14 = readFile('src/components/ui/README.md');
+if (uiReadmeDay14 && uiReadmeDay14.includes('PasswordField')) {
+  pass('UI component docs cover the password field');
+} else {
+  fail('UI component docs are missing the password field');
+}
+
+// Profile card
+const profileCardDay14 = readFile('src/components/AccountProfileCard.jsx');
+if (
+  profileCardDay14 &&
+  profileCardDay14.includes('id="account-profile-heading"') &&
+  profileCardDay14.includes('<dl') &&
+  profileCardDay14.includes('refreshError') &&
+  profileCardDay14.includes('onRequestSignOut')
+) {
+  pass('Profile card renders the verified profile with refresh status and sign-out');
+} else {
+  fail('Profile card is missing profile markup or session status handling');
+}
+
+// Client validation mirrors the backend contract
+const validationDay14 = readFile('src/utils/validation.js');
+if (
+  validationDay14 &&
+  validationDay14.includes('export function validatePassword') &&
+  validationDay14.includes('must be at least 8 characters') &&
+  validationDay14.includes('must contain at least one uppercase letter') &&
+  validationDay14.includes('must contain at least one number')
+) {
+  pass('Client password rules mirror the backend strength contract');
+} else {
+  fail('Client password validation does not mirror the backend contract');
+}
+
+// Session store (device-local)
+const authSessionDay14 = readFile('src/utils/authSession.js');
+if (fileExists('src/utils/authSession.js')) pass('Auth session store exists');
+else fail('Auth session store is missing');
+if (
+  authSessionDay14 &&
+  authSessionDay14.includes("'smart_commute_auth_session'") &&
+  authSessionDay14.includes('AUTH_SESSION_EXPIRED_EVENT') &&
+  authSessionDay14.includes('clearAuthSession') &&
+  authSessionDay14.includes('catch')
+) {
+  pass('Session store is a failure-safe device-local envelope with an expiry event');
+} else {
+  fail('Session store is missing its envelope, expiry event or failure safety');
+}
+if (
+  authSessionDay14 &&
+  !authSessionDay14.includes('password:') &&
+  !authSessionDay14.includes("'password'") &&
+  !authSessionDay14.includes('"password"')
+) {
+  pass('Session store never persists a password');
+} else {
+  fail('Session store persists a password field');
+}
+
+// Real backend integration (no fabricated responses)
+const authServiceDay14 = readFile('src/services/auth.js');
+if (fileExists('src/services/auth.js')) pass('Auth service exists');
+else fail('Auth service is missing');
+if (
+  authServiceDay14 &&
+  authServiceDay14.includes("'/auth/login'") &&
+  authServiceDay14.includes("'/auth/register'") &&
+  authServiceDay14.includes("'/auth/me'") &&
+  authServiceDay14.includes('writeAuthSession')
+) {
+  pass('Auth service talks to the real register/login/me endpoints');
+} else {
+  fail('Auth service does not integrate the real auth endpoints');
+}
+if (
+  authServiceDay14 &&
+  authServiceDay14.includes('return await signIn(') &&
+  authServiceDay14.includes('Your account was created, but automatic sign-in failed')
+) {
+  pass('Registration signs in through a real second request, with an honest failure path');
+} else {
+  fail('Registration fabricates a session instead of logging in');
+}
+if (
+  authServiceDay14 &&
+  authServiceDay14.includes('err.status === 401 || err.status === 404') &&
+  authServiceDay14.includes('clearAuthSession()')
+) {
+  pass('Rejected sessions are cleared instead of kept as valid');
+} else {
+  fail('Auth service keeps rejected sessions');
+}
+
+// API layer: Bearer header + session expiry handling
+const apiLayerDay14 = readFile('src/services/api.js');
+if (
+  apiLayerDay14 &&
+  apiLayerDay14.includes('Authorization: `Bearer ${authToken}`') &&
+  apiLayerDay14.includes('isCredentialEndpoint') &&
+  apiLayerDay14.includes('AUTH_SESSION_EXPIRED_EVENT') &&
+  apiLayerDay14.includes('export async function request')
+) {
+  pass('API layer attaches the session token, skips credential endpoints and broadcasts 401 expiry');
+} else {
+  fail('API layer is missing Bearer wiring or 401 session-expiry handling');
+}
+
+// App wiring
+if (
+  appContent &&
+  appContent.includes('fetchCurrentUser()') &&
+  appContent.includes('AUTH_SESSION_EXPIRED_EVENT') &&
+  appContent.includes('handleSignIn') &&
+  appContent.includes('handleRegisterAccount') &&
+  appContent.includes('handleSignOut') &&
+  appContent.includes('sessionResource.load()')
+) {
+  pass('App hydrates the session on launch and wires sign-in/register/sign-out');
+} else {
+  fail('App is missing session hydration or auth action wiring');
+}
+if (
+  appContent &&
+  appContent.includes('Your session expired — please sign in again.')
+) {
+  pass('Session expiry is surfaced to the student instead of failing silently');
+} else {
+  fail('Session expiry happens silently');
+}
+
+// Responsive navigation locks for the eleventh tab
+if (
+  navContent &&
+  navContent.includes('min-[1840px]') &&
+  navContent.includes('min-[2600px]') &&
+  navContent.includes('min-w-10')
+) {
+  pass('Eleven-tab navigation keeps overflow-safe label tiers and a full-width-safe brand');
+} else {
+  fail('Navigation label tiers or brand sizing were not adjusted for the eleventh tab');
+}
+
+// ============================================================
 // SUMMARY
 // ============================================================
 
