@@ -52,8 +52,19 @@ const { explainRoutePlan } = require('./aiPlannerService');
 const searchRanker = require('./searchRanker');
 const { studentCommutePreferenceService, StudentCommutePreferenceService } = require('./studentCommutePreferenceService');
 const { transportNetworkService, TransportNetworkService } = require('./transportNetworkService');
+const {
+  transportScheduleService,
+  TransportScheduleService,
+  DEFAULT_OPERATING_HOURS,
+  DEFAULT_HEADWAYS
+} = require('./transportScheduleService');
 
 module.exports = {
+  // Transport Schedules & Travel-Time Estimates (P9)
+  transportScheduleService,
+  TransportScheduleService,
+  DEFAULT_OPERATING_HOURS,
+  DEFAULT_HEADWAYS,
   // Transport Network Representation (P9)
   transportNetworkService,
   TransportNetworkService,
