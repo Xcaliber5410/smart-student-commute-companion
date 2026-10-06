@@ -20,15 +20,18 @@ const {
   LEG_TYPES
 } = require('../models');
 const { transportDataService } = require('./transportDataService');
+const { candidateRouteEngine } = require('./candidateRouteEngine');
 
 class CandidateRouteService {
   /**
    * @param {object} [options={}]
    * @param {object} [options.transportDataService]
+   * @param {object} [options.candidateRouteEngine]
    * @param {Function} [options.customGenerator] - Optional custom route generation strategy
    */
   constructor(options = {}) {
     this.transportDataService = options.transportDataService || transportDataService;
+    this.candidateRouteEngine = options.candidateRouteEngine || candidateRouteEngine;
     this.customGenerator = options.customGenerator || null;
   }
 
@@ -51,6 +54,21 @@ class CandidateRouteService {
     if (this.customGenerator && typeof this.customGenerator === 'function') {
       const generated = await this.customGenerator({ context, transportData, options });
       return (generated || []).map(r => (r instanceof CommuteRoute ? r : new CommuteRoute(r)));
+    }
+
+    // 3. Delegate to Day 15 CandidateRouteEngine
+    if (this.candidateRouteEngine) {
+      try {
+        const journeys = await this.candidateRouteEngine.generateCandidates({
+          context,
+          options
+        });
+        if (Array.isArray(journeys) && journeys.length > 0) {
+          return journeys.map(j => (j instanceof CommuteRoute ? j : j.toCommuteRoute()));
+        }
+      } catch (err) {
+        // Fall back to corridor templates if engine throws
+      }
     }
 
     // 3. Resolve transport services if not provided

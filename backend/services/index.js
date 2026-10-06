@@ -59,8 +59,17 @@ const {
   DEFAULT_HEADWAYS
 } = require('./transportScheduleService');
 const { journeyBuilderService, JourneyBuilderService } = require('./journeyBuilderService');
+const {
+  candidateRouteEngine,
+  CandidateRouteEngine,
+  KNOWN_CAMPUS_DISTANCES
+} = require('./candidateRouteEngine');
 
 module.exports = {
+  // Candidate Route Generation Engine (P9)
+  candidateRouteEngine,
+  CandidateRouteEngine,
+  KNOWN_CAMPUS_DISTANCES,
   // Candidate Journey Representation & Builder (P9)
   journeyBuilderService,
   JourneyBuilderService,
