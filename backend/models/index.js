@@ -107,6 +107,9 @@ module.exports = {
   ...require('./TransportService'),
   ...require('./TransportStop'),
   ...require('./TransportSchedule'),
+  ...require('./TransportSegment'),
+  ...require('./TransportConnection'),
+  ...require('./TransportNetwork'),
   ...require('./CommuteDisruption')
 };
 

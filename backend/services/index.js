@@ -51,8 +51,12 @@ const { fetchMumbaiWeather } = require('./weatherService');
 const { explainRoutePlan } = require('./aiPlannerService');
 const searchRanker = require('./searchRanker');
 const { studentCommutePreferenceService, StudentCommutePreferenceService } = require('./studentCommutePreferenceService');
+const { transportNetworkService, TransportNetworkService } = require('./transportNetworkService');
 
 module.exports = {
+  // Transport Network Representation (P9)
+  transportNetworkService,
+  TransportNetworkService,
   // Student Commute Preferences (P9)
   studentCommutePreferenceService,
   StudentCommutePreferenceService,
