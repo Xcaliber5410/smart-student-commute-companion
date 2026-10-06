@@ -112,7 +112,9 @@ module.exports = {
   ...require('./TransportNetwork'),
   ...require('./CommuteDisruption'),
   ...require('./TransportTimetableOption'),
-  ...require('./SegmentTravelEstimate')
+  ...require('./SegmentTravelEstimate'),
+  ...require('./JourneySegment'),
+  ...require('./CommuteJourney')
 };
 
 

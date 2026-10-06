@@ -57,6 +57,7 @@
     "verify:commute-preferences": "node scripts/verify_commute_preferences.js",
     "verify:transport-network": "node scripts/verify_transport_network.js",
     "verify:transport-schedules": "node scripts/verify_transport_schedules.js",
+    "verify:journey-builder": "node scripts/verify_journey_builder.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",
     "test:study-resource-api": "node scripts/integration_study_resource_api_test.js",
     "test:study-resource-workflows": "node scripts/integration_study_resource_workflows_test.js",

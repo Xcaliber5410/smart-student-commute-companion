@@ -58,8 +58,12 @@ const {
   DEFAULT_OPERATING_HOURS,
   DEFAULT_HEADWAYS
 } = require('./transportScheduleService');
+const { journeyBuilderService, JourneyBuilderService } = require('./journeyBuilderService');
 
 module.exports = {
+  // Candidate Journey Representation & Builder (P9)
+  journeyBuilderService,
+  JourneyBuilderService,
   // Transport Schedules & Travel-Time Estimates (P9)
   transportScheduleService,
   TransportScheduleService,
