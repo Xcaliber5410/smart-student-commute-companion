@@ -13,15 +13,18 @@
 const { DataProvenance, CommutePlanInputDTO } = require('../models');
 const { getMumbaiDayOfWeek, getMumbaiTimeHHMM } = require('../utils/timezone');
 const { studentProfileRepository } = require('../repositories/StudentProfileRepository');
+const { studentCommutePreferenceRepository } = require('../repositories/StudentCommutePreferenceRepository');
 
 class CommuteContextService {
   /**
    * @param {object} [options={}]
    * @param {object} [options.studentProfileRepo]
+   * @param {object} [options.studentPreferenceRepo]
    * @param {object} [options.weatherService]
    */
   constructor(options = {}) {
     this.studentProfileRepo = options.studentProfileRepo || studentProfileRepository;
+    this.studentPreferenceRepo = options.studentPreferenceRepo || studentCommutePreferenceRepository;
     this.weatherService = options.weatherService || null;
   }
 
@@ -45,13 +48,21 @@ class CommuteContextService {
 
     // 3. Retrieve student context if studentId is provided (optional profile enrichment)
     let studentProfile = null;
+    let studentPreferences = null;
     const studentId = options.studentId || dto.studentId || null;
     if (studentId && this.studentProfileRepo && typeof this.studentProfileRepo.findByUserId === 'function') {
       try {
         studentProfile = await this.studentProfileRepo.findByUserId(studentId);
       } catch (err) {
-        // Non-blocking fallback if profile is not accessible
         studentProfile = null;
+      }
+    }
+    if (studentId && this.studentPreferenceRepo && typeof this.studentPreferenceRepo.findByUserId === 'function') {
+      try {
+        const prefEntity = await this.studentPreferenceRepo.findByUserId(studentId);
+        studentPreferences = prefEntity ? prefEntity.toJSON() : null;
+      } catch (err) {
+        studentPreferences = null;
       }
     }
 
@@ -93,6 +104,7 @@ class CommuteContextService {
       currentTime,
       studentId,
       studentProfile,
+      studentPreferences,
       weatherContext,
       provenance: DataProvenance.synthetic('CommuteContextService').toJSON()
     };

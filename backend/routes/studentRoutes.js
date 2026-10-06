@@ -21,7 +21,8 @@ const {
   savedRouteFilterSchema,
   studentGroupFilterSchema,
   studentInsightsFilterSchema,
-  studentSearchQuerySchema
+  studentSearchQuerySchema,
+  updateCommutePreferencesSchema
 } = require('../validators');
 
 function createStudentRoutes() {
@@ -36,6 +37,18 @@ function createStudentRoutes() {
     '/student/profile',
     validate(studentProfileUpdateSchema, 'body'),
     studentController.updateStudentProfile
+  );
+
+  // 1b. Commute Preferences (P9)
+  router.get('/student/commute-preferences', studentController.getCommutePreferences);
+  router.put(
+    '/student/commute-preferences',
+    validate(updateCommutePreferencesSchema, 'body'),
+    studentController.updateCommutePreferences
+  );
+  router.post(
+    '/student/commute-preferences/reset',
+    studentController.resetCommutePreferences
   );
 
   // 2. Commute Schedules

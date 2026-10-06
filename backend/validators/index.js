@@ -225,7 +225,9 @@ module.exports = {
   updateStudyPlanItemStatusSchema,
   planItemsDateQuerySchema,
   planningInsightsQuerySchema,
-  processPlanningRemindersSchema
+  processPlanningRemindersSchema,
+  // Student Commute Preferences (P9)
+  ...require('./commutePreferenceValidators')
 };
 
 

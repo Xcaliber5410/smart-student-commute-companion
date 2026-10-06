@@ -59,7 +59,8 @@ module.exports = {
   TransportRepository,
   transportRepository,
   DisruptionRepository,
-  disruptionRepository
+  disruptionRepository,
+  ...require('./StudentCommutePreferenceRepository')
 };
 
 

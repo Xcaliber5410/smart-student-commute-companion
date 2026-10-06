@@ -103,6 +103,7 @@ module.exports = {
   ...require('./CommuteContracts'),
   ...require('./CommuteArea'),
   ...require('./CommutePlanInputDTO'),
+  ...require('./StudentCommutePreference'),
   ...require('./TransportService'),
   ...require('./TransportStop'),
   ...require('./TransportSchedule'),

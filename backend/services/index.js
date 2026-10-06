@@ -50,8 +50,12 @@ const { scoreRouteCandidates, calculateCrowdPenalty } = require('./scoringServic
 const { fetchMumbaiWeather } = require('./weatherService');
 const { explainRoutePlan } = require('./aiPlannerService');
 const searchRanker = require('./searchRanker');
+const { studentCommutePreferenceService, StudentCommutePreferenceService } = require('./studentCommutePreferenceService');
 
 module.exports = {
+  // Student Commute Preferences (P9)
+  studentCommutePreferenceService,
+  StudentCommutePreferenceService,
   // Commute Recommendation Pipeline Services (P9)
   commuteRecommendationPipeline,
   CommuteRecommendationPipeline,

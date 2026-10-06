@@ -12,7 +12,8 @@ const {
   rideGroupService,
   studentDashboardService,
   studentInsightsService,
-  studentSearchService
+  studentSearchService,
+  studentCommutePreferenceService
 } = require('../services');
 const { success, created } = require('../utils/apiResponse');
 
@@ -34,6 +35,43 @@ function updateStudentProfile(req, res, next) {
     return success(res, {
       message: 'Student profile updated successfully',
       ...updated
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 1b. Student Commute Preferences (P9)
+function getCommutePreferences(req, res, next) {
+  try {
+    const studentId = req.params.studentId || req.user.id;
+    const preferences = studentCommutePreferenceService.getPreferences(studentId, req.user);
+    return success(res, { preferences: preferences.toJSON() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function updateCommutePreferences(req, res, next) {
+  try {
+    const studentId = req.params.studentId || req.user.id;
+    const preferences = studentCommutePreferenceService.updatePreferences(studentId, req.body, req.user);
+    return success(res, {
+      message: 'Commute preferences updated successfully',
+      preferences: preferences.toJSON()
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+function resetCommutePreferences(req, res, next) {
+  try {
+    const studentId = req.params.studentId || req.user.id;
+    const preferences = studentCommutePreferenceService.resetPreferences(studentId, req.user);
+    return success(res, {
+      message: 'Commute preferences reset to defaults successfully',
+      preferences: preferences.toJSON()
     });
   } catch (err) {
     next(err);
@@ -207,6 +245,9 @@ function searchStudent(req, res, next) {
 module.exports = {
   getStudentContext,
   updateStudentProfile,
+  getCommutePreferences,
+  updateCommutePreferences,
+  resetCommutePreferences,
   listSchedules,
   createSchedule,
   getSchedule,

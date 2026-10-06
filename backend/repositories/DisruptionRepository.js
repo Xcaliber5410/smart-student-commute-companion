@@ -202,10 +202,16 @@ class DisruptionRepository {
 
   /**
    * Seeds realistic prototype disruptions illustrating all 4 provenance tiers.
+   * @param {boolean} [force=false]
    */
-  seedInitialDisruptions() {
-    const count = this.database.prepare('SELECT COUNT(*) as cnt FROM commute_disruptions').get().cnt;
-    if (count > 0) return 0;
+  seedInitialDisruptions(force = false) {
+    if (force) {
+      this.database.prepare("DELETE FROM commute_disruptions WHERE id LIKE 'disr-seed-%'").run();
+    } else {
+      const activeSeedCount = this.database.prepare("SELECT COUNT(*) as cnt FROM commute_disruptions WHERE id LIKE 'disr-seed-%' AND end_time > ?").get(Date.now()).cnt;
+      if (activeSeedCount >= 4) return 0;
+      this.database.prepare("DELETE FROM commute_disruptions WHERE id LIKE 'disr-seed-%'").run();
+    }
 
     const now = Date.now();
     const duration3h = 3 * 60 * 60 * 1000;
