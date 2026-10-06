@@ -117,30 +117,54 @@ async function generateCandidateJourneys(req, res, next) {
       modesIncluded: cand.modesIncluded,
       isViable: cand.isViable,
       advisories: cand.advisories || [],
-      provenance: cand.provenance ? cand.provenance.toJSON() : {
-        tier: 'ESTIMATED',
-        source: 'Candidate Route Generation Engine',
-        description: 'Deterministic timetable propagation over prototype transit network'
-      },
+      provenance: (() => {
+        const raw = cand.provenance
+          ? (typeof cand.provenance.toJSON === 'function' ? cand.provenance.toJSON() : cand.provenance)
+          : null;
+        const tier = raw?.sourceTier || raw?.tier || 'ESTIMATED';
+        const source = raw?.provider || raw?.source || 'Candidate Route Generation Engine';
+        return {
+          tier,
+          sourceTier: tier,
+          source,
+          provider: source,
+          confidence: raw?.confidence || 'MEDIUM',
+          description: raw?.description || 'Deterministic timetable propagation over prototype transit network'
+        };
+      })(),
       limitations: 'Timetable and headway estimates; actual real-time conditions may vary with crowds, traffic, or transit disruptions.',
-      segments: (cand.segments || []).map(seg => ({
-        segmentIndex: seg.segmentIndex,
-        type: seg.type,
-        mode: seg.mode,
-        from: seg.from,
-        to: seg.to,
-        departureTime: seg.departureTime,
-        arrivalTime: seg.arrivalTime,
-        durationMinutes: seg.durationMinutes,
-        waitingTimeMinutes: seg.waitingTimeMinutes,
-        distanceKm: seg.distanceKm,
-        fareRupees: seg.fareRupees,
-        serviceId: seg.serviceId,
-        lineIdentifier: seg.lineIdentifier,
-        lineInfo: seg.lineInfo,
-        status: seg.status,
-        provenance: seg.provenance ? seg.provenance.toJSON() : undefined
-      }))
+      segments: (cand.segments || []).map(seg => {
+        const raw = seg.provenance
+          ? (typeof seg.provenance.toJSON === 'function' ? seg.provenance.toJSON() : seg.provenance)
+          : null;
+        const tier = raw?.sourceTier || raw?.tier || 'ESTIMATED';
+        const source = raw?.provider || raw?.source || 'Journey Segment Engine';
+        return {
+          segmentIndex: seg.segmentIndex,
+          type: seg.type,
+          mode: seg.mode,
+          from: seg.from,
+          to: seg.to,
+          departureTime: seg.departureTime,
+          arrivalTime: seg.arrivalTime,
+          durationMinutes: seg.durationMinutes,
+          waitingTimeMinutes: seg.waitingTimeMinutes,
+          distanceKm: seg.distanceKm,
+          fareRupees: seg.fareRupees,
+          serviceId: seg.serviceId,
+          lineIdentifier: seg.lineIdentifier,
+          lineInfo: seg.lineInfo,
+          status: seg.status,
+          provenance: {
+            tier,
+            sourceTier: tier,
+            source,
+            provider: source,
+            confidence: raw?.confidence || 'MEDIUM',
+            description: raw?.description || 'Deterministic segment timing'
+          }
+        };
+      })
     }));
 
     return success(res, {

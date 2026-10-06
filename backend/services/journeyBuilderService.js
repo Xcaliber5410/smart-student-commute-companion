@@ -183,6 +183,7 @@ class JourneyBuilderService {
     });
 
     return this.buildJourney([segment], {
+      id: params.id || options.id,
       origin: params.origin,
       destination: params.destination,
       ...options
@@ -238,7 +239,9 @@ class JourneyBuilderService {
         fareRupees: stepEst.fareRupees,
         lineIdentifier: stepEst.lineIdentifier,
         status: stepEst.isServiceAvailable ? 'ACTIVE' : 'SUSPENDED',
-        provenance: stepEst.provenance.toJSON()
+        provenance: (stepEst.provenance && typeof stepEst.provenance.toJSON === 'function')
+          ? stepEst.provenance.toJSON()
+          : (stepEst.provenance || DataProvenance.estimated('Timetable Schedule Engine').toJSON())
       }));
     }
 
@@ -371,6 +374,13 @@ class JourneyBuilderService {
     const clean1 = l1.replace(/^(stn_|metro_|bus_|stop_|auto_)/, '').replace(/[^a-z0-9]/g, '');
     const clean2 = l2.replace(/^(stn_|metro_|bus_|stop_|auto_)/, '').replace(/[^a-z0-9]/g, '');
     if (clean1.length >= 3 && clean2.length >= 3 && (clean1.includes(clean2) || clean2.includes(clean1))) {
+      return true;
+    }
+
+    // Strip directional suffixes and landmark terms to match common transit roots (e.g. "Kandivali Station" <-> "Kandivali West")
+    const base1 = clean1.replace(/(west|east|station|stn|metro|bus|college|campus|stop|circle|road)/g, '');
+    const base2 = clean2.replace(/(west|east|station|stn|metro|bus|college|campus|stop|circle|road)/g, '');
+    if (base1.length >= 3 && base2.length >= 3 && (base1 === base2 || base1.includes(base2) || base2.includes(base1))) {
       return true;
     }
 

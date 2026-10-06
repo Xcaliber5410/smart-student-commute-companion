@@ -60,6 +60,7 @@
     "verify:journey-builder": "node scripts/verify_journey_builder.js",
     "verify:candidate-routes": "node scripts/verify_candidate_routes.js",
     "test:commute-candidates": "node scripts/integration_commute_candidates_test.js",
+    "test:commute-integration": "node scripts/integration_commute_route_generation_test.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",
     "test:study-resource-api": "node scripts/integration_study_resource_api_test.js",
     "test:study-resource-workflows": "node scripts/integration_study_resource_workflows_test.js",
