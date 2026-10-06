@@ -636,6 +636,113 @@ Removes / cancels an individual planned study work item.
 - **Auth**: `Bearer <token>`
 - **Response**: `200 OK` with `{ "success": true, "message": "Study plan item removed successfully" }`
 
+---
+
+## 9. Commute Candidate Route Planning (Day 15)
+
+### `POST /api/commute/candidates` and `POST /api/student/commute/candidates`
+Generates feasible, multimodal candidate commute journeys connecting a student's coarse starting area to their college destination.
+
+> **Note**: This endpoint exposes the current commute planning foundation returning **feasible candidate journeys**; it does not pretend that final recommendation scoring/ranking exists.
+
+#### Security & Privacy
+- **Auth**: `Bearer <token>` (Student authentication required)
+- **Privacy Enforcement**: Rejects granular street addresses, house/flat numbers, housing societies, PIN codes, and GPS telemetry with `400 VALIDATION_ERROR`.
+- **Student Ownership & Scope**: If `startingArea` is omitted in the request, the student's saved `default_origin_area` is automatically resolved from profile preferences. Request parameters override profile defaults.
+
+#### Request Body
+```json
+{
+  "startingArea": "Lokhandwala Complex",
+  "collegeDestination": "D.J. Sanghvi College of Engineering",
+  "desiredDepartureTime": "08:00",
+  "desiredArrivalTime": "08:50",
+  "preferredModes": ["metro", "bus", "walk"],
+  "allowedModes": ["metro", "bus", "walk"],
+  "avoidModes": ["auto"],
+  "maxTransfers": 2,
+  "maxWalkingMinutes": 20,
+  "maxBudgetRupees": 60,
+  "limit": 5,
+  "date": "Mon",
+  "dayOfWeek": "Mon"
+}
+```
+
+#### Response: `200 OK`
+```json
+{
+  "success": true,
+  "timestamp": "2026-10-06T18:15:00.000Z",
+  "candidateCount": 2,
+  "candidates": [
+    {
+      "id": "cand-graph-1728238500-0",
+      "origin": "Lokhandwala Complex",
+      "destination": "D.J. Sanghvi College of Engineering",
+      "departureTime": "08:00",
+      "estimatedArrivalTime": "08:35",
+      "totalDurationMinutes": 35,
+      "totalWaitingTimeMinutes": 6,
+      "walkingTimeMinutes": 10,
+      "transitTimeMinutes": 19,
+      "transferCount": 1,
+      "estimatedCostRupees": 30,
+      "totalDistanceKm": 4.5,
+      "primaryMode": "metro",
+      "modesIncluded": ["metro", "bus", "walk"],
+      "isViable": true,
+      "advisories": [],
+      "provenance": {
+        "tier": "ESTIMATED",
+        "source": "Candidate Route Generation Engine",
+        "description": "Deterministic timetable propagation over prototype transit network"
+      },
+      "limitations": "Timetable and headway estimates; actual real-time conditions may vary with crowds, traffic, or transit disruptions.",
+      "segments": [
+        {
+          "segmentIndex": 0,
+          "type": "TRANSIT",
+          "mode": "metro",
+          "from": "Lokhandwala",
+          "to": "DN Nagar",
+          "departureTime": "08:02",
+          "arrivalTime": "08:12",
+          "durationMinutes": 10,
+          "waitingTimeMinutes": 2,
+          "distanceKm": 2.5,
+          "fareRupees": 20,
+          "lineIdentifier": "Line 2A",
+          "status": "SCHEDULED"
+        }
+      ]
+    }
+  ],
+  "queryContext": {
+    "studentId": "usr-12345",
+    "startingArea": "Lokhandwala Complex",
+    "collegeDestination": "D.J. Sanghvi College of Engineering",
+    "departureTime": "08:00",
+    "targetArrivalTime": null,
+    "appliedConstraints": {
+      "maxTransfers": 2,
+      "maxWalkingMinutes": 20,
+      "maxBudgetRupees": 60
+    },
+    "appliedPreferences": {
+      "allowedModes": ["metro", "bus", "walk"],
+      "avoidModes": ["auto"],
+      "preferredModes": ["metro", "bus", "walk"]
+    }
+  },
+  "provenanceMetadata": {
+    "dataTiers": ["VERIFIED", "ESTIMATED"],
+    "hasEstimatedData": true,
+    "limitations": "Prototype timetable and network model; candidate journeys represent feasible trip options prior to recommendation scoring."
+  }
+}
+```
+
 
 
 

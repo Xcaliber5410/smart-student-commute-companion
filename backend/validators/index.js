@@ -102,6 +102,7 @@ const {
 } = require('./studyPlanValidators');
 const {
   commutePlanRequestSchema,
+  commuteCandidateRequestSchema,
   privacySafeCommuteInputSchema,
   CommutePlanInputDTO,
   CommuteArea,
@@ -121,6 +122,7 @@ module.exports = {
   validate,
   // Commute Domain (P9)
   commutePlanRequestSchema,
+  commuteCandidateRequestSchema,
   privacySafeCommuteInputSchema,
   CommutePlanInputDTO,
   CommuteArea,

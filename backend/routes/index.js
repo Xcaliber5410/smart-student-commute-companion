@@ -14,6 +14,7 @@ const { createAcademicRoutes } = require('./academicRoutes');
 const { createCalendarRoutes } = require('./calendarRoutes');
 const createStudyResourceRoutes = require('./studyResourceRoutes');
 const createStudyPlanRoutes = require('./studyPlanRoutes');
+const createCommuteRoutes = require('./commuteRoutes');
 
 /**
  * Centralized API Router Aggregator.
@@ -51,6 +52,9 @@ function createApiRouter(io) {
 
   // 7. Multimodal Transit Planning routes
   router.use(createPlanRoutes());
+
+  // 7b. Commute Candidate Route Generation (Day 15)
+  router.use(createCommuteRoutes());
 
   // 5. Disruption & Community Reports routes
   router.use(createReportRoutes(io));
