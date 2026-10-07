@@ -63,6 +63,7 @@
     "verify:traffic-context": "node scripts/verify_traffic_context.js",
     "verify:weather-context": "node scripts/verify_weather_context.js",
     "verify:transport-availability": "node scripts/verify_transport_availability.js",
+    "verify:commute-context-engine": "node scripts/verify_commute_context_engine.js",
     "test:commute-candidates": "node scripts/integration_commute_candidates_test.js",
     "test:commute-integration": "node scripts/integration_commute_route_generation_test.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",

@@ -319,6 +319,10 @@ class JourneyAvailabilityImpact {
                              this.totalDelayMinutes > 0);
   }
 
+  get dominantStatus() {
+    return this.status;
+  }
+
   isBlocked() {
     return !this.isUsable;
   }

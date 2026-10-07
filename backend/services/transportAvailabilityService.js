@@ -215,11 +215,12 @@ class TransportAvailabilityService {
    */
   getActiveRecords(options = {}) {
     const currentTime = options.currentTime || Date.now();
-    const recordsToInspect = [
-      ...(Array.isArray(options.records) ? options.records : []),
-      ...this.inMemoryRecords,
-      ...(this._prototypeRecords || [])
-    ];
+    const recordsToInspect = Array.isArray(options.records)
+      ? options.records
+      : [
+          ...this.inMemoryRecords,
+          ...(this._prototypeRecords || [])
+        ];
 
     return recordsToInspect
       .map(r => (r instanceof ServiceStatusRecord ? r : new ServiceStatusRecord(r)))

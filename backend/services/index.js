@@ -73,8 +73,12 @@ const {
   CandidateRouteEngine,
   KNOWN_CAMPUS_DISTANCES
 } = require('./candidateRouteEngine');
+const { commuteContextEngine, CommuteContextEngine } = require('./commuteContextEngine');
 
 module.exports = {
+  // Unified Commute Context Engine (P9)
+  commuteContextEngine,
+  CommuteContextEngine,
   // Candidate Route Generation Engine (P9)
   candidateRouteEngine,
   CandidateRouteEngine,
