@@ -91,5 +91,6 @@ async function getMumbaiWeather(lat = 19.0760, lon = 72.8777) {
 
 module.exports = {
   getMumbaiWeather,
+  fetchMumbaiWeather: getMumbaiWeather,
   getWeatherDescription
 };

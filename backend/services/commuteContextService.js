@@ -15,6 +15,7 @@ const { getMumbaiDayOfWeek, getMumbaiTimeHHMM } = require('../utils/timezone');
 const { studentProfileRepository } = require('../repositories/StudentProfileRepository');
 const { studentCommutePreferenceRepository } = require('../repositories/StudentCommutePreferenceRepository');
 const { trafficService } = require('./trafficService');
+const { weatherContextService } = require('./weatherContextService');
 
 class CommuteContextService {
   /**
@@ -22,12 +23,14 @@ class CommuteContextService {
    * @param {object} [options.studentProfileRepo]
    * @param {object} [options.studentPreferenceRepo]
    * @param {object} [options.weatherService]
+   * @param {object} [options.weatherContextService]
    * @param {object} [options.trafficService]
    */
   constructor(options = {}) {
     this.studentProfileRepo = options.studentProfileRepo || studentProfileRepository;
     this.studentPreferenceRepo = options.studentPreferenceRepo || studentCommutePreferenceRepository;
     this.weatherService = options.weatherService || null;
+    this.weatherContextService = options.weatherContextService || weatherContextService;
     this.trafficService = options.trafficService || trafficService;
   }
 
@@ -70,29 +73,53 @@ class CommuteContextService {
     }
 
     // 4. Retrieve environmental/weather context
-    let weatherContext = {
-      condition: 'clear',
-      rainProbability: 0,
-      temperatureC: 28,
-      advisory: 'Normal commute conditions'
-    };
+    let weatherContext = null;
 
-    if (this.weatherService) {
+    if (this.weatherService && typeof this.weatherService.getMumbaiWeather === 'function') {
       try {
-        if (typeof this.weatherService.getMumbaiWeather === 'function') {
-          const w = await this.weatherService.getMumbaiWeather();
-          if (w) {
-            weatherContext = {
-              condition: w.condition || (w.rainProbability > 50 ? 'rainy' : 'clear'),
-              rainProbability: typeof w.rainProbability === 'number' ? w.rainProbability : 0,
-              temperatureC: w.temperatureC || 28,
-              advisory: w.advisory || (w.rainProbability > 50 ? 'Monsoon showers probable; carry rain protection.' : 'Normal commute conditions')
-            };
-          }
+        const w = await this.weatherService.getMumbaiWeather();
+        if (w) {
+          const normContext = this.weatherContextService.normalizeProviderWeather(w, Date.now());
+          weatherContext = {
+            ...normContext.toJSON(),
+            condition: w.condition || normContext.condition,
+            rainProbability: typeof w.rainProbability === 'number' ? w.rainProbability : normContext.precipitationProbability,
+            temperatureC: w.temperatureC || normContext.temperatureC,
+            advisory: w.advisory || normContext.advisory
+          };
         }
       } catch (err) {
-        // Fallback safely to clear weather if external weather query fails
+        weatherContext = null;
       }
+    } else if (this.weatherContextService && typeof this.weatherContextService.getWeatherContext === 'function') {
+      try {
+        const wc = await this.weatherContextService.getWeatherContext(options);
+        if (wc) {
+          weatherContext = typeof wc.toJSON === 'function' ? wc.toJSON() : wc;
+        }
+      } catch (err) {
+        weatherContext = null;
+      }
+    }
+
+    if (!weatherContext) {
+      weatherContext = {
+        condition: 'clear',
+        label: 'Clear / Normal',
+        rainProbability: 0,
+        precipitationProbability: 0,
+        temperatureC: 28,
+        feelsLikeC: 30,
+        humidity: 70,
+        advisory: 'Normal commute conditions',
+        walkingInconvenienceLevel: 'NONE',
+        roadDelayMinutes: 0,
+        travelUncertaintyLevel: 'LOW',
+        outdoorExposureRisk: 'NONE',
+        recommendEarlyDepartureMinutes: 0,
+        conditions: [],
+        provenance: DataProvenance.synthetic('WeatherContextService').toJSON()
+      };
     }
 
     // 5. Retrieve road traffic context

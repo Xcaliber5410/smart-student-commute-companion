@@ -61,6 +61,7 @@
     "verify:candidate-routes": "node scripts/verify_candidate_routes.js",
     "verify:disruption-impact": "node scripts/verify_disruption_impact.js",
     "verify:traffic-context": "node scripts/verify_traffic_context.js",
+    "verify:weather-context": "node scripts/verify_weather_context.js",
     "test:commute-candidates": "node scripts/integration_commute_candidates_test.js",
     "test:commute-integration": "node scripts/integration_commute_route_generation_test.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",
