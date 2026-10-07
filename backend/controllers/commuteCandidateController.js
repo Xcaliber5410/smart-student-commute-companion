@@ -219,7 +219,7 @@ async function generateCandidateJourneys(req, res, next) {
     const candidates = (rawCandidates || []).map(cand => {
       // 10a. Evaluate candidate through CommuteContextEngine
       const unifiedImpact = commuteContextEngine.evaluateJourney(cand, evaluationContext, {
-        currentTime: req.body.currentTime
+        currentTime: req.body.currentTime || evaluationContext.currentTime
       });
 
       // 10b. Baseline metrics

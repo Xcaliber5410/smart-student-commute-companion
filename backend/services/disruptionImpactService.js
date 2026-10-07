@@ -272,10 +272,10 @@ class DisruptionImpactService {
       // Active status check
       if (options.checkActive !== false) {
         if (d.status && String(d.status).toLowerCase() !== 'active') continue;
-        if (d.startTime && d.endTime) {
-          const now = options.currentTime || Date.now();
-          if (now < d.startTime || now > d.endTime) continue;
-        }
+        const now = options.currentTime || Date.now();
+        const end = d.endTime || d.expiryTime;
+        if (end && now > end) continue;
+        if (d.startTime && now < d.startTime) continue;
       }
 
       const dMode = String(d.affectedMode || d.transportMode || d.transport_mode || '').toLowerCase();

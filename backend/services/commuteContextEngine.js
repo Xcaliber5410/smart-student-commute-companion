@@ -471,6 +471,8 @@ class CommuteContextEngine {
         walkingInconvenience: weatherImpact.walkingInconvenience || null,
         roadDelay: weatherImpact.roadDelay || null,
         travelUncertainty: weatherImpact.travelUncertainty || null,
+        affectedOutdoorSegments: weatherImpact.affectedOutdoorSegments || [],
+        shelteredSegments: weatherImpact.shelteredSegments || [],
         isImpractical: weatherImpact.isImpractical || false,
         advisories: weatherImpact.advisories || [],
         dataTiers: weatherImpact.dataTiers || []
