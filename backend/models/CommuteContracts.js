@@ -78,6 +78,9 @@ const DISRUPTION_TYPES = Object.freeze({
   WATERLOGGING: 'waterlogging',
   MAINTENANCE: 'maintenance',
   STRIKE: 'strike',
+  TRAFFIC: 'traffic',
+  ROUTE_CLOSURE: 'route_closure',
+  SERVICE_SUSPENSION: 'service_suspension',
   OTHER: 'other'
 });
 
@@ -89,6 +92,9 @@ const disruptionTypeEnum = z.enum([
   'waterlogging',
   'maintenance',
   'strike',
+  'traffic',
+  'route_closure',
+  'service_suspension',
   'other'
 ]);
 

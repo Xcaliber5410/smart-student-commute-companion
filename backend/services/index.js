@@ -35,7 +35,13 @@ const { studyPlanningService, StudyPlanningService } = require('./studyPlanningS
 const { transportDataService, TransportDataService } = require('./transportDataService');
 const { disruptionDataService, DisruptionDataService } = require('./disruptionDataService');
 const { commuteContextService, CommuteContextService } = require('./commuteContextService');
-const { disruptionImpactService, DisruptionImpactService } = require('./disruptionImpactService');
+const {
+  disruptionImpactService,
+  DisruptionImpactService,
+  DISRUPTION_CATEGORIES,
+  IMPACT_SCOPES,
+  FEASIBILITY_REASONS
+} = require('./disruptionImpactService');
 const { candidateRouteService, CandidateRouteService } = require('./candidateRouteService');
 const { constraintFilterService, ConstraintFilterService } = require('./constraintFilterService');
 const { routeScoringService, RouteScoringService } = require('./routeScoringService');
@@ -91,6 +97,9 @@ module.exports = {
   CommuteContextService,
   disruptionImpactService,
   DisruptionImpactService,
+  DISRUPTION_CATEGORIES,
+  IMPACT_SCOPES,
+  FEASIBILITY_REASONS,
   candidateRouteService,
   CandidateRouteService,
   constraintFilterService,
