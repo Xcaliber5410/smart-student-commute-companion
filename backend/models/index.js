@@ -115,7 +115,8 @@ module.exports = {
   ...require('./SegmentTravelEstimate'),
   ...require('./JourneySegment'),
   ...require('./CommuteJourney'),
-  ...require('./JourneyDisruptionImpact')
+  ...require('./JourneyDisruptionImpact'),
+  ...require('./TrafficCondition')
 };
 
 

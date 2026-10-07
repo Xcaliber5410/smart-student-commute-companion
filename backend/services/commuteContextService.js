@@ -14,6 +14,7 @@ const { DataProvenance, CommutePlanInputDTO } = require('../models');
 const { getMumbaiDayOfWeek, getMumbaiTimeHHMM } = require('../utils/timezone');
 const { studentProfileRepository } = require('../repositories/StudentProfileRepository');
 const { studentCommutePreferenceRepository } = require('../repositories/StudentCommutePreferenceRepository');
+const { trafficService } = require('./trafficService');
 
 class CommuteContextService {
   /**
@@ -21,11 +22,13 @@ class CommuteContextService {
    * @param {object} [options.studentProfileRepo]
    * @param {object} [options.studentPreferenceRepo]
    * @param {object} [options.weatherService]
+   * @param {object} [options.trafficService]
    */
   constructor(options = {}) {
     this.studentProfileRepo = options.studentProfileRepo || studentProfileRepository;
     this.studentPreferenceRepo = options.studentPreferenceRepo || studentCommutePreferenceRepository;
     this.weatherService = options.weatherService || null;
+    this.trafficService = options.trafficService || trafficService;
   }
 
   /**
@@ -92,7 +95,29 @@ class CommuteContextService {
       }
     }
 
-    // 5. Construct normalized context object
+    // 5. Retrieve road traffic context
+    let trafficContext = {
+      level: 'normal',
+      expectedDelayMinutes: 0,
+      advisory: 'Normal road traffic conditions',
+      conditions: [],
+      provenance: DataProvenance.synthetic('TrafficService').toJSON()
+    };
+
+    if (this.trafficService && typeof this.trafficService.getTrafficContext === 'function') {
+      try {
+        const originName = dto.originArea?.name || String(dto.originArea || '');
+        const destName = dto.destinationArea?.name || String(dto.destinationArea || '');
+        const tc = await this.trafficService.getTrafficContext(originName, destName, options);
+        if (tc) {
+          trafficContext = typeof tc.toJSON === 'function' ? tc.toJSON() : tc;
+        }
+      } catch (err) {
+        // Fallback safely to normal traffic if traffic evaluation fails
+      }
+    }
+
+    // 6. Construct normalized context object
     return {
       requestId,
       originArea: dto.originArea,
@@ -106,6 +131,7 @@ class CommuteContextService {
       studentProfile,
       studentPreferences,
       weatherContext,
+      trafficContext,
       provenance: DataProvenance.synthetic('CommuteContextService').toJSON()
     };
   }
