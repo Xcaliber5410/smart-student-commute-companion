@@ -16,6 +16,8 @@ const { studentProfileRepository } = require('../repositories/StudentProfileRepo
 const { studentCommutePreferenceRepository } = require('../repositories/StudentCommutePreferenceRepository');
 const { trafficService } = require('./trafficService');
 const { weatherContextService } = require('./weatherContextService');
+const { transportAvailabilityService } = require('./transportAvailabilityService');
+const { isStatusUsable } = require('../models/TransportAvailability');
 
 class CommuteContextService {
   /**
@@ -25,6 +27,7 @@ class CommuteContextService {
    * @param {object} [options.weatherService]
    * @param {object} [options.weatherContextService]
    * @param {object} [options.trafficService]
+   * @param {object} [options.transportAvailabilityService]
    */
   constructor(options = {}) {
     this.studentProfileRepo = options.studentProfileRepo || studentProfileRepository;
@@ -32,6 +35,7 @@ class CommuteContextService {
     this.weatherService = options.weatherService || null;
     this.weatherContextService = options.weatherContextService || weatherContextService;
     this.trafficService = options.trafficService || trafficService;
+    this.transportAvailabilityService = options.transportAvailabilityService || transportAvailabilityService;
   }
 
   /**
@@ -144,7 +148,35 @@ class CommuteContextService {
       }
     }
 
-    // 6. Construct normalized context object
+    // 6. Retrieve transport availability context
+    let availabilityContext = {
+      status: 'AVAILABLE',
+      isUsable: true,
+      activeRecordsCount: 0,
+      records: [],
+      provenance: DataProvenance.synthetic('TransportAvailabilityService').toJSON()
+    };
+
+    if (this.transportAvailabilityService && typeof this.transportAvailabilityService.getActiveRecords === 'function') {
+      try {
+        const records = this.transportAvailabilityService.getActiveRecords(options);
+        const nonAvailable = records.filter(r => r.status !== 'AVAILABLE');
+        const dominantStatus = nonAvailable.find(r => !r.isUsable())?.status ||
+          nonAvailable[0]?.status || 'AVAILABLE';
+
+        availabilityContext = {
+          status: dominantStatus,
+          isUsable: isStatusUsable(dominantStatus),
+          activeRecordsCount: records.length,
+          records: records.map(r => (typeof r.toJSON === 'function' ? r.toJSON() : r)),
+          provenance: DataProvenance.synthetic('TransportAvailabilityService').toJSON()
+        };
+      } catch (err) {
+        // Fallback safely to standard availability
+      }
+    }
+
+    // 7. Construct normalized context object
     return {
       requestId,
       originArea: dto.originArea,
@@ -159,6 +191,7 @@ class CommuteContextService {
       studentPreferences,
       weatherContext,
       trafficContext,
+      availabilityContext,
       provenance: DataProvenance.synthetic('CommuteContextService').toJSON()
     };
   }

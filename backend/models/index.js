@@ -117,7 +117,8 @@ module.exports = {
   ...require('./CommuteJourney'),
   ...require('./JourneyDisruptionImpact'),
   ...require('./TrafficCondition'),
-  ...require('./WeatherCondition')
+  ...require('./WeatherCondition'),
+  ...require('./TransportAvailability')
 };
 
 
