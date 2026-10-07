@@ -271,7 +271,7 @@ class DisruptionImpactService {
 
       // Active status check
       if (options.checkActive !== false) {
-        if (d.status && d.status !== 'active') continue;
+        if (d.status && String(d.status).toLowerCase() !== 'active') continue;
         if (d.startTime && d.endTime) {
           const now = options.currentTime || Date.now();
           if (now < d.startTime || now > d.endTime) continue;
@@ -590,6 +590,14 @@ class DisruptionImpactService {
     // Direct containment
     if (cleanFrom.includes(cleanArea) || cleanTo.includes(cleanArea) || cleanArea.includes(cleanFrom) || cleanArea.includes(cleanTo)) {
       return true;
+    }
+
+    // Corridor name check for Western Railway / Central Railway / Metro
+    const wrStations = ['churchgate', 'dadar', 'bandra', 'santacruz', 'vile parle', 'andheri', 'jogeshwari', 'goregaon', 'malad', 'kandivali', 'borivali'];
+    if (cleanArea.includes('western railway') || cleanArea === 'wr') {
+      if (wrStations.some(s => cleanFrom.includes(s)) || wrStations.some(s => cleanTo.includes(s))) {
+        return true;
+      }
     }
 
     // Corridor hyphen / "to" split (e.g. "Dadar - Andheri", "Borivali to Vile Parle")

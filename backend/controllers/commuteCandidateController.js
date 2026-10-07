@@ -8,14 +8,20 @@
 
 const {
   candidateRouteEngine,
-  studentCommutePreferenceService
+  studentCommutePreferenceService,
+  commuteContextEngine,
+  commuteContextService
 } = require('../services');
+const { addMinutesToHHMM } = require('../services/commuteContextEngine');
+const { TrafficCondition } = require('../models/TrafficCondition');
+const { ServiceStatusRecord } = require('../models/TransportAvailability');
 const { success } = require('../utils/apiResponse');
 const { ValidationError } = require('../errors');
 const { findForbiddenPrivacyFields } = require('../models/CommutePlanInputDTO');
 
 /**
  * Generates feasible candidate journeys connecting starting area to college destination.
+ * Evaluates real-time and environmental context impacts without declaring a recommended route.
  *
  * @param {import('express').Request} req
  * @param {import('express').Response} res
@@ -99,48 +105,183 @@ async function generateCandidateJourneys(req, res, next) {
       options: { limit }
     });
 
-    // 9. Format candidate response payload
-    const candidates = (rawCandidates || []).map(cand => ({
-      id: cand.id,
-      origin: cand.origin,
-      destination: cand.destination,
-      departureTime: cand.departureTime,
-      estimatedArrivalTime: cand.estimatedArrivalTime,
-      totalDurationMinutes: cand.totalDurationMinutes,
-      totalWaitingTimeMinutes: cand.totalWaitingTimeMinutes,
-      walkingTimeMinutes: cand.walkingTimeMinutes,
-      transitTimeMinutes: cand.transitTimeMinutes,
-      transferCount: cand.transferCount,
-      estimatedCostRupees: cand.estimatedCostRupees,
-      totalDistanceKm: cand.totalDistanceKm,
-      primaryMode: cand.primaryMode,
-      modesIncluded: cand.modesIncluded,
-      isViable: cand.isViable,
-      advisories: cand.advisories || [],
-      provenance: (() => {
-        const raw = cand.provenance
-          ? (typeof cand.provenance.toJSON === 'function' ? cand.provenance.toJSON() : cand.provenance)
-          : null;
-        const tier = raw?.sourceTier || raw?.tier || 'ESTIMATED';
-        const source = raw?.provider || raw?.source || 'Candidate Route Generation Engine';
-        return {
-          tier,
-          sourceTier: tier,
-          source,
-          provider: source,
-          confidence: raw?.confidence || 'MEDIUM',
-          description: raw?.description || 'Deterministic timetable propagation over prototype transit network'
-        };
-      })(),
-      limitations: 'Timetable and headway estimates; actual real-time conditions may vary with crowds, traffic, or transit disruptions.',
-      segments: (cand.segments || []).map(seg => {
-        const raw = seg.provenance
+    // 9. Collect and assemble Unified Commute Context
+    let baseContext = {};
+    try {
+      baseContext = await commuteContextService.collectContext({
+        originArea: startingArea,
+        destinationArea: destination,
+        desiredArrivalTime: targetArrivalTime,
+        preferredModes: preferences.preferredModes,
+        constraints,
+        studentId
+      }, {
+        currentTime: req.body.currentTime || undefined,
+        dayOfWeek: dayOfWeek || undefined
+      });
+    } catch (ctxErr) {
+      baseContext = {};
+    }
+
+    const rawDisruptions = req.body.disruptions !== undefined
+      ? req.body.disruptions
+      : (req.body.context?.disruptions !== undefined
+        ? req.body.context.disruptions
+        : (baseContext.disruptions || null));
+
+    const normalizedDisruptions = Array.isArray(rawDisruptions)
+      ? rawDisruptions.map(d => ({
+          ...d,
+          id: d.id || `disr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          type: d.type || (d.disruptionType ? String(d.disruptionType).toLowerCase() : 'delay'),
+          disruptionType: d.disruptionType || d.type || 'delay',
+          affectedMode: d.affectedMode || d.transportMode || d.mode || 'train',
+          affectedArea: d.affectedArea || d.area || d.corridor || 'Western Railway',
+          corridorOrArea: d.corridorOrArea || d.corridor || d.affectedArea || d.area || 'Western Railway',
+          affectedRouteId: d.affectedRouteId || d.affectedLineOrRoute || (Array.isArray(d.affectedLines) ? d.affectedLines[0] : null) || null,
+          estimatedDelayMinutes: d.estimatedDelayMinutes !== undefined
+            ? Number(d.estimatedDelayMinutes)
+            : (d.delayMinutes !== undefined ? Number(d.delayMinutes) : 0),
+          status: d.status ? String(d.status).toLowerCase() : 'active',
+          severity: d.severity || 'moderate',
+          description: d.description || 'Commute disruption'
+        }))
+      : rawDisruptions;
+
+    const rawTraffic = req.body.trafficConditions !== undefined
+      ? req.body.trafficConditions
+      : (req.body.traffic !== undefined
+        ? req.body.traffic
+        : (req.body.context?.trafficConditions !== undefined
+          ? req.body.context.trafficConditions
+          : (baseContext.trafficContext?.conditions || null)));
+
+    const normalizedTraffic = Array.isArray(rawTraffic)
+      ? rawTraffic.map(t => {
+          if (t && typeof t.isActive === 'function') return t;
+          const level = t.level || t.trafficLevel || 'normal';
+          const area = t.area || t.corridor || 'Mumbai';
+          const delay = t.expectedDelayMinutes !== undefined
+            ? Number(t.expectedDelayMinutes)
+            : (t.delayMinutes !== undefined ? Number(t.delayMinutes) : 0);
+          return TrafficCondition.create({
+            ...t,
+            id: t.id || `traf-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            area,
+            level,
+            expectedDelayMinutes: delay,
+            description: t.description || `Traffic on ${area}`
+          });
+        })
+      : rawTraffic;
+
+    const rawAvailability = req.body.availabilityRecords !== undefined
+      ? req.body.availabilityRecords
+      : (req.body.serviceStatusRecords !== undefined
+        ? req.body.serviceStatusRecords
+        : (req.body.context?.availabilityRecords !== undefined
+          ? req.body.context.availabilityRecords
+          : (baseContext.availabilityContext?.records || null)));
+
+    const normalizedAvailability = Array.isArray(rawAvailability)
+      ? rawAvailability.map(a => {
+          if (a && typeof a.isUsable === 'function') return a;
+          return ServiceStatusRecord.create({
+            ...a,
+            id: a.id || `avail-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+          });
+        })
+      : rawAvailability;
+
+    const evaluationContext = {
+      ...baseContext,
+      ...(req.body.context || {}),
+      currentTime: req.body.currentTime || baseContext.currentTime || undefined,
+      disruptions: normalizedDisruptions,
+      trafficConditions: normalizedTraffic,
+      trafficContext: req.body.trafficContext !== undefined
+        ? req.body.trafficContext
+        : (req.body.context?.trafficContext || baseContext.trafficContext || null),
+      weatherContext: req.body.weatherContext !== undefined
+        ? req.body.weatherContext
+        : (req.body.weatherCondition !== undefined
+          ? req.body.weatherCondition
+          : (req.body.weather !== undefined
+            ? req.body.weather
+            : (req.body.context?.weatherContext || baseContext.weatherContext || null))),
+      availabilityRecords: normalizedAvailability,
+      availabilityContext: req.body.availabilityContext !== undefined
+        ? req.body.availabilityContext
+        : (req.body.context?.availabilityContext || baseContext.availabilityContext || null)
+    };
+
+    // 10. Evaluate unified context impact on each candidate and distinguish baseline vs contextual impact
+    const candidates = (rawCandidates || []).map(cand => {
+      // 10a. Evaluate candidate through CommuteContextEngine
+      const unifiedImpact = commuteContextEngine.evaluateJourney(cand, evaluationContext, {
+        currentTime: req.body.currentTime
+      });
+
+      // 10b. Baseline metrics
+      const baselineDuration = Number(cand.totalDurationMinutes || 0);
+      const baselineArrivalTime = cand.estimatedArrivalTime || addMinutesToHHMM(cand.departureTime || '08:00', baselineDuration);
+
+      // 10c. Contextual updates
+      const updatedDurationMinutes = unifiedImpact.updatedDurationMinutes;
+      const updatedArrivalTime = cand.departureTime
+        ? addMinutesToHHMM(cand.departureTime, updatedDurationMinutes)
+        : addMinutesToHHMM(baselineArrivalTime, unifiedImpact.totalAdditionalDelayMinutes);
+
+      const isFeasible = unifiedImpact.isFeasible;
+      const isViable = isFeasible && cand.isViable !== false;
+
+      // 10d. Resolve provenance
+      const rawCandProv = cand.provenance
+        ? (typeof cand.provenance.toJSON === 'function' ? cand.provenance.toJSON() : cand.provenance)
+        : null;
+      const candTier = rawCandProv?.sourceTier || rawCandProv?.tier || 'ESTIMATED';
+      const candSource = rawCandProv?.provider || rawCandProv?.source || 'Candidate Route Generation Engine';
+
+      // 10e. Build contextual impact summary
+      const contextualImpact = {
+        isFeasible,
+        feasibilityReason: unifiedImpact.feasibilityReason,
+        reasonCodes: unifiedImpact.reasonCodes,
+        totalAdditionalDelayMinutes: unifiedImpact.totalAdditionalDelayMinutes,
+        disruptionDelayMinutes: unifiedImpact.disruptionImpact?.totalDelayMinutes || 0,
+        trafficDelayMinutes: unifiedImpact.trafficImpact?.addedTravelTimeMinutes || 0,
+        weatherDelayMinutes: unifiedImpact.weatherImpact?.totalAddedTravelTimeMinutes || 0,
+        availabilityDelayMinutes: unifiedImpact.transportStatus?.totalDelayMinutes || 0,
+        originalDurationMinutes: baselineDuration,
+        updatedDurationMinutes,
+        updatedArrivalTime,
+        reliabilityIndicator: unifiedImpact.reliabilityIndicator,
+        uncertaintyLevel: unifiedImpact.uncertaintyLevel,
+        dominantTransportStatus: unifiedImpact.dominantTransportStatus,
+        affectedSegments: unifiedImpact.affectedSegments,
+        unavailableSegments: unifiedImpact.unavailableSegments,
+        disruptionImpact: unifiedImpact.disruptionImpact,
+        trafficImpact: unifiedImpact.trafficImpact,
+        weatherImpact: unifiedImpact.weatherImpact,
+        transportAvailability: unifiedImpact.transportStatus,
+        advisories: unifiedImpact.advisories,
+        dataTiers: unifiedImpact.dataTiers,
+        provenance: unifiedImpact.provenance
+      };
+
+      // 10f. Build segments with contextual segment-level impacts
+      const segments = (cand.segments || []).map((seg, idx) => {
+        const segIndex = seg.segmentIndex !== undefined ? seg.segmentIndex : idx;
+        const affSeg = unifiedImpact.affectedSegments?.find(s => s.segmentIndex === segIndex);
+        const unavailSeg = unifiedImpact.unavailableSegments?.find(s => s.segmentIndex === segIndex);
+        const rawSegProv = seg.provenance
           ? (typeof seg.provenance.toJSON === 'function' ? seg.provenance.toJSON() : seg.provenance)
           : null;
-        const tier = raw?.sourceTier || raw?.tier || 'ESTIMATED';
-        const source = raw?.provider || raw?.source || 'Journey Segment Engine';
+        const tier = rawSegProv?.sourceTier || rawSegProv?.tier || 'ESTIMATED';
+        const source = rawSegProv?.provider || rawSegProv?.source || 'Journey Segment Engine';
+
         return {
-          segmentIndex: seg.segmentIndex,
+          segmentIndex: segIndex,
           type: seg.type,
           mode: seg.mode,
           from: seg.from,
@@ -154,21 +295,108 @@ async function generateCandidateJourneys(req, res, next) {
           serviceId: seg.serviceId,
           lineIdentifier: seg.lineIdentifier,
           lineInfo: seg.lineInfo,
-          status: seg.status,
+          status: unavailSeg ? unavailSeg.status : seg.status,
+          isAffected: Boolean(affSeg),
+          isUsable: affSeg ? affSeg.isUsable : true,
+          contextDelayMinutes: affSeg ? affSeg.delayMinutes : 0,
+          contextReasons: affSeg ? affSeg.reasons : [],
+          contextImpacts: affSeg ? affSeg.impacts : null,
           provenance: {
             tier,
             sourceTier: tier,
             source,
             provider: source,
-            confidence: raw?.confidence || 'MEDIUM',
-            description: raw?.description || 'Deterministic segment timing'
+            confidence: rawSegProv?.confidence || 'MEDIUM',
+            description: rawSegProv?.description || 'Deterministic segment timing'
           }
         };
-      })
-    }));
+      });
+
+      return {
+        id: cand.id,
+        origin: cand.origin,
+        destination: cand.destination,
+        departureTime: cand.departureTime,
+        estimatedArrivalTime: updatedArrivalTime,
+        totalDurationMinutes: updatedDurationMinutes,
+        estimatedTravelTimeMinutes: updatedDurationMinutes,
+        baselineTravel: {
+          durationMinutes: baselineDuration,
+          estimatedArrivalTime: baselineArrivalTime,
+          departureTime: cand.departureTime,
+          waitingTimeMinutes: cand.totalWaitingTimeMinutes || 0,
+          walkingTimeMinutes: cand.walkingTimeMinutes || 0,
+          transitTimeMinutes: cand.transitTimeMinutes || 0,
+          transferCount: cand.transferCount || 0,
+          estimatedCostRupees: cand.estimatedCostRupees || 0,
+          totalDistanceKm: cand.totalDistanceKm || 0
+        },
+        contextualImpact,
+        isFeasible,
+        isViable,
+        feasibilityReason: unifiedImpact.feasibilityReason,
+        reasonCodes: unifiedImpact.reasonCodes,
+        additionalDisruptionDelayMinutes: unifiedImpact.disruptionImpact?.totalDelayMinutes || 0,
+        totalAdditionalDelayMinutes: unifiedImpact.totalAdditionalDelayMinutes,
+        affectedSegments: unifiedImpact.affectedSegments,
+        unavailableSegments: unifiedImpact.unavailableSegments,
+        trafficImpact: unifiedImpact.trafficImpact,
+        weatherImpact: unifiedImpact.weatherImpact,
+        transportAvailability: unifiedImpact.transportStatus,
+        totalWaitingTimeMinutes: cand.totalWaitingTimeMinutes,
+        walkingTimeMinutes: cand.walkingTimeMinutes,
+        transitTimeMinutes: cand.transitTimeMinutes,
+        transferCount: cand.transferCount,
+        estimatedCostRupees: cand.estimatedCostRupees,
+        totalDistanceKm: cand.totalDistanceKm,
+        primaryMode: cand.primaryMode,
+        modesIncluded: cand.modesIncluded,
+        advisories: unifiedImpact.advisories,
+        provenance: {
+          tier: candTier,
+          sourceTier: candTier,
+          source: candSource,
+          provider: candSource,
+          confidence: rawCandProv?.confidence || 'MEDIUM',
+          description: rawCandProv?.description || 'Deterministic timetable propagation with real-time context integration',
+          contextTiers: unifiedImpact.dataTiers,
+          contextProvider: unifiedImpact.provenance?.provider
+        },
+        limitations: 'Timetable baseline with real-time and environmental context adjustments. Does NOT constitute a final recommendation or ranked choice.',
+        segments
+      };
+    });
+
+    const allDataTiers = new Set(['VERIFIED', 'ESTIMATED']);
+    (evaluationContext.disruptions || []).forEach(d => {
+      const tier = d.provenance?.sourceTier || d.provenance?.tier || d.tier;
+      if (tier) allDataTiers.add(tier);
+    });
+    (evaluationContext.trafficConditions || []).forEach(t => {
+      const tier = t.provenance?.sourceTier || t.provenance?.tier || t.tier;
+      if (tier) allDataTiers.add(tier);
+    });
+    if (evaluationContext.weatherContext?.provenance?.sourceTier) {
+      allDataTiers.add(evaluationContext.weatherContext.provenance.sourceTier);
+    }
+    (evaluationContext.availabilityRecords || []).forEach(a => {
+      const tier = a.provenance?.sourceTier || a.provenance?.tier || a.tier;
+      if (tier) allDataTiers.add(tier);
+    });
+    candidates.forEach(cand => {
+      (cand.contextualImpact?.dataTiers || []).forEach(tier => allDataTiers.add(tier));
+    });
+
+    const weatherCond = evaluationContext.weatherContext?.condition ||
+      (typeof evaluationContext.weatherContext === 'string' ? evaluationContext.weatherContext : 'clear');
+    const trafficLvl = evaluationContext.trafficContext?.level ||
+      (Array.isArray(evaluationContext.trafficConditions) && evaluationContext.trafficConditions.length > 0 ? 'congested' : 'normal');
+    const dominantAvail = evaluationContext.availabilityContext?.status || 'AVAILABLE';
 
     return success(res, {
       candidateCount: candidates.length,
+      feasibleCandidateCount: candidates.filter(c => c.isFeasible).length,
+      infeasibleCandidateCount: candidates.filter(c => !c.isFeasible).length,
       candidates,
       queryContext: {
         studentId,
@@ -179,10 +407,20 @@ async function generateCandidateJourneys(req, res, next) {
         appliedConstraints: constraints,
         appliedPreferences: preferences
       },
+      contextSummary: {
+        weatherCondition: weatherCond,
+        trafficLevel: trafficLvl,
+        dominantTransportStatus: dominantAvail,
+        activeDisruptionsCount: Array.isArray(evaluationContext.disruptions) ? evaluationContext.disruptions.length : 0,
+        hasInfeasibleCandidates: candidates.some(c => !c.isFeasible)
+      },
       provenanceMetadata: {
-        dataTiers: ['VERIFIED', 'ESTIMATED'],
-        hasEstimatedData: true,
-        limitations: 'Prototype timetable and network model; candidate journeys represent feasible trip options prior to recommendation scoring.'
+        dataTiers: Array.from(allDataTiers),
+        hasEstimatedData: allDataTiers.has('ESTIMATED'),
+        hasUserReportedData: allDataTiers.has('USER_REPORTED'),
+        hasVerifiedData: allDataTiers.has('VERIFIED'),
+        hasSyntheticData: allDataTiers.has('SYNTHETIC'),
+        limitations: 'Timetable estimates with real-time/forecasted environmental and transport context. Does NOT declare a recommended or chosen route.'
       }
     });
   } catch (err) {

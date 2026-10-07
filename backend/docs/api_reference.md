@@ -638,12 +638,12 @@ Removes / cancels an individual planned study work item.
 
 ---
 
-## 9. Commute Candidate Route Planning (Day 15)
+## 9. Commute Candidate Route Planning (Day 15 & Day 16 Context Engine)
 
 ### `POST /api/commute/candidates` and `POST /api/student/commute/candidates`
-Generates feasible, multimodal candidate commute journeys connecting a student's coarse starting area to their college destination.
+Generates feasible, multimodal candidate commute journeys connecting a student's coarse starting area to their college destination, evaluated against real-time and environmental commute context (transit disruptions, road traffic, weather conditions, and service availability).
 
-> **Note**: This endpoint exposes the current commute planning foundation returning **feasible candidate journeys**; it does not pretend that final recommendation scoring/ranking exists.
+> **Note**: This endpoint exposes **feasible candidate journeys and their contextual impacts**; it clearly distinguishes baseline travel estimates from contextual changes and reports route feasibility without declaring a "recommended" or ranked route.
 
 #### Security & Privacy
 - **Auth**: `Bearer <token>` (Student authentication required)
@@ -669,12 +669,20 @@ Generates feasible, multimodal candidate commute journeys connecting a student's
 }
 ```
 
+Optional context simulation overrides (used for testing or dynamic scenarios):
+- `disruptions`: Array of active transit disruption objects.
+- `trafficConditions`: Array of road traffic condition objects.
+- `weatherContext`: Weather context or condition object (`clear`, `rain`, `heavy_rain`, `severe`, `extreme_heat`).
+- `availabilityRecords`: Array of transport availability status records.
+
 #### Response: `200 OK`
 ```json
 {
   "success": true,
-  "timestamp": "2026-10-06T18:15:00.000Z",
+  "timestamp": "2026-10-07T17:15:00.000Z",
   "candidateCount": 2,
+  "feasibleCandidateCount": 2,
+  "infeasibleCandidateCount": 0,
   "candidates": [
     {
       "id": "cand-graph-1728238500-0",
@@ -683,6 +691,65 @@ Generates feasible, multimodal candidate commute journeys connecting a student's
       "departureTime": "08:00",
       "estimatedArrivalTime": "08:35",
       "totalDurationMinutes": 35,
+      "estimatedTravelTimeMinutes": 35,
+      "baselineTravel": {
+        "durationMinutes": 35,
+        "estimatedArrivalTime": "08:35",
+        "departureTime": "08:00",
+        "waitingTimeMinutes": 6,
+        "walkingTimeMinutes": 10,
+        "transitTimeMinutes": 19,
+        "transferCount": 1,
+        "estimatedCostRupees": 30,
+        "totalDistanceKm": 4.5
+      },
+      "contextualImpact": {
+        "isFeasible": true,
+        "feasibilityReason": "OPERATIONAL",
+        "reasonCodes": ["CLEAN_JOURNEY"],
+        "totalAdditionalDelayMinutes": 0,
+        "disruptionDelayMinutes": 0,
+        "trafficDelayMinutes": 0,
+        "weatherDelayMinutes": 0,
+        "availabilityDelayMinutes": 0,
+        "originalDurationMinutes": 35,
+        "updatedDurationMinutes": 35,
+        "updatedArrivalTime": "08:35",
+        "reliabilityIndicator": "LOW",
+        "uncertaintyLevel": "LOW",
+        "dominantTransportStatus": "AVAILABLE",
+        "affectedSegments": [],
+        "unavailableSegments": [],
+        "advisories": [
+          "Normal commute conditions — no active disruptions, road traffic, or adverse weather."
+        ],
+        "dataTiers": ["ESTIMATED"],
+        "provenance": {
+          "sourceTier": "ESTIMATED",
+          "provider": "Commute Context Engine"
+        }
+      },
+      "isFeasible": true,
+      "isViable": true,
+      "feasibilityReason": "OPERATIONAL",
+      "reasonCodes": ["CLEAN_JOURNEY"],
+      "additionalDisruptionDelayMinutes": 0,
+      "totalAdditionalDelayMinutes": 0,
+      "affectedSegments": [],
+      "unavailableSegments": [],
+      "trafficImpact": {
+        "level": "normal",
+        "addedTravelTimeMinutes": 0
+      },
+      "weatherImpact": {
+        "condition": "clear",
+        "totalAddedTravelTimeMinutes": 0
+      },
+      "transportAvailability": {
+        "status": "AVAILABLE",
+        "isUsable": true,
+        "totalDelayMinutes": 0
+      },
       "totalWaitingTimeMinutes": 6,
       "walkingTimeMinutes": 10,
       "transitTimeMinutes": 19,
@@ -691,14 +758,13 @@ Generates feasible, multimodal candidate commute journeys connecting a student's
       "totalDistanceKm": 4.5,
       "primaryMode": "metro",
       "modesIncluded": ["metro", "bus", "walk"],
-      "isViable": true,
       "advisories": [],
       "provenance": {
         "tier": "ESTIMATED",
         "source": "Candidate Route Generation Engine",
-        "description": "Deterministic timetable propagation over prototype transit network"
+        "description": "Deterministic timetable propagation with real-time context integration"
       },
-      "limitations": "Timetable and headway estimates; actual real-time conditions may vary with crowds, traffic, or transit disruptions.",
+      "limitations": "Timetable baseline with real-time and environmental context adjustments. Does NOT constitute a final recommendation or ranked choice.",
       "segments": [
         {
           "segmentIndex": 0,
@@ -713,7 +779,15 @@ Generates feasible, multimodal candidate commute journeys connecting a student's
           "distanceKm": 2.5,
           "fareRupees": 20,
           "lineIdentifier": "Line 2A",
-          "status": "SCHEDULED"
+          "status": "ACTIVE",
+          "isAffected": false,
+          "isUsable": true,
+          "contextDelayMinutes": 0,
+          "contextReasons": [],
+          "provenance": {
+            "tier": "ESTIMATED",
+            "source": "Journey Segment Engine"
+          }
         }
       ]
     }
@@ -735,13 +809,24 @@ Generates feasible, multimodal candidate commute journeys connecting a student's
       "preferredModes": ["metro", "bus", "walk"]
     }
   },
+  "contextSummary": {
+    "weatherCondition": "clear",
+    "trafficLevel": "normal",
+    "dominantTransportStatus": "AVAILABLE",
+    "activeDisruptionsCount": 0,
+    "hasInfeasibleCandidates": false
+  },
   "provenanceMetadata": {
     "dataTiers": ["VERIFIED", "ESTIMATED"],
     "hasEstimatedData": true,
-    "limitations": "Prototype timetable and network model; candidate journeys represent feasible trip options prior to recommendation scoring."
+    "hasUserReportedData": false,
+    "hasVerifiedData": true,
+    "hasSyntheticData": false,
+    "limitations": "Timetable estimates with real-time/forecasted environmental and transport context. Does NOT declare a recommended or chosen route."
   }
 }
 ```
+
 
 
 
