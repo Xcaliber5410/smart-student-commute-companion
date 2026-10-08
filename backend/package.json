@@ -68,6 +68,7 @@
     "test:commute-context-api": "node scripts/integration_commute_context_api_test.js",
     "test:commute-context-master": "node scripts/integration_commute_context_master_test.js",
     "test:route-evaluation": "node scripts/test_route_evaluation_model.js",
+    "test:route-scoring": "node scripts/test_deterministic_route_scoring.js",
     "test:commute-integration": "node scripts/integration_commute_route_generation_test.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",
     "test:study-resource-api": "node scripts/integration_study_resource_api_test.js",

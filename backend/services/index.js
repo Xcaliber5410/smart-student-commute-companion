@@ -75,8 +75,17 @@ const {
 } = require('./candidateRouteEngine');
 const { commuteContextEngine, CommuteContextEngine } = require('./commuteContextEngine');
 const { routeEvaluationService, RouteEvaluationService } = require('./routeEvaluationService');
+const {
+  deterministicRouteScoringService,
+  DeterministicRouteScoringService,
+  SCORING_RATES
+} = require('./deterministicRouteScoringService');
 
 module.exports = {
+  // Deterministic Route Scoring Engine (P9)
+  deterministicRouteScoringService,
+  DeterministicRouteScoringService,
+  SCORING_RATES,
   // Route Evaluation Model & Service (P9)
   routeEvaluationService,
   RouteEvaluationService,
