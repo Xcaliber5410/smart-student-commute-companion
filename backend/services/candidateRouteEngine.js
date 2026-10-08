@@ -987,6 +987,32 @@ class CandidateRouteEngine {
     const [h2, m2] = time2.split(':').map(Number);
     return (h1 * 60 + m1) < (h2 * 60 + m2);
   }
+
+  /**
+   * Generates meaningful alternate routes for an affected or evaluated journey.
+   *
+   * @param {CommuteJourney|object} originalJourney
+   * @param {object} [context={}]
+   * @param {object} [options={}]
+   * @returns {Promise<Array<object>>}
+   */
+  async generateAlternatesForJourney(originalJourney, context = {}, options = {}) {
+    const { alternateRouteService } = require('./alternateRouteService');
+    return alternateRouteService.generateAlternatesForJourney(originalJourney, context, options);
+  }
+
+  /**
+   * Generates alternate candidate routes for an array of candidate journeys.
+   *
+   * @param {Array<CommuteJourney>} candidateJourneys
+   * @param {object} [context={}]
+   * @param {object} [options={}]
+   * @returns {Promise<object>}
+   */
+  async generateAlternatesForCandidates(candidateJourneys, context = {}, options = {}) {
+    const { alternateRouteService } = require('./alternateRouteService');
+    return alternateRouteService.generateAlternatesForCandidates(candidateJourneys, context, options);
+  }
 }
 
 const candidateRouteEngine = new CandidateRouteEngine();

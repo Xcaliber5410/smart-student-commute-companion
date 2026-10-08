@@ -80,8 +80,17 @@ const {
   DeterministicRouteScoringService,
   SCORING_RATES
 } = require('./deterministicRouteScoringService');
+const {
+  alternateRouteService,
+  AlternateRouteService,
+  ALTERNATE_STRATEGY_TYPES
+} = require('./alternateRouteService');
 
 module.exports = {
+  // Alternate Route Generation Engine (P9)
+  alternateRouteService,
+  AlternateRouteService,
+  ALTERNATE_STRATEGY_TYPES,
   // Deterministic Route Scoring Engine (P9)
   deterministicRouteScoringService,
   DeterministicRouteScoringService,
