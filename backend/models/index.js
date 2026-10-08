@@ -119,7 +119,8 @@ module.exports = {
   ...require('./TrafficCondition'),
   ...require('./WeatherCondition'),
   ...require('./TransportAvailability'),
-  ...require('./UnifiedJourneyImpact')
+  ...require('./UnifiedJourneyImpact'),
+  ...require('./RouteEvaluation')
 };
 
 

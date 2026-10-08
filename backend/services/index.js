@@ -74,8 +74,12 @@ const {
   KNOWN_CAMPUS_DISTANCES
 } = require('./candidateRouteEngine');
 const { commuteContextEngine, CommuteContextEngine } = require('./commuteContextEngine');
+const { routeEvaluationService, RouteEvaluationService } = require('./routeEvaluationService');
 
 module.exports = {
+  // Route Evaluation Model & Service (P9)
+  routeEvaluationService,
+  RouteEvaluationService,
   // Unified Commute Context Engine (P9)
   commuteContextEngine,
   CommuteContextEngine,

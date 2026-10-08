@@ -101,7 +101,7 @@ const unifiedJourneyImpactSchema = z.object({
   uncertaintyLevel: reliabilityIndicatorEnum.default('LOW'),
   advisories: z.array(z.string()).default([]),
   dataTiers: z.array(z.string()).default([]),
-  provenance: provenanceSchema,
+  provenance: provenanceSchema.default(() => DataProvenance.estimated('Unified Impact Engine').toJSON()),
   evaluatedAt: z.coerce.number().int().positive().default(() => Date.now())
 });
 
