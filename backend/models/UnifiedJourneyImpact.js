@@ -126,6 +126,9 @@ class UnifiedJourneyImpact {
       } else if (!copy.uncertaintyLevel && copy.reliabilityIndicator) {
         copy.uncertaintyLevel = copy.reliabilityIndicator;
       }
+      if (typeof copy.evaluatedAt !== 'number' || Number.isNaN(copy.evaluatedAt) || copy.evaluatedAt <= 0) {
+        copy.evaluatedAt = Date.now();
+      }
 
       const validated = unifiedJourneyImpactSchema.parse(copy);
       Object.assign(this, validated);

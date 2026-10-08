@@ -116,18 +116,27 @@ class CandidateRouteEngine {
     const candidateJourneys = [];
     const rejectedCandidates = [];
 
+    const handleCandidate = (cand) => {
+      if (!cand) return;
+      if (options.unfiltered) {
+        candidateJourneys.push(cand);
+      } else {
+        this._evaluateCandidate(cand, { preferences, constraints, targetArrivalTime }, candidateJourneys, rejectedCandidates);
+      }
+    };
+
     // 1. Candidate Strategy A: Direct Route (Walking if within 2.5km, Auto-rickshaw direct)
     if (options.includeDirectWalk !== false) {
       const walkCandidate = this._buildDirectWalkCandidate({ origin, destination, departureTime, targetArrivalTime });
       if (walkCandidate) {
-        this._evaluateCandidate(walkCandidate, { preferences, constraints, targetArrivalTime }, candidateJourneys, rejectedCandidates);
+        handleCandidate(walkCandidate);
       }
     }
 
     if (options.includeDirectAuto !== false) {
       const autoCandidate = this._buildDirectAutoCandidate({ origin, destination, departureTime, targetArrivalTime });
       if (autoCandidate) {
-        this._evaluateCandidate(autoCandidate, { preferences, constraints, targetArrivalTime }, candidateJourneys, rejectedCandidates);
+        handleCandidate(autoCandidate);
       }
     }
 
@@ -142,7 +151,7 @@ class CandidateRouteEngine {
       network
     });
     for (const cand of trainCandidates) {
-      this._evaluateCandidate(cand, { preferences, constraints, targetArrivalTime }, candidateJourneys, rejectedCandidates);
+      handleCandidate(cand);
     }
 
     // 3. Candidate Strategy C: Metro Line 1 + Bus Feeder (Canonical Multimodal Interchange)
@@ -156,7 +165,7 @@ class CandidateRouteEngine {
       network
     });
     for (const cand of metroBusCandidates) {
-      this._evaluateCandidate(cand, { preferences, constraints, targetArrivalTime }, candidateJourneys, rejectedCandidates);
+      handleCandidate(cand);
     }
 
     // 4. Candidate Strategy D: Direct City Bus Corridor (BEST Bus 201 + Campus Walk)
@@ -170,7 +179,7 @@ class CandidateRouteEngine {
       network
     });
     for (const cand of busCandidates) {
-      this._evaluateCandidate(cand, { preferences, constraints, targetArrivalTime }, candidateJourneys, rejectedCandidates);
+      handleCandidate(cand);
     }
 
     // 5. Candidate Strategy E: Metro + Shared Auto Feeder
@@ -184,7 +193,7 @@ class CandidateRouteEngine {
       network
     });
     for (const cand of metroAutoCandidates) {
-      this._evaluateCandidate(cand, { preferences, constraints, targetArrivalTime }, candidateJourneys, rejectedCandidates);
+      handleCandidate(cand);
     }
 
     // 6. Candidate Strategy F: Deterministic Network Graph Search (Breadth-First Path Discovery)
@@ -200,7 +209,7 @@ class CandidateRouteEngine {
       constraints
     });
     for (const cand of graphCandidates) {
-      this._evaluateCandidate(cand, { preferences, constraints, targetArrivalTime }, candidateJourneys, rejectedCandidates);
+      handleCandidate(cand);
     }
 
     // Deduplicate candidates deterministically
@@ -761,91 +770,39 @@ class CandidateRouteEngine {
       return;
     }
 
-    const violations = [];
+    const { routeConstraintFilteringService } = require('./routeConstraintFilteringService');
+    const result = routeConstraintFilteringService.evaluateRoute(journey, {
+      preferences,
+      constraints,
+      targetArrivalTime
+    });
 
-    // 1. Service Availability Check
-    for (let i = 0; i < journey.segments.length; i++) {
-      const seg = journey.segments[i];
-      if (seg.status === 'INACTIVE' || seg.status === 'SUSPENDED' || seg.status === 'CANCELLED') {
-        violations.push(`Unavailable service at segment ${i} (${seg.lineIdentifier || seg.mode}): status is ${seg.status}`);
-      }
-    }
-
-    // 2. Operating Hours Check
-    for (const seg of journey.segments) {
-      if (seg.isTransit()) {
-        const operatingHours = this.scheduleService.getOperatingHours(seg.mode, seg);
-        const isWithinHours = this.scheduleService.isWithinOperatingHours(seg.departureTime, operatingHours);
-        if (!isWithinHours) {
-          violations.push(`Operating hours violation: ${seg.lineIdentifier || seg.mode} departing at ${seg.departureTime} is outside operating window`);
-        }
-      }
-    }
-
-    // 3. Maximum Transfers Constraint
-    if (constraints.maxTransfers !== undefined && constraints.maxTransfers !== null) {
-      const maxTransfers = Number(constraints.maxTransfers);
-      if (journey.transferCount > maxTransfers) {
-        violations.push(`Transfer constraint exceeded: journey requires ${journey.transferCount} transfers, maximum allowed is ${maxTransfers}`);
-      }
-    }
-
-    // 4. Maximum Walking Minutes Constraint
-    if (constraints.maxWalkingMinutes !== undefined && constraints.maxWalkingMinutes !== null) {
-      const maxWalking = Number(constraints.maxWalkingMinutes);
-      if (journey.walkingTimeMinutes > maxWalking) {
-        violations.push(`Walking constraint exceeded: journey requires ${journey.walkingTimeMinutes} min walking, maximum allowed is ${maxWalking} min`);
-      }
-    }
-
-    // 5. Arrival Deadline Constraint
-    if (targetArrivalTime) {
-      if (this._isLaterTime(journey.estimatedArrivalTime, targetArrivalTime)) {
-        violations.push(`Arrival deadline missed: journey arrives at ${journey.estimatedArrivalTime}, target arrival deadline is ${targetArrivalTime}`);
-      }
-    }
-
-    // 6. Maximum Budget Constraint
-    if (constraints.maxBudgetRupees !== undefined && constraints.maxBudgetRupees !== null) {
-      const maxBudget = Number(constraints.maxBudgetRupees);
-      if (journey.estimatedCostRupees > maxBudget) {
-        violations.push(`Budget constraint exceeded: total fare Rs ${journey.estimatedCostRupees} exceeds maximum allowed budget Rs ${maxBudget}`);
-      }
-    }
-
-    // 7. Allowed Modes Constraint
-    if (Array.isArray(preferences.allowedModes) && preferences.allowedModes.length > 0) {
-      const allowedSet = new Set(preferences.allowedModes.map(m => m.toLowerCase()));
-      for (const m of journey.modesIncluded) {
-        if (m !== 'walk' && !allowedSet.has(m.toLowerCase())) {
-          violations.push(`Forbidden mode '${m}': not in allowed modes [${preferences.allowedModes.join(', ')}]`);
-        }
-      }
-    }
-
-    // 8. Avoid Modes Constraint
-    if (Array.isArray(preferences.avoidModes) && preferences.avoidModes.length > 0) {
-      const avoidSet = new Set(preferences.avoidModes.map(m => m.toLowerCase()));
-      for (const m of journey.modesIncluded) {
-        if (avoidSet.has(m.toLowerCase())) {
-          violations.push(`Avoided mode '${m}' present in journey`);
-        }
-      }
-    }
-
-    // 9. Spatial & Chronological Integrity Check via JourneyBuilder
+    // Spatial & Chronological Integrity Check via JourneyBuilder
     const validation = this.journeyBuilder.validateJourney(journey);
     if (!validation.isValid) {
-      violations.push(...validation.errors);
+      result.isAccepted = false;
+      result.status = 'REJECTED';
+      for (const err of validation.errors) {
+        result.violations.push({
+          constraintType: 'HARD',
+          reasonCode: 'CORRIDOR_CLOSED',
+          message: err,
+          field: 'spatialIntegrity'
+        });
+      }
     }
 
-    if (violations.length === 0) {
+    if (result.isAccepted) {
       accepted.push(journey);
     } else {
       rejected.push({
         candidateId: journey.id,
         primaryMode: journey.primaryMode,
-        violations
+        violations: result.violations.map(v => v.message),
+        detailedViolations: result.violations,
+        reasonCodes: result.reasonCodes,
+        primaryReasonCode: result.primaryReasonCode,
+        journey
       });
     }
   }
@@ -1012,6 +969,18 @@ class CandidateRouteEngine {
   async generateAlternatesForCandidates(candidateJourneys, context = {}, options = {}) {
     const { alternateRouteService } = require('./alternateRouteService');
     return alternateRouteService.generateAlternatesForCandidates(candidateJourneys, context, options);
+  }
+
+  /**
+   * Filters candidate journeys against hard constraints and soft preferences using RouteConstraintFilteringService.
+   *
+   * @param {Array<CommuteJourney|object>} candidates
+   * @param {object} [options={}]
+   * @returns {object} { accepted, rejected, allEvaluations, summary }
+   */
+  filterCandidates(candidates, options = {}) {
+    const { routeConstraintFilteringService } = require('./routeConstraintFilteringService');
+    return routeConstraintFilteringService.filterCandidates(candidates, options);
   }
 }
 

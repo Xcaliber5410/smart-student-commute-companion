@@ -10,7 +10,8 @@ const {
   candidateRouteEngine,
   studentCommutePreferenceService,
   commuteContextEngine,
-  commuteContextService
+  commuteContextService,
+  routeConstraintFilteringService
 } = require('../services');
 const { addMinutesToHHMM } = require('../services/commuteContextEngine');
 const { TrafficCondition } = require('../models/TrafficCondition');
@@ -85,25 +86,31 @@ async function generateCandidateJourneys(req, res, next) {
     const preferences = {
       allowedModes: req.body.allowedModes || null,
       avoidModes: req.body.avoidModes || (studentPrefs?.avoid_modes || studentPrefs?.avoidModes || []),
-      preferredModes: req.body.preferredModes || (studentPrefs?.preferred_modes || studentPrefs?.preferredModes || ['train', 'metro', 'bus', 'auto', 'walk'])
+      preferredModes: req.body.preferredModes || (studentPrefs?.preferred_modes || studentPrefs?.preferredModes || ['train', 'metro', 'bus', 'auto', 'walk']),
+      preference: req.body.preference || req.body.routingPreference || studentPrefs?.preference || studentPrefs?.routingPreference || 'balanced'
     };
 
     const limit = req.body.limit !== undefined ? Number(req.body.limit) : 5;
     const date = req.body.date || 'Mon';
     const dayOfWeek = req.body.dayOfWeek || 'Mon';
 
-    // 8. Generate candidates via CandidateRouteEngine
-    const rawCandidates = await candidateRouteEngine.generateCandidates({
-      origin: startingArea,
-      destination,
-      departureTime: departureTime || (targetArrivalTime ? undefined : '08:00'),
-      targetArrivalTime,
-      preferences,
-      constraints,
-      date,
-      dayOfWeek,
-      options: { limit }
-    });
+    const allModesAvoided = Array.isArray(preferences.avoidModes) &&
+      ['train', 'metro', 'bus', 'auto', 'walk'].every(m => preferences.avoidModes.includes(m));
+
+    // 8. Generate candidates via CandidateRouteEngine (generate raw pool, filtering is executed deterministically downstream with real-time context)
+    const rawCandidates = allModesAvoided
+      ? []
+      : await candidateRouteEngine.generateCandidates({
+          origin: startingArea,
+          destination,
+          departureTime: departureTime || (targetArrivalTime ? undefined : '08:00'),
+          targetArrivalTime,
+          preferences,
+          constraints,
+          date,
+          dayOfWeek,
+          options: { limit, unfiltered: true }
+        });
 
     // 9. Collect and assemble Unified Commute Context
     let baseContext = {};
@@ -387,6 +394,31 @@ async function generateCandidateJourneys(req, res, next) {
       (cand.contextualImpact?.dataTiers || []).forEach(tier => allDataTiers.add(tier));
     });
 
+    // 11. Run deterministic Route Constraint Filtering stage
+    const filterResult = routeConstraintFilteringService.filterCandidates(candidates, {
+      constraints,
+      preferences,
+      targetArrivalTime,
+      context: evaluationContext
+    });
+
+    // Decorate candidates with deterministic constraint filtering results
+    const evaluatedCandidates = candidates.map(cand => {
+      const evalItem = filterResult.allEvaluations.find(e => e.candidateId === cand.id);
+      return {
+        ...cand,
+        isAccepted: evalItem ? evalItem.isAccepted : true,
+        filterStatus: evalItem ? evalItem.status : 'ACCEPTED',
+        constraintViolations: evalItem ? evalItem.violations : [],
+        rejectionReasonCodes: evalItem ? evalItem.reasonCodes : [],
+        softPreferences: evalItem ? evalItem.softPreferences : null
+      };
+    });
+
+    const includeRejected = req.body.includeRejected === true || req.query.includeRejected === 'true';
+    const acceptedCandidates = evaluatedCandidates.filter(c => c.isAccepted);
+    const outputCandidates = includeRejected ? evaluatedCandidates : acceptedCandidates;
+
     const weatherCond = evaluationContext.weatherContext?.condition ||
       (typeof evaluationContext.weatherContext === 'string' ? evaluationContext.weatherContext : 'clear');
     const trafficLvl = evaluationContext.trafficContext?.level ||
@@ -394,10 +426,23 @@ async function generateCandidateJourneys(req, res, next) {
     const dominantAvail = evaluationContext.availabilityContext?.status || 'AVAILABLE';
 
     return success(res, {
-      candidateCount: candidates.length,
-      feasibleCandidateCount: candidates.filter(c => c.isFeasible).length,
-      infeasibleCandidateCount: candidates.filter(c => !c.isFeasible).length,
-      candidates,
+      totalEvaluatedCount: evaluatedCandidates.length,
+      candidateCount: outputCandidates.length,
+      feasibleCandidateCount: outputCandidates.filter(c => c.isFeasible).length,
+      infeasibleCandidateCount: outputCandidates.filter(c => !c.isFeasible).length,
+      acceptedCandidateCount: filterResult.summary.acceptedCount,
+      rejectedCandidateCount: filterResult.summary.rejectedCount,
+      candidates: outputCandidates,
+      allCandidates: evaluatedCandidates,
+      rejectedCandidates: filterResult.rejected.map(r => ({
+        candidateId: r.candidateId,
+        isAccepted: false,
+        primaryReasonCode: r.primaryReasonCode,
+        reasonCodes: r.reasonCodes,
+        violations: r.violations,
+        metrics: r.evaluatedMetrics
+      })),
+      filterSummary: filterResult.summary,
       queryContext: {
         studentId,
         startingArea,
@@ -412,7 +457,8 @@ async function generateCandidateJourneys(req, res, next) {
         trafficLevel: trafficLvl,
         dominantTransportStatus: dominantAvail,
         activeDisruptionsCount: Array.isArray(evaluationContext.disruptions) ? evaluationContext.disruptions.length : 0,
-        hasInfeasibleCandidates: candidates.some(c => !c.isFeasible)
+        hasInfeasibleCandidates: evaluatedCandidates.some(c => !c.isFeasible),
+        filterSummary: filterResult.summary
       },
       provenanceMetadata: {
         dataTiers: Array.from(allDataTiers),

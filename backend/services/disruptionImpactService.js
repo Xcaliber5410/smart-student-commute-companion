@@ -501,7 +501,7 @@ class DisruptionImpactService {
     }
 
     // 3. Transport Service Suspension
-    if (type === 'service_suspension' || type === 'suspension' || type === 'strike' || desc.includes('suspended') || desc.includes('strike') || desc.includes('mega block') || desc.includes('no service')) {
+    if (type === 'service_suspension' || type === 'suspension' || type === 'strike' || desc.includes('suspended') || desc.includes('strike') || (desc.includes('mega block') && desc.includes('suspended')) || desc.includes('no service')) {
       return DISRUPTION_CATEGORIES.SERVICE_SUSPENSION;
     }
 

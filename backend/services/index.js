@@ -85,8 +85,21 @@ const {
   AlternateRouteService,
   ALTERNATE_STRATEGY_TYPES
 } = require('./alternateRouteService');
+const {
+  routeConstraintFilteringService,
+  RouteConstraintFilteringService,
+  CONSTRAINT_TYPES,
+  HARD_CONSTRAINT_REASON_CODES,
+  SOFT_PREFERENCE_CODES
+} = require('./routeConstraintFilteringService');
 
 module.exports = {
+  // Route Constraint Filtering Stage (P9)
+  routeConstraintFilteringService,
+  RouteConstraintFilteringService,
+  CONSTRAINT_TYPES,
+  HARD_CONSTRAINT_REASON_CODES,
+  SOFT_PREFERENCE_CODES,
   // Alternate Route Generation Engine (P9)
   alternateRouteService,
   AlternateRouteService,
