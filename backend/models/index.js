@@ -121,7 +121,8 @@ module.exports = {
   ...require('./TransportAvailability'),
   ...require('./UnifiedJourneyImpact'),
   ...require('./RouteEvaluation'),
-  ...require('./PersonalizedCommuteRecommendation')
+  ...require('./PersonalizedCommuteRecommendation'),
+  ...require('./PersonalizedRecommendationExplanation')
 };
 
 

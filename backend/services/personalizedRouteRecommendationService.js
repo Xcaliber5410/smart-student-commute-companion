@@ -38,6 +38,7 @@ const { alternateRouteService } = require('./alternateRouteService');
 const { routeEvaluationService } = require('./routeEvaluationService');
 const { routeComparisonService } = require('./routeComparisonService');
 const { deterministicRouteScoringService } = require('./deterministicRouteScoringService');
+const { recommendationExplanationService } = require('./recommendationExplanationService');
 const { ValidationError } = require('../errors');
 
 /**
@@ -110,6 +111,7 @@ class PersonalizedRouteRecommendationService {
     this.routeEvaluationService = options.routeEvaluationService || routeEvaluationService;
     this.routeComparisonService = options.routeComparisonService || routeComparisonService;
     this.routeScoringService = options.routeScoringService || deterministicRouteScoringService;
+    this.explanationService = options.recommendationExplanationService || options.explanationService || recommendationExplanationService;
   }
 
   /**
@@ -535,9 +537,25 @@ class PersonalizedRouteRecommendationService {
     }
 
     // -------------------------------------------------------------------------
-    // STAGE 10: ASSEMBLE DOMAIN RECOMMENDATION ENTITY
+    // STAGE 10: ASSEMBLE DOMAIN RECOMMENDATION ENTITY & EXPLANATIONS
     // -------------------------------------------------------------------------
     const recId = options.recommendationId || generateDeterministicRecId(meta);
+
+    let explanation = null;
+    try {
+      explanation = this.explanationService.explainRecommendation({
+        recommendationId: recId,
+        primaryRoute,
+        alternatives: distinctAlternatives,
+        preferences,
+        constraints,
+        context,
+        targetArrivalTime,
+        rawTradeOffs: tradeOffs
+      });
+    } catch (err) {
+      // Explanation generation failure must not crash the recommendation
+    }
 
     return PersonalizedCommuteRecommendation.fromEvaluatedRoute(primaryRoute, {
       id: recId,
@@ -549,6 +567,7 @@ class PersonalizedRouteRecommendationService {
       tradeOffs,
       warnings,
       reasons,
+      explanation,
       generatedAt: options.generatedAt || Date.now()
     });
   }

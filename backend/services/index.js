@@ -104,8 +104,15 @@ const {
   personalizedRouteRecommendationService,
   PersonalizedRouteRecommendationService
 } = require('./personalizedRouteRecommendationService');
+const {
+  recommendationExplanationService,
+  RecommendationExplanationService
+} = require('./recommendationExplanationService');
 
 module.exports = {
+  // Recommendation Explanation Layer (P9)
+  recommendationExplanationService,
+  RecommendationExplanationService,
   // Personalized Route Recommendation Engine (P9)
   personalizedRouteRecommendationService,
   PersonalizedRouteRecommendationService,

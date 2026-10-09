@@ -577,6 +577,7 @@ const personalizedCommuteRecommendationSchema = z.object({
     hasUnverifiedData: true
   })),
   contextSummary: z.record(z.any()).default({}),
+  explanation: z.any().nullable().optional().default(null),
   generatedAt: z.coerce.number().int().positive().default(() => Date.now())
 });
 
@@ -917,6 +918,7 @@ class PersonalizedCommuteRecommendation {
         hasUnverifiedData
       },
       contextSummary: options.context || {},
+      explanation: options.explanation || null,
       generatedAt: options.generatedAt || Date.now()
     });
   }
@@ -949,6 +951,7 @@ class PersonalizedCommuteRecommendation {
         hasUnverifiedData: this.provenanceSummary.hasUnverifiedData
       },
       contextSummary: { ...this.contextSummary },
+      explanation: this.explanation ? (typeof this.explanation.toJSON === 'function' ? this.explanation.toJSON() : this.explanation) : null,
       generatedAt: this.generatedAt
     };
   }
