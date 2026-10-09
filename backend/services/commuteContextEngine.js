@@ -420,16 +420,16 @@ class CommuteContextEngine {
 
     // 12. Build Composite Provenance
     let compositeTier = PROVENANCE_TIERS.ESTIMATED;
-    if (dataTiers.length === 1) {
-      compositeTier = dataTiers[0];
+    if (dataTiers.length === 1 && dataTiers[0] === PROVENANCE_TIERS.VERIFIED) {
+      compositeTier = PROVENANCE_TIERS.VERIFIED;
     } else if (dataTiers.includes(PROVENANCE_TIERS.USER_REPORTED)) {
       compositeTier = PROVENANCE_TIERS.USER_REPORTED;
-    } else if (dataTiers.includes(PROVENANCE_TIERS.VERIFIED)) {
-      compositeTier = PROVENANCE_TIERS.VERIFIED;
+    } else if (dataTiers.includes(PROVENANCE_TIERS.SYNTHETIC)) {
+      compositeTier = PROVENANCE_TIERS.SYNTHETIC;
     } else if (dataTiers.includes(PROVENANCE_TIERS.ESTIMATED)) {
       compositeTier = PROVENANCE_TIERS.ESTIMATED;
-    } else {
-      compositeTier = PROVENANCE_TIERS.SYNTHETIC;
+    } else if (dataTiers.every(t => t === PROVENANCE_TIERS.VERIFIED)) {
+      compositeTier = PROVENANCE_TIERS.VERIFIED;
     }
 
     const provenance = createCompositeProvenance(

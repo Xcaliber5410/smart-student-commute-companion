@@ -182,9 +182,9 @@ class RouteComparisonService {
         : (typeof routeEval.provenance?.toJSON === 'function' ? routeEval.provenance.toJSON() : routeEval.provenance);
       const provenance = rawProvenance ? {
         ...rawProvenance,
-        tier: rawProvenance.sourceTier || rawProvenance.tier || 'VERIFIED',
-        sourceTier: rawProvenance.sourceTier || rawProvenance.tier || 'VERIFIED'
-      } : { tier: 'VERIFIED', sourceTier: 'VERIFIED' };
+        tier: rawProvenance.sourceTier || rawProvenance.tier || 'ESTIMATED',
+        sourceTier: rawProvenance.sourceTier || rawProvenance.tier || 'ESTIMATED'
+      } : { tier: 'ESTIMATED', sourceTier: 'ESTIMATED' };
       const deterministicScore = Number(scored.compositeScore);
 
       // Derive strengths & weaknesses

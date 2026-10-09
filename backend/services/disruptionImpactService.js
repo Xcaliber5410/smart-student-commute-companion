@@ -272,10 +272,32 @@ class DisruptionImpactService {
       // Active status check
       if (options.checkActive !== false) {
         if (d.status && String(d.status).toLowerCase() !== 'active') continue;
-        const now = options.currentTime || Date.now();
+        if (d.isExpired === true || d.expired === true) continue;
+
+        let now = Date.now();
+        if (typeof options.currentTime === 'number') {
+          now = options.currentTime;
+        } else if (typeof options.timestamp === 'number') {
+          now = options.timestamp;
+        }
+
         const end = d.endTime || d.expiryTime;
-        if (end && now > end) continue;
-        if (d.startTime && now < d.startTime) continue;
+        if (end !== undefined && end !== null) {
+          if (typeof end === 'number' || !isNaN(Number(end))) {
+            if (now > Number(end)) continue;
+          } else if (typeof end === 'string' && /^\d{2}:\d{2}$/.test(end) && typeof options.currentTime === 'string' && /^\d{2}:\d{2}$/.test(options.currentTime)) {
+            if (options.currentTime > end) continue;
+          }
+        }
+
+        const start = d.startTime;
+        if (start !== undefined && start !== null) {
+          if (typeof start === 'number' || !isNaN(Number(start))) {
+            if (now < Number(start)) continue;
+          } else if (typeof start === 'string' && /^\d{2}:\d{2}$/.test(start) && typeof options.currentTime === 'string' && /^\d{2}:\d{2}$/.test(options.currentTime)) {
+            if (options.currentTime < start) continue;
+          }
+        }
       }
 
       const dMode = String(d.affectedMode || d.transportMode || d.transport_mode || '').toLowerCase();

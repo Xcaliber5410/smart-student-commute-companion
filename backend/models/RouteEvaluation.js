@@ -333,13 +333,27 @@ class RouteEvaluation {
       dataTiers.push(PROVENANCE_TIERS.ESTIMATED);
     }
 
-    const provenance = unifiedImpact.provenance instanceof DataProvenance
-      ? unifiedImpact.provenance
-      : (unifiedImpact.provenance
-        ? new DataProvenance(unifiedImpact.provenance)
-        : (journey.provenance instanceof DataProvenance
-          ? journey.provenance
-          : new DataProvenance(journey.provenance || DataProvenance.estimated('Route Evaluation Engine'))));
+    let routeEvalTier = PROVENANCE_TIERS.ESTIMATED;
+    if (dataTiers.length === 1 && dataTiers[0] === PROVENANCE_TIERS.VERIFIED) {
+      routeEvalTier = PROVENANCE_TIERS.VERIFIED;
+    } else if (dataTiers.includes(PROVENANCE_TIERS.USER_REPORTED)) {
+      routeEvalTier = PROVENANCE_TIERS.USER_REPORTED;
+    } else if (dataTiers.includes(PROVENANCE_TIERS.SYNTHETIC)) {
+      routeEvalTier = PROVENANCE_TIERS.SYNTHETIC;
+    } else if (dataTiers.includes(PROVENANCE_TIERS.ESTIMATED)) {
+      routeEvalTier = PROVENANCE_TIERS.ESTIMATED;
+    } else if (dataTiers.every(t => t === PROVENANCE_TIERS.VERIFIED)) {
+      routeEvalTier = PROVENANCE_TIERS.VERIFIED;
+    }
+
+    const provProvider = unifiedImpact.provenance?.provider || journey.provenance?.provider || 'Route Evaluation Engine';
+    const provConfidence = unifiedImpact.provenance?.confidence || journey.provenance?.confidence || 'MEDIUM';
+    const provenance = new DataProvenance({
+      sourceTier: routeEvalTier,
+      provider: provProvider,
+      confidence: provConfidence,
+      description: `Evaluated route with data tiers: ${dataTiers.join(', ')}`
+    });
 
     const advisories = Array.from(new Set([
       ...(journey.advisories || []),

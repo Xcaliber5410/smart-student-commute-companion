@@ -417,7 +417,7 @@ class AlternateRouteService {
     }
 
     const allAlternates = [];
-    const seenSignatures = new Set();
+    const seenSignatures = new Set(candidateJourneys.map(j => this._getJourneySignature(j)));
 
     for (const journey of candidateJourneys) {
       const alternates = await this.generateAlternatesForJourney(journey, context, options);

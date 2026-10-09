@@ -1,0 +1,151 @@
+# Completed Features — Smart Student Commute Companion
+
+This document tracks verified, implemented backend and frontend features in the Smart Student Commute Companion codebase. It accurately reflects tested, operational functionality without claiming aspirational AI recommendation features that do not exist.
+
+---
+
+## Day 17: Commute Route Intelligence Pipeline
+
+The Day 17 backend implementation establishes an end-to-end, deterministic commute route intelligence pipeline connecting student commute queries to structured, comparable route options with full multi-source provenance.
+
+### Verified Pipeline Stages
+```
+Student Commute Input (POST /api/commute/candidates)
+  ↓
+Candidate Route Generation (CandidateRouteEngine / JourneyBuilderService)
+  ↓
+Disruption & Unified Context Analysis (CommuteContextEngine)
+  ↓
+Deterministic Constraint Filtering (RouteConstraintFilteringService)
+  ↓
+Alternate Route Generation (AlternateRouteService)
+  ↓
+Route Evaluation & Weakness Extraction (RouteEvaluationService)
+  ↓
+Deterministic Route Scoring (DeterministicRouteScoringService)
+  ↓
+Multi-Criteria Route Comparison (RouteComparisonService)
+  ↓
+API Response Envelope (commuteCandidateController)
+```
+
+---
+
+### Features Implemented & Hardened
+
+#### 1. Route Evaluation Domain Model (`RouteEvaluation`)
+- **Location**: `backend/models/RouteEvaluation.js`, `backend/services/routeEvaluationService.js`
+- **Capabilities**:
+  - Consolidates baseline journey schedule metrics and contextual real-time environmental impacts (disruptions, road traffic, weather, service availability).
+  - Normalizes total travel time, disruption delays, waiting time, walking burden, transfers, and cost.
+  - Transparently extracts explainable route weaknesses:
+    - `HIGH_WALKING_BURDEN` (>15 min default threshold)
+    - `EXCESSIVE_TRANSFERS` (≥2 transfers)
+    - `HIGH_WAITING_TIME` (>10 min waiting)
+    - `HIGH_UNCERTAINTY` (HIGH or SEVERE risk)
+    - `HIGH_COST` (>₹60 student budget)
+    - `DISRUPTION_DELAY`, `ROAD_TRAFFIC_CONGESTION`, `SEVERE_TRAFFIC`, `WEATHER_IMPACT`
+    - `SERVICE_UNAVAILABLE`, `SERVICE_SUSPENDED`, `JOURNEY_INFEASIBLE`
+  - Reuses existing `CommuteJourney`, `CommuteContextEngine`, and `UnifiedJourneyImpact` contracts.
+  - Carries multi-source data provenance across all 4 tiers without masking lower-confidence sources.
+
+#### 2. Deterministic Route Scoring Engine (`DeterministicRouteScoringService`)
+- **Location**: `backend/services/deterministicRouteScoringService.js`, `backend/services/routeScoringService.js`
+- **Capabilities**:
+  - Transparent, explainable 100-point composite scoring model:
+    - **Travel Time Score** (35 pts max): Log-linear decay from student acceptable thresholds.
+    - **Reliability & Disruption Score** (25 pts max): Penalties for disruption delay, traffic, and uncertainty.
+    - **Comfort & Transfers Score** (20 pts max): Modal convenience penalties (transfers, modal penalties).
+    - **Cost & Budget Score** (10 pts max): Fare penalties proportional to student budget.
+    - **Walking Burden Score** (10 pts max): Excessive walking distance/fatigue penalties.
+  - Deterministic tie-breaking rules (composite score → travel time → transfer count → walking minutes → journey ID).
+  - Zero non-deterministic random scoring or LLM hallucinations.
+  - No false claims that one route is universally optimal.
+
+#### 3. Alternate Route Generation Engine (`AlternateRouteService`)
+- **Location**: `backend/services/alternateRouteService.js`
+- **Capabilities**:
+  - Generates viable fallback alternatives when primary routes are disrupted or infeasible.
+  - 4 Deterministic Alternate Strategies:
+    - `MODE_SHIFT`: Switches mode (e.g. transit to auto/walk or vice versa).
+    - `SCHEDULE_SHIFT`: Adjusts scheduled departure window to avoid peak delays.
+    - `CORRIDOR_SHIFT`: Uses parallel suburban corridors (e.g. Metro Line 1 vs. Western Railway).
+    - `STATION_SHIFT`: Routes through alternate nearby interchange stations.
+  - Strict deduplication: Seeds candidate signatures so alternates never duplicate primary candidate routes.
+  - Enforces route viability and preserves full strategy rationale metadata.
+
+#### 4. Route Constraint Filtering Stage (`RouteConstraintFilteringService`)
+- **Location**: `backend/services/routeConstraintFilteringService.js`
+- **Capabilities**:
+  - Deterministically partitions routes into accepted and rejected categories.
+  - Cleanly separates:
+    - **HARD Constraints** (disqualify routes): Arrival deadline (`ARRIVAL_TOO_LATE`), Max walking time (`WALKING_LIMIT_EXCEEDED`), Max transfers (`TOO_MANY_TRANSFERS`), Cost ceiling (`BUDGET_EXCEEDED`), Excluded modes (`EXCLUDED_MODE`), Service availability (`SERVICE_UNAVAILABLE`, `SERVICE_SUSPENDED`), Route disruption feasibility (`ROUTE_DISRUPTED`).
+    - **SOFT Preferences** (influence ranking downstream): Preferred modes (`preferredModes`), Balanced/fastest/cheapest route preferences.
+  - **Non-Discard Invariant**: Rejected routes are preserved with full violation reason codes and metrics.
+
+#### 5. Multi-Criteria Route Comparison Service (`RouteComparisonService`)
+- **Location**: `backend/services/routeComparisonService.js`
+- **Capabilities**:
+  - Exposes 14 structured, comparable attributes per route:
+    1. Estimated arrival time
+    2. Total duration
+    3. Disruption delay
+    4. Waiting time
+    5. Walking time
+    6. Transfers
+    7. Estimated cost
+    8. Reliability / uncertainty
+    9. Affected segments
+    10. Transport modes
+    11. 4-tier data provenance
+    12. Deterministic score & breakdown
+    13. Strengths
+    14. Weaknesses
+  - Detects duplicate and near-duplicate journeys.
+  - Computes metric extremes and leaders across candidate pools.
+  - Dedicated `comparePair()` head-to-head comparison for trade-off analysis.
+  - Aggregates provenance summary (`allVerified`, `hasUnverifiedData`, `dataTiers`).
+
+#### 6. Route Intelligence API Endpoint (`POST /api/commute/candidates`)
+- **Location**: `backend/controllers/commuteCandidateController.js`, `backend/routes/commuteRoutes.js`
+- **Capabilities**:
+  - Single endpoint exposing complete intelligence envelope:
+    - `feasibleRoutes`: Viable routes meeting all hard constraints, ranked with deterministic scores.
+    - `rejectedRoutes`: Invalid routes with transparent violation codes and messages.
+    - `alternateRoutes`: Viable fallback routes with strategy metadata and comparison metrics.
+    - `routeComparison`: Structured multi-criteria comparison matrix and metric spreads.
+    - `provenanceMetadata`: Explicit audit trail of all contributing data tiers.
+    - `routeIntelligence`: Consolidated payload with context summary, provenance summary, and non-recommendation disclaimer.
+  - Clearly distinguishes baseline estimates vs. contextual real-time estimates.
+  - Enforces JWT authentication, Zod schema validation, and student privacy boundaries (rejects raw coordinates, PIN codes, and flat numbers).
+
+#### 7. Integration Pipeline Hardening Test Suite
+- **Location**: `backend/scripts/integration_commute_pipeline_hardening_test.js`
+- **Command**: `npm run test:pipeline-hardening`
+- **Status**: 20/20 Scenarios Passing
+  1. Normal commute with multiple feasible routes (clean baseline, no disruption delay)
+  2. Train/metro delay (delays reflected, arrival time shifted contextually)
+  3. Bus unavailable (unavailable segment flagged with availability reason)
+  4. Heavy traffic (road routes show added travel duration and elevated uncertainty)
+  5. Weather disruption (walking inconvenience scored, uncertainty elevated)
+  6. Multiple simultaneous disruptions (delays aggregated, tracked across multiple modes)
+  7. One route becoming infeasible (infeasible route marked `isFeasible: false` without dropping viable alternatives)
+  8. Alternate route generation (outputs `ALTERNATE_ROUTE` with strategy metadata)
+  9. Arrival-time constraint (rejects routes arriving past target deadline with `ARRIVAL_TOO_LATE`)
+  10. Walking constraint (rejects routes exceeding `maxWalkingMinutes` with `WALKING_LIMIT_EXCEEDED`)
+  11. Transfer constraint (rejects routes exceeding `maxTransfers` with `TOO_MANY_TRANSFERS`)
+  12. No feasible route (empty `feasibleRoutes`, itemized `rejectedRoutes` with violations)
+  13. VERIFIED provenance (timetabled rail/metro data carries `VERIFIED` tier)
+  14. USER_REPORTED provenance (crowdsourced reports inject `USER_REPORTED` tier)
+  15. ESTIMATED provenance (road traffic and heuristic calculations inject `ESTIMATED` tier)
+  16. SYNTHETIC provenance (fallback/synthetic data labeled `SYNTHETIC` without masking)
+  17. Duplicate alternative prevention (alternates never duplicate primary candidate routes)
+  18. Deterministic scoring repeatability (identical queries yield identical composite scores and ranks)
+  19. Expired disruptions (stale or resolved disruptions do not affect routes)
+  20. Mixed disruption/context data (combines multi-tier context; flags `hasUnverifiedData: true`)
+
+---
+
+## Known Boundaries & Non-Claims
+- **No AI Guesswork / Speculation**: All route scores and rankings are 100% deterministic mathematical calculations based on timetables, disruptions, traffic levels, and weather.
+- **Not a Personalized AI Recommendation Engine**: The system presents structured, comparable candidate options and trade-offs. It does not claim a single route is universally best for every student.

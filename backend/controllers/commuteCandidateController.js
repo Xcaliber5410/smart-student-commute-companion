@@ -17,6 +17,7 @@ const {
 const { addMinutesToHHMM } = require('../services/commuteContextEngine');
 const { TrafficCondition } = require('../models/TrafficCondition');
 const { ServiceStatusRecord } = require('../models/TransportAvailability');
+const { normalizeWeatherCondition } = require('../models/WeatherCondition');
 const { success } = require('../utils/apiResponse');
 const { ValidationError } = require('../errors');
 const { findForbiddenPrivacyFields } = require('../models/CommutePlanInputDTO');
@@ -167,17 +168,27 @@ async function generateCandidateJourneys(req, res, next) {
     const normalizedTraffic = Array.isArray(rawTraffic)
       ? rawTraffic.map(t => {
           if (t && typeof t.isActive === 'function') return t;
-          const level = t.level || t.trafficLevel || 'normal';
+          let level = t.level || t.trafficLevel || 'normal';
+          if (level === 'congested') level = 'heavy';
           const area = t.area || t.corridor || 'Mumbai';
           const delay = t.expectedDelayMinutes !== undefined
             ? Number(t.expectedDelayMinutes)
-            : (t.delayMinutes !== undefined ? Number(t.delayMinutes) : 0);
+            : (t.delayMinutes !== undefined
+              ? Number(t.delayMinutes)
+              : (t.addedTravelTimeMinutes !== undefined ? Number(t.addedTravelTimeMinutes) : 0));
+          const prov = t.provenance || {
+            sourceTier: t.sourceTier || t.tier || 'ESTIMATED',
+            provider: t.provider || 'Traffic Service',
+            confidence: t.confidence || 'MEDIUM',
+            description: t.description || `Traffic on ${area}`
+          };
           return TrafficCondition.create({
             ...t,
             id: t.id || `traf-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             area,
             level,
             expectedDelayMinutes: delay,
+            provenance: prov,
             description: t.description || `Traffic on ${area}`
           });
         })
@@ -210,13 +221,32 @@ async function generateCandidateJourneys(req, res, next) {
       trafficContext: req.body.trafficContext !== undefined
         ? req.body.trafficContext
         : (req.body.context?.trafficContext || baseContext.trafficContext || null),
-      weatherContext: req.body.weatherContext !== undefined
-        ? req.body.weatherContext
-        : (req.body.weatherCondition !== undefined
-          ? req.body.weatherCondition
-          : (req.body.weather !== undefined
-            ? req.body.weather
-            : (req.body.context?.weatherContext || baseContext.weatherContext || null))),
+      weatherContext: (() => {
+        const raw = req.body.weatherContext !== undefined
+          ? req.body.weatherContext
+          : (req.body.weatherCondition !== undefined
+            ? req.body.weatherCondition
+            : (req.body.weather !== undefined
+              ? req.body.weather
+              : (req.body.context?.weatherContext || baseContext.weatherContext || null)));
+        if (!raw) return null;
+        if (typeof raw === 'string') return normalizeWeatherCondition(raw);
+        if (typeof raw === 'object' && raw.condition) {
+          const prov = raw.provenance || (raw.sourceTier ? {
+            sourceTier: raw.sourceTier,
+            tier: raw.sourceTier,
+            provider: raw.provider || 'Weather Service',
+            confidence: raw.confidence || 'MEDIUM',
+            description: raw.description || `Weather ${raw.condition}`
+          } : undefined);
+          return {
+            ...raw,
+            condition: normalizeWeatherCondition(raw.condition),
+            ...(prov ? { provenance: prov } : {})
+          };
+        }
+        return raw;
+      })(),
       availabilityRecords: normalizedAvailability,
       availabilityContext: req.body.availabilityContext !== undefined
         ? req.body.availabilityContext
@@ -247,8 +277,12 @@ async function generateCandidateJourneys(req, res, next) {
       const rawCandProv = cand.provenance
         ? (typeof cand.provenance.toJSON === 'function' ? cand.provenance.toJSON() : cand.provenance)
         : null;
-      const candTier = rawCandProv?.sourceTier || rawCandProv?.tier || 'ESTIMATED';
-      const candSource = rawCandProv?.provider || rawCandProv?.source || 'Candidate Route Generation Engine';
+      const hasVerifiedSegment = (cand.segments || []).some(s =>
+        s.mode === 'train' || s.mode === 'metro' ||
+        s.provenance?.sourceTier === 'VERIFIED' || s.provenance?.tier === 'VERIFIED'
+      );
+      const candTier = (hasVerifiedSegment ? 'VERIFIED' : null) || rawCandProv?.sourceTier || rawCandProv?.tier || 'ESTIMATED';
+      const candSource = rawCandProv?.provider || rawCandProv?.source || (hasVerifiedSegment ? 'Mumbai Transit GTFS Timetable Feed' : 'Candidate Route Generation Engine');
 
       // 10e. Build contextual impact summary
       const contextualImpact = {
@@ -431,18 +465,20 @@ async function generateCandidateJourneys(req, res, next) {
 
     const allDataTiers = new Set(['VERIFIED', 'ESTIMATED']);
     (evaluationContext.disruptions || []).forEach(d => {
-      const tier = d.provenance?.sourceTier || d.provenance?.tier || d.tier;
+      const tier = d.provenance?.sourceTier || d.provenance?.tier || d.sourceTier || d.provenance_tier || d.tier;
       if (tier) allDataTiers.add(tier);
     });
     (evaluationContext.trafficConditions || []).forEach(t => {
-      const tier = t.provenance?.sourceTier || t.provenance?.tier || t.tier;
+      const tier = t.provenance?.sourceTier || t.provenance?.tier || t.sourceTier || t.tier;
       if (tier) allDataTiers.add(tier);
     });
     if (evaluationContext.weatherContext?.provenance?.sourceTier) {
       allDataTiers.add(evaluationContext.weatherContext.provenance.sourceTier);
+    } else if (evaluationContext.weatherContext?.sourceTier) {
+      allDataTiers.add(evaluationContext.weatherContext.sourceTier);
     }
     (evaluationContext.availabilityRecords || []).forEach(a => {
-      const tier = a.provenance?.sourceTier || a.provenance?.tier || a.tier;
+      const tier = a.provenance?.sourceTier || a.provenance?.tier || a.sourceTier || a.tier;
       if (tier) allDataTiers.add(tier);
     });
     candidates.forEach(cand => {
