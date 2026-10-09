@@ -866,10 +866,10 @@ class CandidateRouteEngine {
   _normalizeParams(params) {
     // Support Stage 1 context object
     const ctx = params.context || {};
-    const rawOrigin = params.origin || ctx.originArea || 'Lokhandwala';
+    const rawOrigin = params.origin || params.startingArea || ctx.originArea || 'Lokhandwala';
     const origin = typeof rawOrigin === 'object' ? (rawOrigin.name || 'Lokhandwala') : rawOrigin;
 
-    const rawDest = params.destination || ctx.destinationArea || 'D.J. Sanghvi College of Engineering';
+    const rawDest = params.destination || params.collegeDestination || ctx.destinationArea || 'D.J. Sanghvi College of Engineering';
     const destination = typeof rawDest === 'object' ? (rawDest.name || 'D.J. Sanghvi College of Engineering') : rawDest;
 
     const departureTime = params.departureTime || params.desiredDepartureTime || ctx.desiredDepartureTime || '08:00';

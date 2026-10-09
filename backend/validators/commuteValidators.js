@@ -236,10 +236,103 @@ const commuteCandidateRequestSchema = z.object({
   }
 });
 
+/**
+ * Validates requests for generating personalized commute recommendations.
+ * Enforces privacy-safe coarse area input, timing constraints, and mode/route preferences.
+ */
+const commuteRecommendationRequestSchema = z.object({
+  origin: commuteAreaSchema.optional(),
+  startingArea: commuteAreaSchema.optional(),
+  destination: commuteAreaSchema.optional(),
+  collegeDestination: commuteAreaSchema.optional(),
+  desiredDepartureTime: z.string().trim()
+    .regex(strict24hTimeRegex, 'Desired departure time must be in 24-hour HH:MM format (e.g. "08:00")')
+    .optional(),
+  departureTime: z.string().trim()
+    .regex(strict24hTimeRegex, 'Departure time must be in 24-hour HH:MM format')
+    .optional(),
+  desiredArrivalTime: z.string().trim()
+    .regex(strict24hTimeRegex, 'Desired arrival time must be in 24-hour HH:MM format (e.g. "08:50")')
+    .optional(),
+  targetArrivalTime: z.string().trim()
+    .regex(strict24hTimeRegex, 'Target arrival time must be in 24-hour HH:MM format')
+    .optional(),
+  preferredModes: z.array(transportModeEnum)
+    .min(1, 'At least one preferred transport mode must be specified')
+    .optional(),
+  allowedModes: z.array(transportModeEnum)
+    .min(1, 'Allowed modes must contain at least one mode')
+    .optional(),
+  avoidModes: z.array(transportModeEnum)
+    .optional()
+    .default([]),
+  routePreference: routePreferenceEnum.optional(),
+  preference: routePreferenceEnum.optional(),
+  maxTransfers: z.coerce.number().int()
+    .min(0, 'Transfers cannot be negative')
+    .max(5, 'Transfers cannot exceed 5')
+    .optional(),
+  maxWalkingMinutes: z.coerce.number().int()
+    .min(0, 'Walking minutes cannot be negative')
+    .max(60, 'Walking minutes cannot exceed 60')
+    .optional(),
+  walkingToleranceMinutes: z.coerce.number().int()
+    .min(0, 'Walking tolerance cannot be negative')
+    .max(60, 'Walking tolerance cannot exceed 60')
+    .optional(),
+  maxBudgetRupees: z.coerce.number()
+    .min(0, 'Budget cannot be negative')
+    .max(2000, 'Budget cannot exceed ₹2000')
+    .optional(),
+  date: z.string().optional(),
+  dayOfWeek: z.string().optional(),
+  candidates: z.array(z.any()).optional(),
+  candidateRoutes: z.array(z.any()).optional(),
+  evaluations: z.array(z.any()).optional(),
+  disruptions: z.array(z.any()).optional(),
+  trafficConditions: z.array(z.any()).optional(),
+  weatherContext: z.any().optional(),
+  availabilityContext: z.any().optional(),
+  context: z.any().optional()
+}).passthrough().superRefine((data, ctx) => {
+  // 1. Strict privacy check
+  const forbidden = findForbiddenPrivacyFields(data);
+  if (forbidden.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['privacy'],
+      message: `Privacy violation: Forbidden field(s) detected: ${forbidden.join(', ')}. Precise coordinates and residential addresses are prohibited.`
+    });
+  }
+
+  // 2. Distinct endpoints check
+  const originVal = data.startingArea || data.origin;
+  const destVal = data.collegeDestination || data.destination;
+  if (originVal && destVal && originVal.toLowerCase().trim() === destVal.toLowerCase().trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['destination'],
+      message: 'Starting area and college destination must be distinct areas'
+    });
+  }
+
+  // 3. Timing consistency
+  const depTime = data.desiredDepartureTime || data.departureTime;
+  const arrTime = data.desiredArrivalTime || data.targetArrivalTime;
+  if (depTime && arrTime && depTime >= arrTime) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['desiredArrivalTime'],
+      message: `Desired arrival time (${arrTime}) must be after departure time (${depTime})`
+    });
+  }
+});
+
 module.exports = {
   // Input schemas & DTO
   commutePlanRequestSchema,
   commuteCandidateRequestSchema,
+  commuteRecommendationRequestSchema,
   privacySafeCommuteInputSchema,
   CommutePlanInputDTO,
 

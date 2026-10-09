@@ -8,8 +8,12 @@
 const express = require('express');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validate');
-const { commuteCandidateRequestSchema } = require('../validators/commuteValidators');
+const {
+  commuteCandidateRequestSchema,
+  commuteRecommendationRequestSchema
+} = require('../validators/commuteValidators');
 const commuteCandidateController = require('../controllers/commuteCandidateController');
+const commuteRecommendationController = require('../controllers/commuteRecommendationController');
 
 function createCommuteRoutes() {
   const router = express.Router();
@@ -28,6 +32,22 @@ function createCommuteRoutes() {
     authenticate,
     validate(commuteCandidateRequestSchema, 'body'),
     commuteCandidateController.generateCandidateJourneys
+  );
+
+  // POST /commute/recommendations (P9 Personalized Recommendations)
+  router.post(
+    '/commute/recommendations',
+    authenticate,
+    validate(commuteRecommendationRequestSchema, 'body'),
+    commuteRecommendationController.getPersonalizedRecommendation
+  );
+
+  // POST /student/commute/recommendations (convenience alias under student namespace)
+  router.post(
+    '/student/commute/recommendations',
+    authenticate,
+    validate(commuteRecommendationRequestSchema, 'body'),
+    commuteRecommendationController.getPersonalizedRecommendation
   );
 
   return router;
