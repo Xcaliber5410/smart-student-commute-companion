@@ -100,8 +100,15 @@ const {
   HARD_CONSTRAINT_REASON_CODES,
   SOFT_PREFERENCE_CODES
 } = require('./routeConstraintFilteringService');
+const {
+  personalizedRouteRecommendationService,
+  PersonalizedRouteRecommendationService
+} = require('./personalizedRouteRecommendationService');
 
 module.exports = {
+  // Personalized Route Recommendation Engine (P9)
+  personalizedRouteRecommendationService,
+  PersonalizedRouteRecommendationService,
   // Route Comparison Service (P9)
   routeComparisonService,
   RouteComparisonService,

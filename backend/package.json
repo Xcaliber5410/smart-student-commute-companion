@@ -79,6 +79,7 @@
     "test:route-evaluation": "node scripts/test_route_evaluation_model.js",
     "test:route-scoring": "node scripts/test_deterministic_route_scoring.js",
     "test:personalized-scoring": "node scripts/test_personalized_route_scoring.js",
+    "test:personalized-recommendations": "node scripts/test_personalized_route_recommendations.js",
     "test:alternate-routes": "node scripts/test_alternate_route_generation.js",
     "test:commute-integration": "node scripts/integration_commute_route_generation_test.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",
