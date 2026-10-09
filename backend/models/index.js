@@ -120,7 +120,8 @@ module.exports = {
   ...require('./WeatherCondition'),
   ...require('./TransportAvailability'),
   ...require('./UnifiedJourneyImpact'),
-  ...require('./RouteEvaluation')
+  ...require('./RouteEvaluation'),
+  ...require('./PersonalizedCommuteRecommendation')
 };
 
 

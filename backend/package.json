@@ -70,6 +70,7 @@
     "test:route-comparison": "node scripts/test_route_comparison_service.js",
     "test:route-comparison-api": "node scripts/integration_commute_route_comparison_api_test.js",
     "test:route-intelligence-api": "node scripts/integration_commute_route_intelligence_api_test.js",
+    "test:recommendation-models": "node scripts/test_recommendation_domain_models.js",
     "test:pipeline-hardening": "node scripts/integration_commute_pipeline_hardening_test.js",
     "test:commute-candidates": "node scripts/integration_commute_candidates_test.js",
     "test:commute-context-api": "node scripts/integration_commute_context_api_test.js",
