@@ -982,6 +982,19 @@ class CandidateRouteEngine {
     const { routeConstraintFilteringService } = require('./routeConstraintFilteringService');
     return routeConstraintFilteringService.filterCandidates(candidates, options);
   }
+
+  /**
+   * Compares candidate journeys in a structured, explainable way using RouteComparisonService.
+   *
+   * @param {Array<CommuteJourney|object>} candidates
+   * @param {object|Array<object>} [contextOrImpacts={}]
+   * @param {object} [options={}]
+   * @returns {object} Structured comparison result
+   */
+  compareRoutes(candidates, contextOrImpacts = {}, options = {}) {
+    const { routeComparisonService } = require('./routeComparisonService');
+    return routeComparisonService.compareRoutes(candidates, contextOrImpacts, options);
+  }
 }
 
 const candidateRouteEngine = new CandidateRouteEngine();

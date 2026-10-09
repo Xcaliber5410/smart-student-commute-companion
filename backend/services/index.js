@@ -86,6 +86,11 @@ const {
   ALTERNATE_STRATEGY_TYPES
 } = require('./alternateRouteService');
 const {
+  routeComparisonService,
+  RouteComparisonService,
+  DEFAULT_THRESHOLDS
+} = require('./routeComparisonService');
+const {
   routeConstraintFilteringService,
   RouteConstraintFilteringService,
   CONSTRAINT_TYPES,
@@ -94,6 +99,10 @@ const {
 } = require('./routeConstraintFilteringService');
 
 module.exports = {
+  // Route Comparison Service (P9)
+  routeComparisonService,
+  RouteComparisonService,
+  DEFAULT_THRESHOLDS,
   // Route Constraint Filtering Stage (P9)
   routeConstraintFilteringService,
   RouteConstraintFilteringService,

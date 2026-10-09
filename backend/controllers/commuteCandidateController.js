@@ -11,7 +11,8 @@ const {
   studentCommutePreferenceService,
   commuteContextEngine,
   commuteContextService,
-  routeConstraintFilteringService
+  routeConstraintFilteringService,
+  routeComparisonService
 } = require('../services');
 const { addMinutesToHHMM } = require('../services/commuteContextEngine');
 const { TrafficCondition } = require('../models/TrafficCondition');
@@ -419,6 +420,27 @@ async function generateCandidateJourneys(req, res, next) {
     const acceptedCandidates = evaluatedCandidates.filter(c => c.isAccepted);
     const outputCandidates = includeRejected ? evaluatedCandidates : acceptedCandidates;
 
+    // 12. Run deterministic Route Comparison stage
+    const comparisonResult = routeComparisonService.compareRoutes(outputCandidates, evaluationContext);
+
+    // Decorate output candidates with structured comparison metrics
+    const decoratedCandidates = outputCandidates.map(cand => {
+      const compItem = comparisonResult.routes.find(r => r.journeyId === cand.id);
+      return {
+        ...cand,
+        deterministicScore: compItem ? compItem.deterministicScore : undefined,
+        rank: compItem ? compItem.rank : undefined,
+        strengths: compItem ? compItem.strengths : [],
+        weaknesses: compItem ? compItem.weaknesses : [],
+        isTied: compItem ? compItem.isTied : false,
+        tieBreakerReason: compItem ? compItem.tieBreakerReason : null,
+        isDuplicate: compItem ? compItem.isDuplicate : false,
+        duplicateOf: compItem ? compItem.duplicateOf : null,
+        isNearDuplicate: compItem ? compItem.isNearDuplicate : false,
+        nearDuplicateOf: compItem ? compItem.nearDuplicateOf : null
+      };
+    });
+
     const weatherCond = evaluationContext.weatherContext?.condition ||
       (typeof evaluationContext.weatherContext === 'string' ? evaluationContext.weatherContext : 'clear');
     const trafficLvl = evaluationContext.trafficContext?.level ||
@@ -427,13 +449,14 @@ async function generateCandidateJourneys(req, res, next) {
 
     return success(res, {
       totalEvaluatedCount: evaluatedCandidates.length,
-      candidateCount: outputCandidates.length,
-      feasibleCandidateCount: outputCandidates.filter(c => c.isFeasible).length,
-      infeasibleCandidateCount: outputCandidates.filter(c => !c.isFeasible).length,
+      candidateCount: decoratedCandidates.length,
+      feasibleCandidateCount: decoratedCandidates.filter(c => c.isFeasible).length,
+      infeasibleCandidateCount: decoratedCandidates.filter(c => !c.isFeasible).length,
       acceptedCandidateCount: filterResult.summary.acceptedCount,
       rejectedCandidateCount: filterResult.summary.rejectedCount,
-      candidates: outputCandidates,
+      candidates: decoratedCandidates,
       allCandidates: evaluatedCandidates,
+      routeComparison: comparisonResult,
       rejectedCandidates: filterResult.rejected.map(r => ({
         candidateId: r.candidateId,
         isAccepted: false,
