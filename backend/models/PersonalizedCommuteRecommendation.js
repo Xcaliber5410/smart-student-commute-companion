@@ -578,6 +578,7 @@ const personalizedCommuteRecommendationSchema = z.object({
   })),
   contextSummary: z.record(z.any()).default({}),
   explanation: z.any().nullable().optional().default(null),
+  departureAdvice: z.any().nullable().optional().default(null),
   generatedAt: z.coerce.number().int().positive().default(() => Date.now())
 });
 
@@ -919,6 +920,7 @@ class PersonalizedCommuteRecommendation {
       },
       contextSummary: options.context || {},
       explanation: options.explanation || null,
+      departureAdvice: options.departureAdvice || null,
       generatedAt: options.generatedAt || Date.now()
     });
   }
@@ -952,6 +954,7 @@ class PersonalizedCommuteRecommendation {
       },
       contextSummary: { ...this.contextSummary },
       explanation: this.explanation ? (typeof this.explanation.toJSON === 'function' ? this.explanation.toJSON() : this.explanation) : null,
+      departureAdvice: this.departureAdvice ? (typeof this.departureAdvice.toJSON === 'function' ? this.departureAdvice.toJSON() : this.departureAdvice) : null,
       generatedAt: this.generatedAt
     };
   }

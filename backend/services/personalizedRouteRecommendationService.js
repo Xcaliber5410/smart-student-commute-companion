@@ -39,6 +39,7 @@ const { routeEvaluationService } = require('./routeEvaluationService');
 const { routeComparisonService } = require('./routeComparisonService');
 const { deterministicRouteScoringService } = require('./deterministicRouteScoringService');
 const { recommendationExplanationService } = require('./recommendationExplanationService');
+const { departureAdviceService } = require('./departureAdviceService');
 const { ValidationError } = require('../errors');
 
 /**
@@ -112,6 +113,7 @@ class PersonalizedRouteRecommendationService {
     this.routeComparisonService = options.routeComparisonService || routeComparisonService;
     this.routeScoringService = options.routeScoringService || deterministicRouteScoringService;
     this.explanationService = options.recommendationExplanationService || options.explanationService || recommendationExplanationService;
+    this.departureAdviceService = options.departureAdviceService || departureAdviceService;
   }
 
   /**
@@ -351,6 +353,7 @@ class PersonalizedRouteRecommendationService {
   _recommendFromEvaluations(evaluations, meta) {
     const {
       studentId,
+      departureTime,
       targetArrivalTime,
       preferences,
       constraints,
@@ -557,6 +560,23 @@ class PersonalizedRouteRecommendationService {
       // Explanation generation failure must not crash the recommendation
     }
 
+    // Generate disruption-aware departure advice
+    let departureAdvice = null;
+    try {
+      departureAdvice = this.departureAdviceService.evaluateDepartureAdvice({
+        primaryRoute,
+        alternatives: distinctAlternatives,
+        context,
+        departureTime,
+        targetArrivalTime,
+        date: options.date || options.dayOfWeek || 'Mon',
+        preferences,
+        constraints
+      });
+    } catch (err) {
+      // Departure advice failure must not crash the recommendation
+    }
+
     return PersonalizedCommuteRecommendation.fromEvaluatedRoute(primaryRoute, {
       id: recId,
       studentId,
@@ -568,6 +588,7 @@ class PersonalizedRouteRecommendationService {
       warnings,
       reasons,
       explanation,
+      departureAdvice,
       generatedAt: options.generatedAt || Date.now()
     });
   }

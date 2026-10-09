@@ -108,8 +108,15 @@ const {
   recommendationExplanationService,
   RecommendationExplanationService
 } = require('./recommendationExplanationService');
+const {
+  departureAdviceService,
+  DepartureAdviceService
+} = require('./departureAdviceService');
 
 module.exports = {
+  // Disruption-Aware Departure Advice Engine (P9)
+  departureAdviceService,
+  DepartureAdviceService,
   // Recommendation Explanation Layer (P9)
   recommendationExplanationService,
   RecommendationExplanationService,
