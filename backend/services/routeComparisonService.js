@@ -177,9 +177,14 @@ class RouteComparisonService {
       const transportModes = Array.isArray(routeEval.modesIncluded) && routeEval.modesIncluded.length > 0
         ? [...routeEval.modesIncluded]
         : [routeEval.primaryMode];
-      const provenance = routeEval.provenance instanceof DataProvenance
+      const rawProvenance = routeEval.provenance instanceof DataProvenance
         ? routeEval.provenance.toJSON()
         : (typeof routeEval.provenance?.toJSON === 'function' ? routeEval.provenance.toJSON() : routeEval.provenance);
+      const provenance = rawProvenance ? {
+        ...rawProvenance,
+        tier: rawProvenance.sourceTier || rawProvenance.tier || 'VERIFIED',
+        sourceTier: rawProvenance.sourceTier || rawProvenance.tier || 'VERIFIED'
+      } : { tier: 'VERIFIED', sourceTier: 'VERIFIED' };
       const deterministicScore = Number(scored.compositeScore);
 
       // Derive strengths & weaknesses

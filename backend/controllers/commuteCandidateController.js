@@ -320,46 +320,100 @@ async function generateCandidateJourneys(req, res, next) {
         };
       });
 
+      const baselineEstimate = {
+        durationMinutes: baselineDuration,
+        departureTime: cand.departureTime || '08:00',
+        estimatedArrivalTime: baselineArrivalTime,
+        waitingTimeMinutes: cand.totalWaitingTimeMinutes || 0,
+        walkingTimeMinutes: cand.walkingTimeMinutes || 0,
+        transitTimeMinutes: cand.transitTimeMinutes || 0,
+        transferCount: cand.transferCount || 0,
+        estimatedCostRupees: cand.estimatedCostRupees || 0,
+        totalDistanceKm: cand.totalDistanceKm || 0
+      };
+
+      const contextualEstimate = {
+        durationMinutes: updatedDurationMinutes,
+        departureTime: cand.departureTime || '08:00',
+        estimatedArrivalTime: updatedArrivalTime,
+        totalAdditionalDelayMinutes: unifiedImpact.totalAdditionalDelayMinutes || 0,
+        disruptionDelayMinutes: unifiedImpact.disruptionImpact?.totalDelayMinutes || 0,
+        trafficDelayMinutes: unifiedImpact.trafficImpact?.addedTravelTimeMinutes || 0,
+        waitingTimeMinutes: cand.totalWaitingTimeMinutes || 0,
+        walkingTimeMinutes: cand.walkingTimeMinutes || 0,
+        transitTimeMinutes: cand.transitTimeMinutes || 0,
+        transferCount: cand.transferCount || 0,
+        estimatedCostRupees: cand.estimatedCostRupees || 0,
+        totalDistanceKm: cand.totalDistanceKm || 0,
+        reliability: unifiedImpact.reliabilityIndicator || 'LOW',
+        uncertainty: unifiedImpact.uncertaintyLevel || 'LOW',
+        isFeasible: isViable,
+        feasibilityReason: unifiedImpact.feasibilityReason || 'OPERATIONAL'
+      };
+
+      const disruptionImpact = {
+        isAffected: Boolean(unifiedImpact.disruptionImpact?.isAffected),
+        totalDelayMinutes: unifiedImpact.totalAdditionalDelayMinutes || 0,
+        disruptionDelayMinutes: unifiedImpact.disruptionImpact?.totalDelayMinutes || 0,
+        trafficDelayMinutes: unifiedImpact.trafficImpact?.addedTravelTimeMinutes || 0,
+        affectedSegments: unifiedImpact.affectedSegments || [],
+        unavailableSegments: unifiedImpact.unavailableSegments || [],
+        advisories: unifiedImpact.advisories || []
+      };
+
       return {
         id: cand.id,
+        candidateId: cand.id,
+        routeType: 'EVALUATED_ROUTE',
         origin: cand.origin,
         destination: cand.destination,
-        departureTime: cand.departureTime,
+        departureTime: cand.departureTime || '08:00',
         estimatedArrivalTime: updatedArrivalTime,
         totalDurationMinutes: updatedDurationMinutes,
         estimatedTravelTimeMinutes: updatedDurationMinutes,
-        baselineTravel: {
-          durationMinutes: baselineDuration,
-          estimatedArrivalTime: baselineArrivalTime,
-          departureTime: cand.departureTime,
-          waitingTimeMinutes: cand.totalWaitingTimeMinutes || 0,
-          walkingTimeMinutes: cand.walkingTimeMinutes || 0,
-          transitTimeMinutes: cand.transitTimeMinutes || 0,
-          transferCount: cand.transferCount || 0,
-          estimatedCostRupees: cand.estimatedCostRupees || 0,
-          totalDistanceKm: cand.totalDistanceKm || 0
+        baselineEstimate,
+        contextualEstimate,
+        travelTimeEstimate: {
+          baseline: baselineEstimate,
+          contextual: contextualEstimate,
+          totalDurationMinutes: updatedDurationMinutes,
+          additionalDelayMinutes: unifiedImpact.totalAdditionalDelayMinutes || 0
         },
+        disruptionImpact,
+        baselineTravel: baselineEstimate,
         contextualImpact,
         isFeasible,
         isViable,
         feasibilityReason: unifiedImpact.feasibilityReason,
         reasonCodes: unifiedImpact.reasonCodes,
         additionalDisruptionDelayMinutes: unifiedImpact.disruptionImpact?.totalDelayMinutes || 0,
-        totalAdditionalDelayMinutes: unifiedImpact.totalAdditionalDelayMinutes,
-        affectedSegments: unifiedImpact.affectedSegments,
-        unavailableSegments: unifiedImpact.unavailableSegments,
+        totalAdditionalDelayMinutes: unifiedImpact.totalAdditionalDelayMinutes || 0,
+        affectedSegments: unifiedImpact.affectedSegments || [],
+        unavailableSegments: unifiedImpact.unavailableSegments || [],
         trafficImpact: unifiedImpact.trafficImpact,
         weatherImpact: unifiedImpact.weatherImpact,
         transportAvailability: unifiedImpact.transportStatus,
-        totalWaitingTimeMinutes: cand.totalWaitingTimeMinutes,
-        walkingTimeMinutes: cand.walkingTimeMinutes,
-        transitTimeMinutes: cand.transitTimeMinutes,
-        transferCount: cand.transferCount,
-        estimatedCostRupees: cand.estimatedCostRupees,
-        totalDistanceKm: cand.totalDistanceKm,
+        totalWaitingTimeMinutes: cand.totalWaitingTimeMinutes || 0,
+        walkingTimeMinutes: cand.walkingTimeMinutes || 0,
+        transitTimeMinutes: cand.transitTimeMinutes || 0,
+        transferCount: cand.transferCount || 0,
+        transfers: cand.transferCount || 0,
+        walking: {
+          durationMinutes: cand.walkingTimeMinutes || 0,
+          distanceKm: cand.totalDistanceKm || 0
+        },
+        cost: {
+          rupees: cand.estimatedCostRupees || 0,
+          isFree: cand.estimatedCostRupees === 0
+        },
+        estimatedCostRupees: cand.estimatedCostRupees || 0,
+        totalDistanceKm: cand.totalDistanceKm || 0,
+        reliability: unifiedImpact.reliabilityIndicator || 'LOW',
+        uncertainty: unifiedImpact.uncertaintyLevel || 'LOW',
         primaryMode: cand.primaryMode,
         modesIncluded: cand.modesIncluded,
-        advisories: unifiedImpact.advisories,
+        transportModes: cand.modesIncluded || [cand.primaryMode],
+        advisories: unifiedImpact.advisories || [],
         provenance: {
           tier: candTier,
           sourceTier: candTier,
@@ -370,7 +424,7 @@ async function generateCandidateJourneys(req, res, next) {
           contextTiers: unifiedImpact.dataTiers,
           contextProvider: unifiedImpact.provenance?.provider
         },
-        limitations: 'Timetable baseline with real-time and environmental context adjustments. Does NOT constitute a final recommendation or ranked choice.',
+        limitations: 'Timetable baseline with real-time and environmental context adjustments. Deterministic candidate evaluation only.',
         segments
       };
     });
@@ -426,12 +480,21 @@ async function generateCandidateJourneys(req, res, next) {
     // Decorate output candidates with structured comparison metrics
     const decoratedCandidates = outputCandidates.map(cand => {
       const compItem = comparisonResult.routes.find(r => r.journeyId === cand.id);
+      const evalReasons = [
+        ...(compItem ? compItem.strengths : []),
+        ...(compItem ? compItem.weaknesses : []),
+        ...(cand.advisories || [])
+      ];
+
       return {
         ...cand,
+        routeType: 'EVALUATED_ROUTE',
         deterministicScore: compItem ? compItem.deterministicScore : undefined,
+        scoreBreakdown: compItem ? compItem.breakdown : undefined,
         rank: compItem ? compItem.rank : undefined,
         strengths: compItem ? compItem.strengths : [],
         weaknesses: compItem ? compItem.weaknesses : [],
+        evaluationReasons: evalReasons,
         isTied: compItem ? compItem.isTied : false,
         tieBreakerReason: compItem ? compItem.tieBreakerReason : null,
         isDuplicate: compItem ? compItem.isDuplicate : false,
@@ -441,31 +504,200 @@ async function generateCandidateJourneys(req, res, next) {
       };
     });
 
+    // 13. Generate Alternate Routes for disrupted or affected journeys (or when alternatives requested)
+    let alternateRoutes = [];
+    const hasDisruptedCorridors = candidates.some(c =>
+      !c.isFeasible ||
+      (c.contextualImpact?.totalAdditionalDelayMinutes > 0) ||
+      (c.contextualImpact?.affectedSegments?.length > 0) ||
+      (c.contextualImpact?.unavailableSegments?.length > 0)
+    );
+
+    const shouldGenerateAlternates = req.body.includeAlternates !== false &&
+      (hasDisruptedCorridors || req.body.includeAlternates === true || req.query?.includeAlternates === 'true' || rawCandidates.length > 0);
+
+    if (shouldGenerateAlternates && rawCandidates.length > 0) {
+      try {
+        const altResult = await candidateRouteEngine.generateAlternatesForCandidates(rawCandidates, evaluationContext, {
+          targetArrivalTime,
+          constraints,
+          preferences,
+          date,
+          dayOfWeek,
+          maxAlternates: 4
+        });
+        const rawAlternates = altResult.alternates || [];
+
+        if (rawAlternates.length > 0) {
+          const alternateJourneys = rawAlternates.map(a => a.journey);
+          const altComparison = routeComparisonService.compareRoutes(alternateJourneys, evaluationContext);
+
+          alternateRoutes = rawAlternates.map(alt => {
+            const aj = alt.journey;
+            const aImpact = alt.contextualImpact || {};
+            const compItem = altComparison.routes.find(r => r.journeyId === aj.id);
+
+            const altBaselineDuration = Number(aj.totalDurationMinutes || 0);
+            const altBaselineArrival = aj.estimatedArrivalTime || addMinutesToHHMM(aj.departureTime || '08:00', altBaselineDuration);
+            const altUpdatedDuration = aImpact.updatedDurationMinutes || altBaselineDuration;
+            const altUpdatedArrival = aImpact.updatedArrivalTime || addMinutesToHHMM(aj.departureTime || '08:00', altUpdatedDuration);
+
+            const baselineEstimate = {
+              durationMinutes: altBaselineDuration,
+              departureTime: aj.departureTime || '08:00',
+              estimatedArrivalTime: altBaselineArrival,
+              waitingTimeMinutes: aj.totalWaitingTimeMinutes || 0,
+              walkingTimeMinutes: aj.walkingTimeMinutes || 0,
+              transitTimeMinutes: aj.transitTimeMinutes || 0,
+              transferCount: aj.transferCount || 0,
+              estimatedCostRupees: aj.estimatedCostRupees || 0,
+              totalDistanceKm: aj.totalDistanceKm || 0
+            };
+
+            const contextualEstimate = {
+              durationMinutes: altUpdatedDuration,
+              departureTime: aj.departureTime || '08:00',
+              estimatedArrivalTime: altUpdatedArrival,
+              totalAdditionalDelayMinutes: aImpact.totalAdditionalDelayMinutes || 0,
+              disruptionDelayMinutes: aImpact.disruptionImpact?.totalDelayMinutes || 0,
+              trafficDelayMinutes: aImpact.trafficImpact?.addedTravelTimeMinutes || 0,
+              waitingTimeMinutes: aj.totalWaitingTimeMinutes || 0,
+              walkingTimeMinutes: aj.walkingTimeMinutes || 0,
+              transitTimeMinutes: aj.transitTimeMinutes || 0,
+              transferCount: aj.transferCount || 0,
+              estimatedCostRupees: aj.estimatedCostRupees || 0,
+              reliability: aImpact.reliabilityIndicator || 'LOW',
+              uncertainty: aImpact.uncertaintyLevel || 'LOW',
+              isFeasible: alt.isFeasible !== false,
+              feasibilityReason: aImpact.feasibilityReason || 'OPERATIONAL'
+            };
+
+            const evalReasons = [
+              ...(compItem ? compItem.strengths : []),
+              ...(compItem ? compItem.weaknesses : []),
+              `Alternate strategy: ${alt.alternateMetadata?.strategy || 'MODE_SHIFT'} (${alt.alternateMetadata?.reasonSummary || 'Alternate route to avoid disruption'})`
+            ];
+
+            return {
+              id: aj.id,
+              candidateId: aj.id,
+              routeType: 'ALTERNATE_ROUTE',
+              origin: aj.origin,
+              destination: aj.destination,
+              departureTime: aj.departureTime || '08:00',
+              estimatedArrivalTime: altUpdatedArrival,
+              totalDurationMinutes: altUpdatedDuration,
+              estimatedTravelTimeMinutes: altUpdatedDuration,
+              baselineEstimate,
+              contextualEstimate,
+              travelTimeEstimate: {
+                baseline: baselineEstimate,
+                contextual: contextualEstimate,
+                totalDurationMinutes: altUpdatedDuration,
+                additionalDelayMinutes: aImpact.totalAdditionalDelayMinutes || 0
+              },
+              disruptionImpact: {
+                isAffected: Boolean(aImpact.disruptionImpact?.isAffected),
+                totalDelayMinutes: aImpact.totalAdditionalDelayMinutes || 0,
+                disruptionDelayMinutes: aImpact.disruptionImpact?.totalDelayMinutes || 0,
+                trafficDelayMinutes: aImpact.trafficImpact?.addedTravelTimeMinutes || 0,
+                affectedSegments: aImpact.affectedSegments || [],
+                unavailableSegments: aImpact.unavailableSegments || [],
+                advisories: aj.advisories || []
+              },
+              affectedSegments: aImpact.affectedSegments || [],
+              unavailableSegments: aImpact.unavailableSegments || [],
+              primaryMode: aj.primaryMode,
+              modesIncluded: aj.modesIncluded,
+              transportModes: aj.modesIncluded || [aj.primaryMode],
+              transfers: aj.transferCount || 0,
+              transferCount: aj.transferCount || 0,
+              walking: {
+                durationMinutes: aj.walkingTimeMinutes || 0,
+                distanceKm: aj.walkingDistanceKm || 0
+              },
+              walkingTimeMinutes: aj.walkingTimeMinutes || 0,
+              walkingDistanceKm: aj.walkingDistanceKm || 0,
+              cost: {
+                rupees: aj.estimatedCostRupees || 0,
+                isFree: aj.estimatedCostRupees === 0
+              },
+              estimatedCostRupees: aj.estimatedCostRupees || 0,
+              reliability: aImpact.reliabilityIndicator || 'LOW',
+              uncertainty: aImpact.uncertaintyLevel || 'LOW',
+              isFeasible: alt.isFeasible !== false,
+              feasibilityReason: aImpact.feasibilityReason || 'OPERATIONAL',
+              alternateMetadata: {
+                ...alt.alternateMetadata,
+                strategy: alt.alternateMetadata?.strategyType || alt.alternateMetadata?.strategy,
+                strategyType: alt.alternateMetadata?.strategyType || alt.alternateMetadata?.strategy,
+                reasonSummary: alt.alternateMetadata?.differenceReason || alt.alternateMetadata?.reasonSummary,
+                differenceReason: alt.alternateMetadata?.differenceReason || alt.alternateMetadata?.reasonSummary
+              },
+              provenance: aj.provenance?.toJSON ? aj.provenance.toJSON() : aj.provenance,
+              deterministicScore: compItem ? compItem.deterministicScore : undefined,
+              scoreBreakdown: compItem ? compItem.breakdown : undefined,
+              strengths: compItem ? compItem.strengths : [],
+              weaknesses: compItem ? compItem.weaknesses : [],
+              evaluationReasons: evalReasons,
+              segments: aj.segments
+            };
+          });
+        }
+      } catch (altErr) {
+        alternateRoutes = [];
+      }
+    }
+
     const weatherCond = evaluationContext.weatherContext?.condition ||
       (typeof evaluationContext.weatherContext === 'string' ? evaluationContext.weatherContext : 'clear');
     const trafficLvl = evaluationContext.trafficContext?.level ||
       (Array.isArray(evaluationContext.trafficConditions) && evaluationContext.trafficConditions.length > 0 ? 'congested' : 'normal');
     const dominantAvail = evaluationContext.availabilityContext?.status || 'AVAILABLE';
 
+    const feasibleRoutes = decoratedCandidates.filter(c => c.isFeasible && c.isAccepted);
+    const rejectedRoutes = filterResult.rejected.map(r => ({
+      candidateId: r.candidateId,
+      isAccepted: false,
+      primaryReasonCode: r.primaryReasonCode,
+      reasonCodes: r.reasonCodes,
+      violations: r.violations,
+      evaluationReasons: r.violations.map(v => v.message),
+      metrics: r.evaluatedMetrics
+    }));
+
     return success(res, {
       totalEvaluatedCount: evaluatedCandidates.length,
       candidateCount: decoratedCandidates.length,
-      feasibleCandidateCount: decoratedCandidates.filter(c => c.isFeasible).length,
+      feasibleCandidateCount: feasibleRoutes.length,
       infeasibleCandidateCount: decoratedCandidates.filter(c => !c.isFeasible).length,
       acceptedCandidateCount: filterResult.summary.acceptedCount,
       rejectedCandidateCount: filterResult.summary.rejectedCount,
+      feasibleRoutes,
+      rejectedRoutes,
+      alternateRoutes,
       candidates: decoratedCandidates,
       allCandidates: evaluatedCandidates,
       routeComparison: comparisonResult,
-      rejectedCandidates: filterResult.rejected.map(r => ({
-        candidateId: r.candidateId,
-        isAccepted: false,
-        primaryReasonCode: r.primaryReasonCode,
-        reasonCodes: r.reasonCodes,
-        violations: r.violations,
-        metrics: r.evaluatedMetrics
-      })),
+      rejectedCandidates: rejectedRoutes,
       filterSummary: filterResult.summary,
+      routeIntelligence: {
+        evaluatedRoutes: decoratedCandidates,
+        feasibleRoutes,
+        alternateRoutes,
+        rejectedRoutes,
+        comparison: comparisonResult,
+        contextSummary: {
+          weatherCondition: weatherCond,
+          trafficLevel: trafficLvl,
+          dominantTransportStatus: dominantAvail,
+          activeDisruptionsCount: Array.isArray(evaluationContext.disruptions) ? evaluationContext.disruptions.length : 0,
+          hasInfeasibleCandidates: evaluatedCandidates.some(c => !c.isFeasible)
+        },
+        provenanceSummary: comparisonResult.provenanceSummary,
+        universalBestClaim: false,
+        disclaimer: 'Deterministic route intelligence based on scheduled timetables, environmental context, and active transport availability. Not an AI recommendation engine.'
+      },
       queryContext: {
         studentId,
         startingArea,
@@ -489,7 +721,7 @@ async function generateCandidateJourneys(req, res, next) {
         hasUserReportedData: allDataTiers.has('USER_REPORTED'),
         hasVerifiedData: allDataTiers.has('VERIFIED'),
         hasSyntheticData: allDataTiers.has('SYNTHETIC'),
-        limitations: 'Timetable estimates with real-time/forecasted environmental and transport context. Does NOT declare a recommended or chosen route.'
+        limitations: 'Timetable estimates with real-time/forecasted environmental and transport context. Deterministic candidate evaluation only.'
       }
     });
   } catch (err) {
