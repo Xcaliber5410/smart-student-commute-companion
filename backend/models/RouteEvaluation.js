@@ -68,6 +68,8 @@ const routeEvaluationSchema = z.object({
   transitTime: z.coerce.number().min(0).default(0),
   numberOfTransfers: z.coerce.number().int().min(0).default(0),
   estimatedCost: z.coerce.number().min(0).default(0),
+  isCostAvailable: z.boolean().default(true),
+  isCostExact: z.boolean().default(false),
   totalDistanceKm: z.coerce.number().min(0).default(0),
   primaryMode: transportModeEnum.default('transit'),
   modesIncluded: z.array(z.string()).default([]),
@@ -191,11 +193,20 @@ class RouteEvaluation {
       (journey.segments ? Math.max(0, journey.segments.filter(s => s.type === 'TRANSIT').length - 1) : 0)
     );
 
-    const estimatedCost = Number(
-      journey.baselineTravel?.estimatedCostRupees ??
-      journey.estimatedCostRupees ??
-      0
-    );
+    const isCostAvailable = journey.isCostAvailable !== undefined
+      ? Boolean(journey.isCostAvailable)
+      : (journey.baselineTravel?.estimatedCostRupees !== undefined || journey.estimatedCostRupees !== undefined || (journey.estimatedCost !== undefined && journey.estimatedCost !== null));
+
+    const isCostExact = Boolean(journey.isCostExact);
+
+    const estimatedCost = isCostAvailable
+      ? Number(
+          journey.baselineTravel?.estimatedCostRupees ??
+          journey.estimatedCostRupees ??
+          journey.estimatedCost ??
+          0
+        )
+      : 0;
 
     const totalDistanceKm = Number(
       journey.baselineTravel?.totalDistanceKm ??
@@ -376,6 +387,8 @@ class RouteEvaluation {
       transitTime,
       numberOfTransfers,
       estimatedCost,
+      isCostAvailable,
+      isCostExact,
       totalDistanceKm,
       primaryMode,
       modesIncluded,

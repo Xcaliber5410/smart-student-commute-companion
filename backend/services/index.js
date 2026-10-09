@@ -78,7 +78,10 @@ const { routeEvaluationService, RouteEvaluationService } = require('./routeEvalu
 const {
   deterministicRouteScoringService,
   DeterministicRouteScoringService,
-  SCORING_RATES
+  SCORING_RATES,
+  PREFERENCE_PROFILES,
+  DEFAULT_PREFERENCES,
+  HARD_CONSTRAINT_REASONS
 } = require('./deterministicRouteScoringService');
 const {
   alternateRouteService,
@@ -117,6 +120,9 @@ module.exports = {
   deterministicRouteScoringService,
   DeterministicRouteScoringService,
   SCORING_RATES,
+  PREFERENCE_PROFILES,
+  DEFAULT_PREFERENCES,
+  HARD_CONSTRAINT_REASONS,
   // Route Evaluation Model & Service (P9)
   routeEvaluationService,
   RouteEvaluationService,
