@@ -193,19 +193,20 @@ class RouteEvaluation {
       (journey.segments ? Math.max(0, journey.segments.filter(s => s.type === 'TRANSIT').length - 1) : 0)
     );
 
+    const rawCost = journey.estimatedCostRupees !== undefined
+      ? journey.estimatedCostRupees
+      : (journey.baselineTravel?.estimatedCostRupees !== undefined
+          ? journey.baselineTravel.estimatedCostRupees
+          : journey.estimatedCost);
+
     const isCostAvailable = journey.isCostAvailable !== undefined
       ? Boolean(journey.isCostAvailable)
-      : (journey.baselineTravel?.estimatedCostRupees !== undefined || journey.estimatedCostRupees !== undefined || (journey.estimatedCost !== undefined && journey.estimatedCost !== null));
+      : (rawCost !== undefined && rawCost !== null);
 
     const isCostExact = Boolean(journey.isCostExact);
 
-    const estimatedCost = isCostAvailable
-      ? Number(
-          journey.baselineTravel?.estimatedCostRupees ??
-          journey.estimatedCostRupees ??
-          journey.estimatedCost ??
-          0
-        )
+    const estimatedCost = (isCostAvailable && rawCost !== null && rawCost !== undefined)
+      ? Number(rawCost)
       : 0;
 
     const totalDistanceKm = Number(
@@ -344,13 +345,13 @@ class RouteEvaluation {
       dataTiers.push(PROVENANCE_TIERS.ESTIMATED);
     }
 
-    let routeEvalTier = PROVENANCE_TIERS.ESTIMATED;
-    if (dataTiers.length === 1 && dataTiers[0] === PROVENANCE_TIERS.VERIFIED) {
-      routeEvalTier = PROVENANCE_TIERS.VERIFIED;
+    let routeEvalTier = journey.provenance?.sourceTier || PROVENANCE_TIERS.ESTIMATED;
+    if (dataTiers.includes(PROVENANCE_TIERS.SYNTHETIC)) {
+      routeEvalTier = PROVENANCE_TIERS.SYNTHETIC;
     } else if (dataTiers.includes(PROVENANCE_TIERS.USER_REPORTED)) {
       routeEvalTier = PROVENANCE_TIERS.USER_REPORTED;
-    } else if (dataTiers.includes(PROVENANCE_TIERS.SYNTHETIC)) {
-      routeEvalTier = PROVENANCE_TIERS.SYNTHETIC;
+    } else if (journey.provenance?.sourceTier === PROVENANCE_TIERS.VERIFIED && !unifiedImpact.isAffected) {
+      routeEvalTier = PROVENANCE_TIERS.VERIFIED;
     } else if (dataTiers.includes(PROVENANCE_TIERS.ESTIMATED)) {
       routeEvalTier = PROVENANCE_TIERS.ESTIMATED;
     } else if (dataTiers.every(t => t === PROVENANCE_TIERS.VERIFIED)) {

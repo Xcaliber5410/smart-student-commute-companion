@@ -142,7 +142,8 @@ async function getPersonalizedRecommendation(req, res, next) {
       departureTime,
       targetArrivalTime,
       date,
-      dayOfWeek
+      dayOfWeek,
+      currentTime: req.body.currentTime || context?.currentTime
     });
 
     const recJson = typeof recommendation.toJSON === 'function'
@@ -174,6 +175,7 @@ async function getPersonalizedRecommendation(req, res, next) {
           delayMinutes: 0,
           warnings: recommendation.warnings || []
         },
+        warnings: recommendation.warnings || [],
         contextSummary: recommendation.contextSummary || context || {},
         preferenceAlignment: recJson.preferenceAlignment || null,
         recommendationReasons: recJson.recommendationReasons || [],
@@ -224,6 +226,7 @@ async function getPersonalizedRecommendation(req, res, next) {
         delayMinutes: recJson.expectedDisruptionDelayMinutes || 0,
         warnings: recJson.warnings || []
       },
+      warnings: recJson.warnings || [],
       contextSummary: recJson.contextSummary || context || {},
       preferenceAlignment: recJson.preferenceAlignment,
       recommendationReasons: recJson.recommendationReasons || [],

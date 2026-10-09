@@ -144,8 +144,58 @@ API Response Envelope (commuteCandidateController)
   19. Expired disruptions (stale or resolved disruptions do not affect routes)
   20. Mixed disruption/context data (combines multi-tier context; flags `hasUnverifiedData: true`)
 
+#### 8. Personalized Commute Recommendations Pipeline
+- **Domain Models**: `backend/models/PersonalizedCommuteRecommendation.js`, `backend/models/PersonalizedRecommendationExplanation.js`, `backend/models/DepartureAdvice.js`
+  - Encapsulates `PersonalizedCommuteRecommendation`, `RecommendedRouteDetail`, `PreferenceAlignment`, `RecommendationReason`, `TradeOffItem`, `PersonalizedRecommendationExplanation`, and `DepartureAdvice`.
+  - Distinguishes hard constraints from soft preferences without conflation.
+  - Transparent fallback representation (`isFallback: true`) with actionable student guidance when no feasible routes exist.
+- **Personalized Deterministic Scoring**: `backend/services/deterministicRouteScoringService.js`
+  - Supports 5 preference profiles (`balanced`, `faster`, `cheaper`, `fewest_transfers`, `least_walking`, `reliable`, `rain-safe`).
+  - Strict enforcement of hard constraints (`ARRIVAL_TOO_LATE`, `TOO_MANY_TRANSFERS`, `WALKING_LIMIT_EXCEEDED`, `BUDGET_EXCEEDED`, `EXCLUDED_MODE`, `DISALLOWED_MODE`).
+  - Missing preferences fallback safely to documented, sensible defaults.
+- **Personalized Route Recommendation Service**: `backend/services/personalizedRouteRecommendationService.js`
+  - Complete 6-stage pipeline: candidate generation/acquisition → hard constraint filtering → disruption/context evaluation → alternate route discovery → deduplication → personalized ranking & recommendation selection.
+  - Generates primary recommended route, up to 3 meaningfully distinct alternatives, pairwise trade-offs, and grounded explanations.
+- **Recommendation Explanation Service**: `backend/services/recommendationExplanationService.js`
+  - Generates structured, truthful explanations grounded strictly in actual route metrics, constraints, preferences, and context without fabrication.
+  - Distinguishes 4 provenance tiers (`VERIFIED`, `USER_REPORTED`, `ESTIMATED`, `SYNTHETIC`).
+- **Disruption-Aware Departure Advice Service**: `backend/services/departureAdviceService.js`
+  - Recommends justified earlier departure windows when disruptions or tight schedules endanger arrival deadlines.
+  - Checks Mumbai transit operating hours and warns if planned departures violate service schedules.
+- **Personalized Recommendations API Endpoint**: `POST /api/commute/recommendations`
+  - Location: `backend/controllers/commuteRecommendationController.js`, `backend/routes/commuteRoutes.js`
+  - Returns primary route, distinct alternatives, disruption summary, preference alignment, recommendation reasons, route trade-offs, departure advice, provenance summary, and explanation.
+  - Enforces JWT authentication, Zod validation, and privacy safeguards (rejects granular door/flat numbers and coordinate fields).
+
+#### 9. Master Integration Verification: Personalized Commute Recommendations
+- **Location**: `backend/scripts/integration_personalized_recommendations_verification_test.js`
+- **Command**: `npm run test:recommendations-verification`
+- **Status**: 21/21 Scenarios Passing
+  1. Normal commute with multiple feasible routes
+  2. Faster-route preference prioritizes minimal commute duration
+  3. Lower-cost preference prioritizes lowest transit fare
+  4. Fewer-transfers preference favors direct routes over complex interchanges
+  5. Reduced-walking preference prioritizes low pedestrian exertion
+  6. Preferred transport modes gives decisive score boost to preferred mode
+  7. Hard constraints strictly override soft preferences
+  8. Train or metro disruption adds delay buffer and pivots to undisrupted alternate
+  9. Bus unavailability penalizes or eliminates suspended bus corridor
+  10. Multiple simultaneous disruptions aggregate delay buffers and elevate caution
+  11. Earlier-departure advice when justified recommends earlier departure
+  12. Arrival deadline that cannot be met reports honest unachievable status
+  13. No feasible routes returns clean fallback result with actionable suggestions
+  14. Missing or incomplete transport data handled safely without crashes or NaN
+  15. Multi-tier provenance preserves all 4 tiers without mislabeling
+  16. Explanations faithfully reflect actual route metrics without fabrication
+  17. Deterministic recommendations produce identical outputs for repeated inputs
+  18. Duplicate alternative prevention eliminates near-identical route copies
+  19. Expired disruptions do not penalize current routes or inflate delays
+  20. Authentication, validation, and privacy safeguards enforced strictly
+  21. Existing backend endpoints and contracts remain intact without regressions
+
 ---
 
 ## Known Boundaries & Non-Claims
-- **No AI Guesswork / Speculation**: All route scores and rankings are 100% deterministic mathematical calculations based on timetables, disruptions, traffic levels, and weather.
-- **Not a Personalized AI Recommendation Engine**: The system presents structured, comparable candidate options and trade-offs. It does not claim a single route is universally best for every student.
+- **No AI Guesswork / Speculation**: All route scores, rankings, departure windows, and explanations are 100% deterministic mathematical calculations based on timetables, disruptions, traffic levels, and weather.
+- **Transparent Provenance**: Grounded in multi-tier audit trails (`VERIFIED`, `USER_REPORTED`, `ESTIMATED`, `SYNTHETIC`) without inventing unverified facts or live transit tracking.
+

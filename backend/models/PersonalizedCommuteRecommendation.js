@@ -434,23 +434,61 @@ class RecommendedRouteDetail {
     );
 
     const expectedDisruptionDelayMinutes = Number(
+      route.expectedDisruptionDelayMinutes ??
       route.additionalDisruptionDelay ??
       route.disruptionDelayMinutes ??
       route.totalAdditionalDelayMinutes ??
       route.disruptionImpact?.totalDelayMinutes ??
+      route.evaluation?.additionalDisruptionDelay ??
+      route.evaluation?.totalAdditionalDelay ??
+      route.breakdown?.disruption?.delayMinutes ??
       0
     );
 
-    const waitingTimeMinutes = Number(route.waitingTime ?? route.totalWaitingTimeMinutes ?? 0);
-    const walkingTimeMinutes = Number(route.walkingTime ?? route.walkingTimeMinutes ?? route.walking?.durationMinutes ?? 0);
-    const transitTimeMinutes = Number(route.transitTime ?? route.transitTimeMinutes ?? 0);
-    const transfers = Number(route.transfers ?? route.transferCount ?? route.numberOfTransfers ?? 0);
+    const waitingTimeMinutes = Number(
+      route.waitingTime ??
+      route.totalWaitingTimeMinutes ??
+      route.evaluation?.waitingTime ??
+      route.breakdown?.waiting?.minutes ??
+      0
+    );
+    const walkingTimeMinutes = Number(
+      route.walkingTimeMinutes ??
+      route.walkingTime ??
+      route.walking?.durationMinutes ??
+      route.evaluation?.walkingTime ??
+      route.breakdown?.walking?.minutes ??
+      0
+    );
+    const transitTimeMinutes = Number(
+      route.transitTime ??
+      route.transitTimeMinutes ??
+      route.evaluation?.transitTime ??
+      route.breakdown?.travelTime?.minutes ??
+      0
+    );
+    const transfers = Number(
+      route.transfers ??
+      route.transferCount ??
+      route.numberOfTransfers ??
+      route.evaluation?.numberOfTransfers ??
+      route.breakdown?.transfers?.count ??
+      0
+    );
 
-    const costVal = route.estimatedCostRupees ??
-      route.estimatedCost ??
-      route.cost?.rupees ??
-      null;
-    const estimatedCostRupees = (costVal !== null && costVal !== undefined) ? Number(costVal) : null;
+    const isCostAvail = route.isCostAvailable !== false &&
+      route.evaluation?.isCostAvailable !== false &&
+      route.breakdown?.cost?.isAvailable !== false;
+
+    const costVal = isCostAvail
+      ? (route.estimatedCostRupees ??
+         route.estimatedCost ??
+         route.breakdown?.cost?.fareRupees ??
+         route.evaluation?.estimatedCost ??
+         route.cost?.rupees ??
+         null)
+      : null;
+    const estimatedCostRupees = (costVal !== null && costVal !== undefined && isCostAvail) ? Number(costVal) : null;
 
     const reliability = route.reliability || 'LOW';
     const uncertainty = route.uncertainty || reliability;

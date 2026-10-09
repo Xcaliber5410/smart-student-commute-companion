@@ -83,6 +83,7 @@
     "test:recommendation-explanations": "node scripts/test_recommendation_explanation_service.js",
     "test:departure-advice": "node scripts/test_departure_advice_service.js",
     "test:commute-recommendations-api": "node scripts/integration_commute_recommendation_api_test.js",
+    "test:recommendations-verification": "node scripts/integration_personalized_recommendations_verification_test.js",
     "test:alternate-routes": "node scripts/test_alternate_route_generation.js",
     "test:commute-integration": "node scripts/integration_commute_route_generation_test.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",

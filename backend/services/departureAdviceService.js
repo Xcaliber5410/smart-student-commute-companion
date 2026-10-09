@@ -96,8 +96,10 @@ class DepartureAdviceService {
     const contextualArrMinutes = (depMinutes + totalTravelWithDelay) % 1440;
 
     const baselineArrivalTime = this.scheduleService.minutesToTime(baselineArrMinutes);
-    const contextualArrivalTime = primaryRoute.estimatedArrivalTime ||
-      this.scheduleService.minutesToTime(contextualArrMinutes);
+    const contextualArrivalTime = primaryRoute.updatedArrivalTime ||
+      (disruptionDelay > 0
+        ? this.scheduleService.minutesToTime(contextualArrMinutes)
+        : (primaryRoute.estimatedArrivalTime || this.scheduleService.minutesToTime(contextualArrMinutes)));
 
     // 3. Operating Hours Check for Selected Mode
     const operatingHours = this.scheduleService.getOperatingHours(primaryMode);

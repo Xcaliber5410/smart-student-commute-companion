@@ -269,7 +269,8 @@ class PersonalizedRouteRecommendationService {
     // -------------------------------------------------------------------------
     // STAGE 3: EVALUATE CANDIDATES AGAINST CONTEXT (Disruptions, Traffic, Weather)
     // -------------------------------------------------------------------------
-    let evaluations = this.routeEvaluationService.evaluateRoutes(acceptedCandidates, context, options);
+    const evalOptions = { currentTime: options.currentTime || context?.currentTime, ...options };
+    let evaluations = this.routeEvaluationService.evaluateRoutes(acceptedCandidates, context, evalOptions);
 
     // Keep only viable and operational routes
     evaluations = evaluations.filter(ev => Boolean(ev.isFeasible));
@@ -304,7 +305,7 @@ class PersonalizedRouteRecommendationService {
             const rawAlts = alternateJourneys.map(a => a.journey || a);
             const filteredAlts = this.constraintFilteringService.filterCandidates(rawAlts, filterOptions);
             const validAlts = filteredAlts.accepted.map(e => e.journey || e.candidate || e);
-            const evaluatedAlts = this.routeEvaluationService.evaluateRoutes(validAlts, context, options)
+            const evaluatedAlts = this.routeEvaluationService.evaluateRoutes(validAlts, context, evalOptions)
               .filter(ev => Boolean(ev.isFeasible));
             evaluations.push(...evaluatedAlts);
           }

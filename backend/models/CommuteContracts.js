@@ -122,14 +122,20 @@ const ROUTE_PREFERENCES = Object.freeze({
   BALANCED: 'balanced',
   FASTEST: 'fastest',
   CHEAPEST: 'cheapest',
-  RAIN_SAFE: 'rain-safe'
+  RELIABLE: 'reliable',
+  RAIN_SAFE: 'rain-safe',
+  LEAST_WALKING: 'least_walking',
+  FEWEST_TRANSFERS: 'fewest_transfers'
 });
 
 const routePreferenceEnum = z.enum([
   'balanced',
   'fastest',
   'cheapest',
-  'rain-safe'
+  'reliable',
+  'rain-safe',
+  'least_walking',
+  'fewest_transfers'
 ]);
 
 /**

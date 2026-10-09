@@ -259,8 +259,9 @@ class DisruptionImpactService {
   matchDisruptionsToSegment(segment, disruptions = [], options = {}) {
     const matches = [];
     const segMode = String(segment.mode || '').toLowerCase();
-    const segFrom = String(segment.from || '').toLowerCase();
-    const segTo = String(segment.to || '').toLowerCase();
+    const segFrom = String(segment.from || segment.fromArea || segment.fromLocation || '').toLowerCase();
+    const segTo = String(segment.to || segment.toArea || segment.toLocation || '').toLowerCase();
+    const segCorridor = String(segment.corridorOrArea || segment.corridor || segment.road || segment.lineInfo?.corridor || segment.from || segment.to || '').toLowerCase();
     const segServiceId = String(segment.serviceId || '').toUpperCase();
     const segLineId = String(segment.lineIdentifier || '').toUpperCase();
     const segLineName = String(segment.lineInfo?.lineName || '').toUpperCase();
@@ -332,7 +333,7 @@ class DisruptionImpactService {
       if (!dArea) {
         areaMatched = routeMatched;
       } else {
-        areaMatched = this._isLocationOrCorridorMatch(dArea, segFrom, segTo);
+        areaMatched = this._isLocationOrCorridorMatch(dArea, segFrom, segTo, segCorridor);
       }
 
       // Match Decision:
@@ -603,11 +604,17 @@ class DisruptionImpactService {
    * Spatial/corridor overlap checking between a disruption area and segment endpoints.
    * @private
    */
-  _isLocationOrCorridorMatch(disruptionArea, fromLocation, toLocation) {
+  _isLocationOrCorridorMatch(disruptionArea, fromLocation, toLocation, corridor = '') {
     if (!disruptionArea) return true;
     const cleanArea = String(disruptionArea).toLowerCase().trim();
     const cleanFrom = String(fromLocation || '').toLowerCase().trim();
     const cleanTo = String(toLocation || '').toLowerCase().trim();
+    const cleanCorridor = String(corridor || '').toLowerCase().trim();
+
+    // Direct corridor match
+    if (cleanCorridor && (cleanCorridor.includes(cleanArea) || cleanArea.includes(cleanCorridor))) {
+      return true;
+    }
 
     // Direct containment
     if (cleanFrom.includes(cleanArea) || cleanTo.includes(cleanArea) || cleanArea.includes(cleanFrom) || cleanArea.includes(cleanTo)) {
