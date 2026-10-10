@@ -242,6 +242,25 @@ API Response Envelope (commuteCandidateController)
   - `backend/scripts/test_academic_schedule_commute_integration.js` (`npm run test:academic-schedule-commute`)
   - 9/9 test scenarios covering upcoming classes, missing schedules, conflicting arrival deadlines, missing event locations, mismatched locations, disrupted journeys with earlier departure calculation, exam day elevated buffers, explanation transparency, and HTTP API integration.
 
+#### 12. Contextual Recommendation Explanations
+- **Domain Model**: `backend/models/PersonalizedRecommendationExplanation.js`
+  - Added `earlierDepartureExplanationSchema` capturing `isEarlierDepartureRecommended`, `earlierByMinutes`, `recommendedDepartureTime`, `reasons`, `narrative`, `actionableGuidance`, and `provenanceTier`.
+  - Serializes `earlierDepartureExplanation` cleanly within `PersonalizedRecommendationExplanation.toJSON()`.
+- **Explanation Layer Service**: `backend/services/recommendationExplanationService.js`
+  - Explains route choices using verified recommendation data, candidate metrics, and student context.
+  - Generates structured, deterministic explanations:
+    - **Selection Reason**: Articulates why the primary route was selected; never claims "shortest overall commute" or "offers the fastest travel time" unless evaluated candidates prove it.
+    - **Satisfied Preferences**: Truthfully evaluates `fastest`, `cheapest`, `fewest_transfers`, `least_walking`, `preferred_modes`, and `academic_schedule`; marks `isSatisfied: false` with clear trade-off details if an alternative was faster/cheaper; flags unverified cost when fare is missing.
+    - **Timing & Schedule**: Incorporates `academicScheduleExplanation` and student deadline margins; produces natural contextual summaries like `"Recommended because this route has fewer transfers and is estimated to arrive before your 9:00 AM class."` only when route metrics and academic data support it.
+    - **Disruptions & Trade-Offs**: Accurately explains corridor disruptions, delay additions (+X min), and head-to-head trade-offs against alternative options without claiming primary is fastest unless verified.
+    - **Earlier Departure Advice**: Explains why earlier departure helps (absorbing active disruption delays, maintaining the 10-min class buffer or 20-min exam buffer, mitigating tight margin risks); reports earlier departure not required when on schedule with healthy buffers.
+    - **Uncertainty & Multi-Tier Provenance**: Distinguishes `VERIFIED` timetables/fares, `USER_REPORTED` delay observations, `ESTIMATED` walk rates/buffers, and `SYNTHETIC` planner artifacts.
+- **Pipeline Integration**: `backend/services/personalizedRouteRecommendationService.js`
+  - Pre-computes disruption-aware departure advice and supplies it directly to `explainRecommendation`.
+- **Automated Verification**:
+  - `backend/scripts/test_recommendation_explanation_service.js` (`npm run test:recommendation-explanations`)
+  - 15/15 unit tests covering selection reasons, disruption effects, trade-offs, preference satisfaction truthfulness, fastest/cheapest honesty, schedule alignment honesty, earlier departure reasons, exam buffers, provenance breakdown, and end-to-end recommendation integration.
+
 ---
 
 ## Known Boundaries & Non-Claims

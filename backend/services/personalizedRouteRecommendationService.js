@@ -548,24 +548,6 @@ class PersonalizedRouteRecommendationService {
     const academicContext = context?.academicContext || context?.studentContext?.academicContext || null;
     const studentContext = context?.studentContext || null;
 
-    let explanation = null;
-    try {
-      explanation = this.explanationService.explainRecommendation({
-        recommendationId: recId,
-        primaryRoute,
-        alternatives: distinctAlternatives,
-        preferences,
-        constraints,
-        context,
-        targetArrivalTime,
-        rawTradeOffs: tradeOffs,
-        academicContext,
-        studentContext
-      });
-    } catch (err) {
-      // Explanation generation failure must not crash the recommendation
-    }
-
     // Generate disruption-aware departure advice
     let departureAdvice = null;
     try {
@@ -583,6 +565,25 @@ class PersonalizedRouteRecommendationService {
       });
     } catch (err) {
       // Departure advice failure must not crash the recommendation
+    }
+
+    let explanation = null;
+    try {
+      explanation = this.explanationService.explainRecommendation({
+        recommendationId: recId,
+        primaryRoute,
+        alternatives: distinctAlternatives,
+        preferences,
+        constraints,
+        context,
+        targetArrivalTime,
+        rawTradeOffs: tradeOffs,
+        academicContext,
+        studentContext,
+        departureAdvice
+      });
+    } catch (err) {
+      // Explanation generation failure must not crash the recommendation
     }
 
     return PersonalizedCommuteRecommendation.fromEvaluatedRoute(primaryRoute, {

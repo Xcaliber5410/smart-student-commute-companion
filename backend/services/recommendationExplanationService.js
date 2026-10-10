@@ -11,6 +11,7 @@
  * - Details expected travel time and arrival time (including margin buffer).
  * - Explains known disruption effects and corridor impacts.
  * - Highlights important trade-offs against alternative options.
+ * - Explains why an earlier departure may help.
  * - Identifies uncertainty and missing information transparently.
  * - Explains why useful alternatives may be preferable in certain circumstances.
  * - Explicitly tracks 4-tier provenance (VERIFIED, USER_REPORTED, ESTIMATED, SYNTHETIC).
@@ -23,6 +24,25 @@ const {
   PROVENANCE_TIERS
 } = require('../models/CommuteContracts');
 const { ValidationError } = require('../errors');
+
+/**
+ * Converts a 24-hour HH:MM time string to user-friendly "H:MM AM/PM" format.
+ * e.g. "09:00" -> "9:00 AM", "14:30" -> "2:30 PM".
+ * @param {string|null} timeHHMM
+ * @returns {string}
+ */
+function formatTimeAMPM(timeHHMM) {
+  if (!timeHHMM || typeof timeHHMM !== 'string' || !timeHHMM.includes(':')) {
+    return timeHHMM || '';
+  }
+  const [hStr, mStr] = timeHHMM.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (isNaN(h) || isNaN(m)) return timeHHMM;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const displayH = h % 12 || 12;
+  return `${displayH}:${m.toString().padStart(2, '0')} ${period}`;
+}
 
 class RecommendationExplanationService {
   /**
@@ -44,6 +64,9 @@ class RecommendationExplanationService {
    * @param {object} [params.context={}] - Environmental context (disruptions, traffic, weather)
    * @param {string} [params.targetArrivalTime] - Requested arrival deadline
    * @param {Array<string>} [params.rawTradeOffs=[]] - Pre-computed trade-off strings
+   * @param {object} [params.academicContext] - Academic schedule context
+   * @param {object} [params.studentContext] - Full student context
+   * @param {object} [params.departureAdvice] - Disruption-aware departure advice
    * @returns {PersonalizedRecommendationExplanation}
    */
   explainRecommendation(params = {}) {
@@ -57,13 +80,18 @@ class RecommendationExplanationService {
       targetArrivalTime: explicitTargetArrivalTime = null,
       rawTradeOffs = [],
       academicContext: directAcademicContext = null,
-      studentContext = null
+      studentContext = null,
+      departureAdvice: directDepartureAdvice = null
     } = params;
 
     const academicContext = directAcademicContext ||
       context?.academicContext ||
       context?.studentContext?.academicContext ||
       studentContext?.academicContext ||
+      null;
+
+    const departureAdvice = directDepartureAdvice ||
+      context?.departureAdvice ||
       null;
 
     let targetArrivalTime = explicitTargetArrivalTime;
@@ -78,12 +106,21 @@ class RecommendationExplanationService {
     const primaryNorm = this._normalizeRouteMetrics(primaryRoute);
     const altsNorm = (alternatives || []).map(a => this._normalizeRouteMetrics(a));
 
-    // 1. Component Explanations
-    const timingExplanation = this._buildTimingExplanation(primaryNorm, targetArrivalTime, academicContext);
+    // 1. Earlier departure evaluation
+    const earlierDepartureExplanation = this._buildEarlierDepartureExplanation(
+      primaryNorm,
+      targetArrivalTime,
+      academicContext,
+      departureAdvice,
+      context
+    );
+
+    // 2. Component Explanations
+    const timingExplanation = this._buildTimingExplanation(primaryNorm, targetArrivalTime, academicContext, earlierDepartureExplanation);
     const disruptionEffects = this._buildDisruptionExplanation(primaryNorm, context);
-    const satisfiedPreferences = this._buildSatisfiedPreferences(primaryNorm, preferences, constraints, targetArrivalTime, academicContext);
-    const selectionReason = this._buildSelectionReason(primaryNorm, altsNorm, preferences, targetArrivalTime, disruptionEffects);
-    const summary = this._buildSummary(primaryNorm, altsNorm, preferences, targetArrivalTime, disruptionEffects, academicContext);
+    const satisfiedPreferences = this._buildSatisfiedPreferences(primaryNorm, altsNorm, preferences, constraints, targetArrivalTime, academicContext);
+    const selectionReason = this._buildSelectionReason(primaryNorm, altsNorm, preferences, targetArrivalTime, disruptionEffects, academicContext);
+    const summary = this._buildSummary(primaryNorm, altsNorm, preferences, targetArrivalTime, disruptionEffects, academicContext, earlierDepartureExplanation);
     const tradeOffs = this._buildTradeOffs(primaryNorm, altsNorm, rawTradeOffs);
     const alternativeExplanations = this._buildAlternativeCircumstances(primaryNorm, altsNorm, context);
     const uncertaintyAndMissingInfo = this._buildUncertaintyAndMissingInfo(primaryNorm, altsNorm, context);
@@ -115,6 +152,7 @@ class RecommendationExplanationService {
       uncertaintyAndMissingInfo,
       alternativeExplanations,
       academicScheduleExplanation,
+      earlierDepartureExplanation,
       provenanceBreakdown,
       generatedAt: Date.now()
     });
@@ -178,55 +216,74 @@ class RecommendationExplanationService {
   }
 
   /**
-   * Synthesizes a concise 1-2 sentence lead summary.
-   * e.g. "Recommended because it has fewer transfers and arrives before your requested time."
+   * Synthesizes a concise 1-2 sentence lead summary grounded strictly in actual data.
+   * e.g. "Recommended because this route has fewer transfers and is estimated to arrive before your 9:00 AM class."
    * @private
    */
-  _buildSummary(primary, alts, preferences, targetArrivalTime, disruption, academicContext) {
+  _buildSummary(primary, alts, preferences, targetArrivalTime, disruption, academicContext, earlierDeparture) {
     const reasons = [];
 
-    // Fewer transfers check
-    const hasFewerTransfers = alts.some(a => a.transfers > primary.transfers) || primary.transfers === 0;
-    if (primary.transfers === 0) {
-      reasons.push('has fewer transfers');
-    } else if (hasFewerTransfers) {
-      reasons.push('minimizes modal transfers');
+    // 1. Fewer transfers check
+    // Must be supported by actual candidate data!
+    const hasFewerTransfers = alts.length > 0 && alts.some(a => a.transfers > primary.transfers);
+    if (hasFewerTransfers) {
+      reasons.push('this route has fewer transfers');
+    } else if (primary.transfers === 0 && alts.length > 0 && alts.every(a => a.transfers === 0)) {
+      reasons.push('this route provides a direct 0-transfer connection');
     }
 
-    // On-time arrival check
-    const arrivesOnTime = targetArrivalTime && primary.estimatedArrivalTime && primary.estimatedArrivalTime <= targetArrivalTime;
-    if (arrivesOnTime) {
-      if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
-        reasons.push(`arrives before your ${academicContext.nextClass.startTimeHHMM} ${academicContext.nextClass.eventType || 'class'} ('${academicContext.nextClass.title}')`);
-      } else {
-        reasons.push('arrives before your requested time');
-      }
+    // 2. Schedule and deadline alignment check
+    // Must be supported by actual schedule data and route arrival!
+    const hasMatchedClass = academicContext?.nextClass && academicContext?.isDestinationMatched;
+    const classTime = hasMatchedClass ? academicContext.nextClass.startTimeHHMM : null;
+    const arrivesBeforeClass = classTime && primary.estimatedArrivalTime && primary.estimatedArrivalTime <= classTime;
+
+    if (arrivesBeforeClass) {
+      const timeFormatted = formatTimeAMPM(classTime);
+      const eventType = academicContext.nextClass.eventType || 'class';
+      const title = academicContext.nextClass.title;
+      const titleClause = title && title.toLowerCase() !== 'class' && title.toLowerCase() !== 'lecture'
+        ? ` ('${title}')`
+        : '';
+      reasons.push(`is estimated to arrive before your ${timeFormatted} ${eventType}${titleClause}`);
+    } else if (targetArrivalTime && primary.estimatedArrivalTime && primary.estimatedArrivalTime <= targetArrivalTime) {
+      reasons.push('arrives before your requested time');
     }
 
-    // Fastest check
-    const isFastest = alts.length === 0 || alts.every(a => a.totalTravelTimeMinutes >= primary.totalTravelTimeMinutes);
-    if (isFastest && reasons.length < 2) {
+    // 3. Travel time / Duration check
+    // Invariant: Never claim a route is fastest unless the evaluated candidates support that conclusion!
+    const isStrictlyFastest = alts.length > 0 && alts.every(a => a.totalTravelTimeMinutes > primary.totalTravelTimeMinutes);
+    const isTiedFastest = alts.length > 0 && alts.every(a => a.totalTravelTimeMinutes >= primary.totalTravelTimeMinutes) && alts.some(a => a.totalTravelTimeMinutes === primary.totalTravelTimeMinutes);
+    if (isStrictlyFastest && reasons.length < 2) {
       reasons.push(`offers the fastest travel time (${primary.totalTravelTimeMinutes} min)`);
+    } else if (isTiedFastest && reasons.length < 2) {
+      reasons.push(`shares the lowest travel duration (${primary.totalTravelTimeMinutes} min)`);
+    } else if (alts.length === 0 && reasons.length < 2) {
+      reasons.push(`provides an estimated travel time of ${primary.totalTravelTimeMinutes} min`);
     }
 
-    // Clean corridor / disruption avoided
-    if (disruption.delayMinutes === 0 && alts.some(a => a.expectedDisruptionDelayMinutes > 0)) {
+    // 4. Disruption avoidance check
+    if (disruption.delayMinutes === 0 && alts.length > 0 && alts.some(a => a.expectedDisruptionDelayMinutes > 0)) {
       if (reasons.length < 2) {
         reasons.push('avoids active transit delays');
       }
     }
 
-    // Cost efficiency
-    if (primary.estimatedCostRupees !== null && alts.some(a => a.estimatedCostRupees !== null && a.estimatedCostRupees > primary.estimatedCostRupees)) {
+    // 5. Cost efficiency check
+    if (primary.estimatedCostRupees !== null && alts.length > 0 && alts.every(a => a.estimatedCostRupees === null || a.estimatedCostRupees >= primary.estimatedCostRupees) && alts.some(a => a.estimatedCostRupees !== null && a.estimatedCostRupees > primary.estimatedCostRupees)) {
       if (reasons.length < 2) {
         reasons.push('offers lower commute cost');
       }
     }
 
+    // Combine reasons cleanly
     if (reasons.length >= 2) {
-      return `Recommended because it ${reasons[0]} and ${reasons[1]}.`;
+      const r0 = reasons[0].startsWith('this route ') ? reasons[0] : `this route ${reasons[0]}`;
+      const r1 = reasons[1];
+      return `Recommended because ${r0} and ${r1}.`;
     } else if (reasons.length === 1) {
-      return `Recommended because it ${reasons[0]}.`;
+      const r0 = reasons[0].startsWith('this route ') ? reasons[0] : `this route ${reasons[0]}`;
+      return `Recommended because ${r0}.`;
     }
 
     return `Recommended as the most balanced and reliable route connecting your departure area to campus.`;
@@ -236,26 +293,37 @@ class RecommendationExplanationService {
    * Formulates the detailed selection rationale.
    * @private
    */
-  _buildSelectionReason(primary, alts, preferences, targetArrivalTime, disruption) {
+  _buildSelectionReason(primary, alts, preferences, targetArrivalTime, disruption, academicContext) {
     const clauses = [];
 
-    // Speed / Duration
-    const isFastest = alts.length === 0 || alts.every(a => a.totalTravelTimeMinutes >= primary.totalTravelTimeMinutes);
-    if (isFastest) {
-      clauses.push(`shortest overall commute of ${primary.totalTravelTimeMinutes} minutes`);
+    // Speed / Duration - only claim shortest if candidates actually prove it!
+    const isStrictlyFastest = alts.length > 0 && alts.every(a => a.totalTravelTimeMinutes > primary.totalTravelTimeMinutes);
+    const isTiedFastest = alts.length > 0 && alts.every(a => a.totalTravelTimeMinutes >= primary.totalTravelTimeMinutes);
+    if (isStrictlyFastest) {
+      clauses.push(`shortest overall commute of ${primary.totalTravelTimeMinutes} minutes among evaluated routes`);
+    } else if (isTiedFastest && alts.length > 0) {
+      clauses.push(`tied for shortest commute at ${primary.totalTravelTimeMinutes} minutes`);
     } else {
       clauses.push(`competitive travel time of ${primary.totalTravelTimeMinutes} minutes`);
     }
 
     // Transfer simplicity
+    const hasFewerTransfers = alts.length > 0 && alts.some(a => a.transfers > primary.transfers);
     if (primary.transfers === 0) {
       clauses.push('direct non-stop connection with 0 transfers');
+    } else if (hasFewerTransfers) {
+      clauses.push(`${primary.transfers} transfer(s), fewer than alternative routes`);
     } else {
       clauses.push(`${primary.transfers} smooth transfer(s)`);
     }
 
-    // Punctuality
-    if (targetArrivalTime && primary.estimatedArrivalTime) {
+    // Punctuality & schedule alignment
+    if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
+      const classTime = academicContext.nextClass.startTimeHHMM;
+      if (primary.estimatedArrivalTime && primary.estimatedArrivalTime <= classTime) {
+        clauses.push(`estimated arrival at ${primary.estimatedArrivalTime} before your ${formatTimeAMPM(classTime)} class`);
+      }
+    } else if (targetArrivalTime && primary.estimatedArrivalTime) {
       if (primary.estimatedArrivalTime <= targetArrivalTime) {
         clauses.push(`on-time arrival at ${primary.estimatedArrivalTime} (before your ${targetArrivalTime} deadline)`);
       }
@@ -264,6 +332,8 @@ class RecommendationExplanationService {
     // Disruption status
     if (disruption.delayMinutes === 0) {
       clauses.push('zero reported disruption delays');
+    } else {
+      clauses.push(`buffered for +${disruption.delayMinutes}m expected disruption delay`);
     }
 
     // Cost
@@ -275,44 +345,214 @@ class RecommendationExplanationService {
   }
 
   /**
-   * Formulates satisfied student preferences and constraint alignments.
+   * Explains why an earlier departure may help.
+   * Grounded in disruption delays, required arrival buffers, and schedule deadlines.
+   *
+   * @param {object} primary - Normalized primary route
+   * @param {string|null} targetArrivalTime - Target arrival deadline
+   * @param {object|null} academicContext - Resolved academic schedule context
+   * @param {object|null} departureAdvice - Pre-computed departure advice
+   * @param {object} context - Context containing disruptions/weather
+   * @returns {object} earlierDepartureExplanation
    * @private
    */
-  _buildSatisfiedPreferences(primary, preferences, constraints, targetArrivalTime, academicContext) {
+  _buildEarlierDepartureExplanation(primary, targetArrivalTime, academicContext, departureAdvice, context) {
+    // Case 1: Pre-computed DepartureAdvice is supplied
+    if (departureAdvice) {
+      const adviceType = departureAdvice.adviceType;
+      const isEarlier = adviceType === 'EARLIER_DEPARTURE_RECOMMENDED';
+      const earlierBy = departureAdvice.suggestedDeparture?.earlierByMinutes || 0;
+      const recDepTime = departureAdvice.suggestedDeparture?.recommendedDepartureTime || null;
+      const reasons = [];
+
+      if (isEarlier) {
+        if (primary.expectedDisruptionDelayMinutes > 0) {
+          reasons.push(`Absorbs +${primary.expectedDisruptionDelayMinutes} min expected delay from active transit congestion along this corridor.`);
+        }
+        if (departureAdvice.academicScheduleInfluence?.isExamDay) {
+          reasons.push(`Provides the required 20-minute safety buffer before your scheduled exam starts.`);
+        } else if (departureAdvice.academicScheduleInfluence?.hasAcademicContext) {
+          reasons.push(`Ensures a 10-minute punctuality buffer before your class begins on campus.`);
+        }
+        if (departureAdvice.currentPlan?.marginMinutes !== null && departureAdvice.currentPlan.marginMinutes < (departureAdvice.suggestedDeparture?.safetyBufferMinutes || 10)) {
+          reasons.push(`Eliminates tight margin risk to ensure arrival before your deadline (${departureAdvice.currentPlan.targetArrivalTime}).`);
+        }
+        if (reasons.length === 0) {
+          reasons.push(`Provides additional buffer time to ensure on-time arrival before your scheduled deadline.`);
+        }
+      }
+
+      let narrative = '';
+      if (isEarlier) {
+        narrative = `Departing ${earlierBy} minutes earlier (at ${recDepTime}) is recommended: ${reasons.join(' ')}`;
+      } else if (adviceType === 'ROUTE_CHANGE_NEEDED') {
+        narrative = 'Severe corridor disruptions make departure timing adjustments insufficient; switching to an alternative transit route is recommended.';
+      } else if (adviceType === 'DEADLINE_UNACHIEVABLE') {
+        narrative = 'Transit service hours or travel duration cannot achieve the requested arrival deadline on this corridor.';
+      } else {
+        narrative = `Current planned departure at ${primary.departureTime} allows sufficient travel buffer to arrive on schedule without requiring an earlier departure.`;
+      }
+
+      return {
+        isEarlierDepartureRecommended: isEarlier,
+        earlierByMinutes: earlierBy,
+        recommendedDepartureTime: recDepTime,
+        reasons,
+        narrative,
+        actionableGuidance: departureAdvice.actionableGuidance || [],
+        provenanceTier: departureAdvice.provenance?.sourceTier || PROVENANCE_TIERS.ESTIMATED
+      };
+    }
+
+    // Case 2: Standalone evaluation when DepartureAdvice is not pre-computed
+    const delay = primary.expectedDisruptionDelayMinutes || 0;
+    const target = targetArrivalTime || (academicContext?.isDestinationMatched ? academicContext?.nextClass?.startTimeHHMM : null);
+
+    let marginMinutes = null;
+    if (target && primary.estimatedArrivalTime) {
+      const [th, tm] = target.split(':').map(Number);
+      const [ah, am] = primary.estimatedArrivalTime.split(':').map(Number);
+      marginMinutes = (th * 60 + tm) - (ah * 60 + am);
+    }
+
+    const isExam = Boolean(academicContext?.isExamDay);
+    const requiredBuffer = isExam ? 20 : (academicContext?.isDestinationMatched ? 10 : 5);
+    const reasons = [];
+    let isEarlier = false;
+    let earlierBy = 0;
+    let recDepTime = null;
+
+    if (delay > 0) {
+      reasons.push(`Absorbs +${delay} min active disruption delay along this corridor.`);
+      isEarlier = true;
+      earlierBy += delay;
+    }
+
+    if (marginMinutes !== null && marginMinutes < requiredBuffer) {
+      const deficit = requiredBuffer - marginMinutes;
+      reasons.push(isExam
+        ? `Provides the required 20-minute safety buffer before your scheduled exam.`
+        : `Preserves a ${requiredBuffer}-minute arrival buffer before your ${target} schedule.`
+      );
+      isEarlier = true;
+      earlierBy = Math.max(earlierBy, deficit);
+    }
+
+    if (isEarlier && earlierBy > 0 && primary.departureTime) {
+      const [dh, dm] = primary.departureTime.split(':').map(Number);
+      const newMinutes = (dh * 60 + dm - earlierBy + 1440) % 1440;
+      const rh = Math.floor(newMinutes / 60).toString().padStart(2, '0');
+      const rm = (newMinutes % 60).toString().padStart(2, '0');
+      recDepTime = `${rh}:${rm}`;
+    }
+
+    let narrative = '';
+    if (isEarlier) {
+      narrative = `Departing ${earlierBy} minutes earlier (at ${recDepTime}) is recommended: ${reasons.join(' ')}`;
+    } else {
+      narrative = `Current planned departure at ${primary.departureTime} allows sufficient travel buffer to arrive on schedule without requiring an earlier departure.`;
+    }
+
+    return {
+      isEarlierDepartureRecommended: isEarlier,
+      earlierByMinutes: earlierBy,
+      recommendedDepartureTime: recDepTime,
+      reasons,
+      narrative,
+      actionableGuidance: isEarlier
+        ? [`Aim to leave by ${recDepTime} to ensure on-time arrival.`]
+        : ['Your current departure schedule is on track.'],
+      provenanceTier: primary.sourceTier === PROVENANCE_TIERS.SYNTHETIC ? PROVENANCE_TIERS.SYNTHETIC : PROVENANCE_TIERS.ESTIMATED
+    };
+  }
+
+  /**
+   * Formulates satisfied student preferences and constraint alignments.
+   * Grounded in evaluated candidate routes without fabricated claims.
+   * @private
+   */
+  _buildSatisfiedPreferences(primary, alts, preferences, constraints, targetArrivalTime, academicContext) {
     const list = [];
     const routePref = String(preferences?.route_preference || preferences?.preference || 'balanced').toLowerCase();
 
-    // 1. Route Preference Satisfaction
+    // 1. Route Preference Satisfaction - never claim fastest or cheapest unless candidate data supports it!
     if (routePref === 'fastest') {
-      list.push({
-        preference: 'route_preference (fastest)',
-        isSatisfied: true,
-        detail: `Satisfies your faster journey preference with a total travel duration of ${primary.totalTravelTimeMinutes} mins.`,
-        priority: 1
-      });
+      const isFastestAmongEvaluated = alts.length === 0 || alts.every(a => a.totalTravelTimeMinutes >= primary.totalTravelTimeMinutes);
+      if (isFastestAmongEvaluated) {
+        list.push({
+          preference: 'route_preference (fastest)',
+          isSatisfied: true,
+          detail: `Satisfies your faster journey preference with a total travel duration of ${primary.totalTravelTimeMinutes} mins.`,
+          priority: 1
+        });
+      } else {
+        const fasterAlts = alts.filter(a => a.totalTravelTimeMinutes < primary.totalTravelTimeMinutes);
+        const minDuration = Math.min(...fasterAlts.map(a => a.totalTravelTimeMinutes));
+        list.push({
+          preference: 'route_preference (fastest)',
+          isSatisfied: false,
+          detail: `Travel duration is ${primary.totalTravelTimeMinutes} mins; a faster alternative exists (${minDuration} mins) but was deprioritized due to constraints, transfers, or disruptions.`,
+          priority: 1
+        });
+      }
     } else if (routePref === 'cheapest') {
       if (primary.estimatedCostRupees !== null) {
+        const isCheapestAmongEvaluated = alts.length === 0 || alts.every(a => a.estimatedCostRupees === null || a.estimatedCostRupees >= primary.estimatedCostRupees);
+        if (isCheapestAmongEvaluated) {
+          list.push({
+            preference: 'route_preference (cheapest)',
+            isSatisfied: true,
+            detail: `Satisfies your lower-cost preference with an economical transit fare of ₹${primary.estimatedCostRupees}.`,
+            priority: 1
+          });
+        } else {
+          const cheaperAlts = alts.filter(a => a.estimatedCostRupees !== null && a.estimatedCostRupees < primary.estimatedCostRupees);
+          const minFare = Math.min(...cheaperAlts.map(a => a.estimatedCostRupees));
+          list.push({
+            preference: 'route_preference (cheapest)',
+            isSatisfied: false,
+            detail: `Estimated fare is ₹${primary.estimatedCostRupees}; a lower-cost option exists (₹${minFare}) but was deprioritized due to speed, transfers, or corridor alerts.`,
+            priority: 1
+          });
+        }
+      } else {
         list.push({
           preference: 'route_preference (cheapest)',
-          isSatisfied: true,
-          detail: `Satisfies your lower-cost preference with an economical transit fare of ₹${primary.estimatedCostRupees}.`,
+          isSatisfied: false,
+          detail: 'Fare data is unavailable for this route; cost satisfaction cannot be verified.',
           priority: 1
         });
       }
     } else if (routePref === 'fewest_transfers') {
-      list.push({
-        preference: 'route_preference (fewest_transfers)',
-        isSatisfied: primary.transfers === 0,
-        detail: primary.transfers === 0
-          ? 'Satisfies your transfer preference with a direct 0-transfer journey.'
-          : `Requires ${primary.transfers} transfer(s) as the minimum viable connection on this corridor.`,
-        priority: 1
-      });
+      const hasFewestTransfers = alts.length === 0 || alts.every(a => a.transfers >= primary.transfers);
+      if (primary.transfers === 0) {
+        list.push({
+          preference: 'route_preference (fewest_transfers)',
+          isSatisfied: true,
+          detail: 'Satisfies your transfer preference with a direct 0-transfer journey.',
+          priority: 1
+        });
+      } else if (hasFewestTransfers) {
+        list.push({
+          preference: 'route_preference (fewest_transfers)',
+          isSatisfied: true,
+          detail: `Minimizes modal transfers with ${primary.transfers} transfer(s), the lowest viable connection on this corridor.`,
+          priority: 1
+        });
+      } else {
+        list.push({
+          preference: 'route_preference (fewest_transfers)',
+          isSatisfied: false,
+          detail: `Requires ${primary.transfers} transfer(s); an alternative with fewer transfers exists but was deprioritized.`,
+          priority: 1
+        });
+      }
     } else if (routePref === 'least_walking') {
+      const hasLeastWalking = alts.length === 0 || alts.every(a => a.walkingTimeMinutes >= primary.walkingTimeMinutes);
       list.push({
         preference: 'route_preference (least_walking)',
-        isSatisfied: primary.walkingTimeMinutes <= 10,
-        detail: `Satisfies your reduced-walking preference with only ${primary.walkingTimeMinutes} mins of pedestrian exertion.`,
+        isSatisfied: primary.walkingTimeMinutes <= 10 || hasLeastWalking,
+        detail: `Satisfies your reduced-walking preference with ${primary.walkingTimeMinutes} mins of pedestrian exertion.`,
         priority: 1
       });
     } else {
@@ -399,10 +639,10 @@ class RecommendationExplanationService {
   }
 
   /**
-   * Explains expected travel and arrival times with margin buffers.
+   * Explains expected travel and arrival times with margin buffers and departure adjustments.
    * @private
    */
-  _buildTimingExplanation(primary, targetArrivalTime, academicContext) {
+  _buildTimingExplanation(primary, targetArrivalTime, academicContext, earlierAdvice) {
     let marginMinutes = null;
     let isPunctual = true;
 
@@ -429,6 +669,10 @@ class RecommendationExplanationService {
 
     if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
       narrative += ` Aligned with '${academicContext.nextClass.title}' (${academicContext.nextClass.startTimeHHMM}).`;
+    }
+
+    if (earlierAdvice?.isEarlierDepartureRecommended) {
+      narrative += ` Departing earlier by ${earlierAdvice.earlierByMinutes} mins (at ${earlierAdvice.recommendedDepartureTime}) is recommended to preserve your arrival buffer.`;
     }
 
     return {
@@ -496,6 +740,8 @@ class RecommendationExplanationService {
       });
     }
 
+    const isPrimaryFastest = alts.length === 0 || alts.every(a => a.totalTravelTimeMinutes >= primary.totalTravelTimeMinutes);
+
     // Comparative trade-offs with alternatives
     for (const alt of alts) {
       const timeDiff = alt.totalTravelTimeMinutes - primary.totalTravelTimeMinutes;
@@ -505,7 +751,11 @@ class RecommendationExplanationService {
 
       // "The lower-cost option takes longer than the fastest feasible route."
       if (fareDiff !== null && fareDiff < 0 && timeDiff > 0) {
-        list.push(`The lower-cost option takes longer than the fastest feasible route (${alt.primaryMode.toUpperCase()} saves ₹${Math.abs(fareDiff)} but adds ${timeDiff} min).`);
+        if (isPrimaryFastest) {
+          list.push(`The lower-cost option takes longer than the fastest feasible route (${alt.primaryMode.toUpperCase()} saves ₹${Math.abs(fareDiff)} but adds ${timeDiff} min).`);
+        } else {
+          list.push(`The lower-cost option takes longer than the primary route (${alt.primaryMode.toUpperCase()} saves ₹${Math.abs(fareDiff)} but adds ${timeDiff} min).`);
+        }
       } else if (fareDiff !== null && fareDiff > 0 && timeDiff < 0) {
         list.push(`The faster alternative (${alt.primaryMode.toUpperCase()}) saves ${Math.abs(timeDiff)} min but increases cost by ₹${fareDiff}.`);
       }
@@ -536,6 +786,7 @@ class RecommendationExplanationService {
    */
   _buildAlternativeCircumstances(primary, alts, context) {
     const explanations = [];
+    const isPrimaryFastest = alts.length === 0 || alts.every(a => a.totalTravelTimeMinutes >= primary.totalTravelTimeMinutes);
 
     for (const alt of alts) {
       let preferableWhen = '';
@@ -560,7 +811,8 @@ class RecommendationExplanationService {
       // Circumstance B: Budget / Cost Priority
       else if (costDiff !== null && costDiff < 0) {
         preferableWhen = `Preferable if you prioritize lowest cost over speed (saves ₹${Math.abs(costDiff)}).`;
-        tradeOffNarrative = `The lower-cost option takes longer than the fastest feasible route (${timeDiff > 0 ? `adds ${timeDiff} min` : 'similar travel time'}).`;
+        const speedRef = isPrimaryFastest ? 'the fastest feasible route' : 'the primary route';
+        tradeOffNarrative = `The lower-cost option takes longer than ${speedRef} (${timeDiff > 0 ? `adds ${timeDiff} min` : 'similar travel time'}).`;
       }
       // Circumstance C: Speed Priority
       else if (timeDiff < 0) {
@@ -711,5 +963,6 @@ const recommendationExplanationService = new RecommendationExplanationService();
 
 module.exports = {
   RecommendationExplanationService,
-  recommendationExplanationService
+  recommendationExplanationService,
+  formatTimeAMPM
 };

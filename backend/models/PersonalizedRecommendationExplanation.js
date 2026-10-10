@@ -85,6 +85,16 @@ const academicScheduleExplanationSchema = z.object({
   narrative: z.string().nullable().optional().default(null)
 });
 
+const earlierDepartureExplanationSchema = z.object({
+  isEarlierDepartureRecommended: z.boolean().default(false),
+  earlierByMinutes: z.coerce.number().min(0).default(0),
+  recommendedDepartureTime: z.string().nullable().optional().default(null),
+  reasons: z.array(z.string()).default([]),
+  narrative: z.string().default(''),
+  actionableGuidance: z.array(z.string()).default([]),
+  provenanceTier: provenanceTierEnum.default(PROVENANCE_TIERS.ESTIMATED)
+});
+
 const personalizedRecommendationExplanationSchema = z.object({
   recommendationId: z.string().min(1, 'Recommendation ID is required'),
   primaryRouteId: z.string().min(1, 'Primary route ID is required'),
@@ -97,6 +107,7 @@ const personalizedRecommendationExplanationSchema = z.object({
   uncertaintyAndMissingInfo: uncertaintyExplanationSchema,
   alternativeExplanations: z.array(alternativeExplanationSchema).default([]),
   academicScheduleExplanation: academicScheduleExplanationSchema.nullable().optional().default(null),
+  earlierDepartureExplanation: earlierDepartureExplanationSchema.nullable().optional().default(null),
   provenanceBreakdown: provenanceBreakdownSchema.default(() => ({})),
   provenance: provenanceSchema.default(() => DataProvenance.estimated('Explanation Engine').toJSON()),
   generatedAt: z.coerce.number().int().positive().default(() => Date.now())
@@ -143,6 +154,7 @@ class PersonalizedRecommendationExplanation {
         metricsSummary: { ...a.metricsSummary }
       })),
       academicScheduleExplanation: this.academicScheduleExplanation ? { ...this.academicScheduleExplanation } : null,
+      earlierDepartureExplanation: this.earlierDepartureExplanation ? { ...this.earlierDepartureExplanation } : null,
       provenanceBreakdown: {
         verifiedFacts: [...(this.provenanceBreakdown.verifiedFacts || [])],
         userReportedFacts: [...(this.provenanceBreakdown.userReportedFacts || [])],
@@ -164,5 +176,7 @@ module.exports = {
   disruptionExplanationSchema,
   alternativeExplanationSchema,
   uncertaintyExplanationSchema,
-  provenanceBreakdownSchema
+  provenanceBreakdownSchema,
+  academicScheduleExplanationSchema,
+  earlierDepartureExplanationSchema
 };
