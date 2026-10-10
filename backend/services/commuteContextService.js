@@ -176,7 +176,32 @@ class CommuteContextService {
       }
     }
 
-    // 7. Construct normalized context object
+    // 7. Collect contextual student personalization if studentId is present
+    let studentContext = null;
+    if (studentId && options.includeStudentPersonalization !== false) {
+      try {
+        const { contextualPersonalizationService } = require('./contextualPersonalizationService');
+        const personalCtx = await contextualPersonalizationService.collectStudentContext(
+          {
+            studentId,
+            origin: dto.originArea?.name || String(dto.originArea || ''),
+            destination: dto.destinationArea?.name || String(dto.destinationArea || ''),
+            desiredArrivalTime: dto.desiredArrivalTime,
+            preferredModes: dto.preferredModes,
+            constraints: dto.constraints,
+            currentTime,
+            dayOfWeek
+          },
+          options.requestingUser || null,
+          options
+        );
+        studentContext = personalCtx.toJSON();
+      } catch (ctxErr) {
+        studentContext = null;
+      }
+    }
+
+    // 8. Construct normalized context object
     return {
       requestId,
       originArea: dto.originArea,
@@ -189,6 +214,7 @@ class CommuteContextService {
       studentId,
       studentProfile,
       studentPreferences,
+      studentContext,
       weatherContext,
       trafficContext,
       availabilityContext,

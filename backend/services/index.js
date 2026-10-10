@@ -112,8 +112,15 @@ const {
   departureAdviceService,
   DepartureAdviceService
 } = require('./departureAdviceService');
+const {
+  contextualPersonalizationService,
+  ContextualPersonalizationService
+} = require('./contextualPersonalizationService');
 
 module.exports = {
+  // Contextual Commute Personalization (P9)
+  contextualPersonalizationService,
+  ContextualPersonalizationService,
   // Disruption-Aware Departure Advice Engine (P9)
   departureAdviceService,
   DepartureAdviceService,

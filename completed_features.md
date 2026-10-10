@@ -193,9 +193,37 @@ API Response Envelope (commuteCandidateController)
   20. Authentication, validation, and privacy safeguards enforced strictly
   21. Existing backend endpoints and contracts remain intact without regressions
 
+#### 10. Contextual Personalization Layer
+- **Domain Model**: `backend/models/ContextualCommutePersonalization.js`
+  - Encapsulates normalized student context for the commute recommendation engine via `ContextualCommutePersonalization` and `CONTEXT_SOURCES`.
+  - Clear source attribution tags for every resolved attribute:
+    - `EXPLICIT_INPUT`: Directly specified in the commute request payload (highest precedence).
+    - `ACADEMIC_EVENT`: Derived from scheduled lectures, labs, exams, or assignment deadlines in student calendar.
+    - `RECURRING_SCHEDULE`: Derived from recurring weekly student timetable / schedule patterns.
+    - `SAVED_PREFERENCE`: Derived from saved student commute preferences / profile defaults.
+    - `DERIVED_CONTEXT`: Inferred from workload level, exam presence, or geographic anchors.
+    - `DEFAULT`: Documented, sensible system fallback when student context is absent.
+  - Strict privacy guarantees: `noContinuousTracking: true`, `coarseLocationOnly: true`, and zero home-address history persistence.
+- **Service**: `backend/services/contextualPersonalizationService.js`
+  - Safely collects student context across `studentCommutePreferenceRepository`, `calendarEventRepository`, `studentScheduleRepository`, and `workloadAnalysisService`.
+  - Safe error handling: DB or repository errors fall back smoothly to sensible defaults without failing the commute request.
+  - Contextual awareness:
+    - Automatically discovers today's next scheduled class start time and campus destination.
+    - Applies academic punctuality buffers (10-15 min for classes; elevated 20-30 min for exams with `isExamDay: true`).
+    - Flags heavy workload days (`isHeavyDay: true`, `loadLevel: 'HEAVY'`) to prompt reliable transit modes and extra margin.
+  - Strict student access isolation (`assertStudentAccess`): blocks unauthorized students from accessing other students' calendar or preferences (`ForbiddenError`).
+- **API Integration**: `POST /api/commute/recommendations`
+  - Replaced manual profile lookup with `contextualPersonalizationService.collectStudentContext()`.
+  - Exposes normalized, privacy-safe `studentContext` with transparent source provenance in both success and fallback responses.
+- **Automated Verification**:
+  - `backend/scripts/test_contextual_commute_personalization.js` (`npm run test:contextual-personalization`)
+  - 13/13 test scenarios covering anonymous requests, missing academic context, lecture derivation, explicit overrides, exam buffers, recurring schedules, saved preferences, heavy workload flagging, student authorization barriers, privacy guardrails, safe repository failure fallbacks, clean serialization, and HTTP API integration.
+
 ---
 
 ## Known Boundaries & Non-Claims
 - **No AI Guesswork / Speculation**: All route scores, rankings, departure windows, and explanations are 100% deterministic mathematical calculations based on timetables, disruptions, traffic levels, and weather.
 - **Transparent Provenance**: Grounded in multi-tier audit trails (`VERIFIED`, `USER_REPORTED`, `ESTIMATED`, `SYNTHETIC`) without inventing unverified facts or live transit tracking.
+- **No Fabrication of Academic Schedules**: Students without scheduled calendar entries are never assumed to have classes. Missing context falls back safely to user input or documented defaults.
+
 

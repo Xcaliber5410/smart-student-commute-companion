@@ -123,7 +123,8 @@ module.exports = {
   ...require('./RouteEvaluation'),
   ...require('./PersonalizedCommuteRecommendation'),
   ...require('./PersonalizedRecommendationExplanation'),
-  ...require('./DepartureAdvice')
+  ...require('./DepartureAdvice'),
+  ...require('./ContextualCommutePersonalization')
 };
 
 

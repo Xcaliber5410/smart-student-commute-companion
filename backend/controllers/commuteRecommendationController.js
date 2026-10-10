@@ -14,7 +14,8 @@
 const {
   personalizedRouteRecommendationService,
   studentCommutePreferenceService,
-  commuteContextService
+  commuteContextService,
+  contextualPersonalizationService
 } = require('../services');
 const { success } = require('../utils/apiResponse');
 const { ValidationError } = require('../errors');
@@ -39,16 +40,18 @@ async function getPersonalizedRecommendation(req, res, next) {
 
     // 2. Student scope - strictly authenticated student's identity (no cross-student data leakage)
     const studentId = req.user.id;
-    let studentPrefs = null;
-    try {
-      studentPrefs = studentCommutePreferenceService.getPreferences(studentId, req.user);
-    } catch (err) {
-      // If student has not saved preferences yet, proceed with sensible defaults
-      studentPrefs = null;
-    }
 
-    // 3. Resolve starting area (request body overrides profile defaults)
-    const rawOrigin = req.body.origin || req.body.startingArea || studentPrefs?.default_origin_area || studentPrefs?.defaultOriginArea;
+    // 3. Collect comprehensive student context (preferences, academic schedule, calendar events, workload)
+    const studentContext = await contextualPersonalizationService.collectStudentContext(
+      req.body,
+      req.user,
+      { currentTime: req.body.currentTime }
+    );
+
+    const resolved = studentContext.resolvedPersonalization;
+
+    // 4. Resolve starting area (request body overrides profile defaults)
+    const rawOrigin = resolved.effectiveOrigin;
     if (!rawOrigin || typeof rawOrigin !== 'string' || rawOrigin.trim().length === 0) {
       throw new ValidationError(
         'Origin area or landmark is required (e.g. "Borivali West", "Andheri Station"). Please specify in request or configure profile default.'
@@ -56,41 +59,20 @@ async function getPersonalizedRecommendation(req, res, next) {
     }
     const origin = rawOrigin.trim();
 
-    // 4. Resolve destination
-    const rawDest = req.body.destination || req.body.collegeDestination || studentPrefs?.default_destination_college || studentPrefs?.defaultDestinationCollege || 'D.J. Sanghvi College of Engineering';
-    const destination = rawDest.trim();
+    // 5. Resolve destination
+    const destination = resolved.effectiveDestination || 'D.J. Sanghvi College of Engineering';
 
-    // 5. Resolve timing
-    const departureTime = req.body.desiredDepartureTime || req.body.departureTime || '08:00';
-    const targetArrivalTime = req.body.desiredArrivalTime || req.body.targetArrivalTime || null;
+    // 6. Resolve timing
+    const departureTime = resolved.effectiveDepartureTime || '08:00';
+    const targetArrivalTime = resolved.effectiveArrivalDeadline || null;
 
-    // 6. Merge constraints (request overrides stored student preferences)
-    const constraints = {
-      maxTransfers: req.body.maxTransfers !== undefined
-        ? Number(req.body.maxTransfers)
-        : (studentPrefs?.max_transfers !== undefined
-          ? studentPrefs.max_transfers
-          : (studentPrefs?.maxTransfers !== undefined ? studentPrefs.maxTransfers : null)),
-      maxWalkingMinutes: req.body.maxWalkingMinutes !== undefined
-        ? Number(req.body.maxWalkingMinutes)
-        : (req.body.walkingToleranceMinutes !== undefined
-          ? Number(req.body.walkingToleranceMinutes)
-          : (studentPrefs?.walking_tolerance_minutes !== undefined
-            ? studentPrefs.walking_tolerance_minutes
-            : (studentPrefs?.walkingToleranceMinutes !== undefined ? studentPrefs.walkingToleranceMinutes : null))),
-      maxBudgetRupees: req.body.maxBudgetRupees !== undefined
-        ? Number(req.body.maxBudgetRupees)
-        : (studentPrefs?.max_budget_rupees !== undefined
-          ? studentPrefs.max_budget_rupees
-          : (studentPrefs?.maxBudgetRupees !== undefined ? studentPrefs.maxBudgetRupees : null))
-    };
-
-    // 7. Merge mode preferences
+    // 7. Merge constraints & preferences
+    const constraints = { ...resolved.effectiveConstraints };
     const preferences = {
       allowedModes: req.body.allowedModes || null,
-      avoidModes: req.body.avoidModes || (studentPrefs?.avoid_modes || studentPrefs?.avoidModes || []),
-      preferredModes: req.body.preferredModes || (studentPrefs?.preferred_modes || studentPrefs?.preferredModes || ['train', 'metro', 'bus', 'auto', 'walk']),
-      routePreference: req.body.routePreference || req.body.preference || studentPrefs?.preference || studentPrefs?.routingPreference || 'balanced'
+      avoidModes: resolved.effectiveAvoidModes,
+      preferredModes: resolved.effectivePreferredModes,
+      routePreference: resolved.effectiveRoutePreference
     };
 
     const date = req.body.date || 'Mon';
@@ -120,6 +102,11 @@ async function getPersonalizedRecommendation(req, res, next) {
         };
       }
     }
+
+    // 8. Attach studentContext to Unified Commute Context
+    context.studentContext = studentContext ? studentContext.toJSON() : null;
+    context.academicContext = studentContext?.academicContext || null;
+    context.workloadContext = studentContext?.workloadContext || null;
 
     // 9. Execute recommendation engine pipeline
     const recommendation = await personalizedRouteRecommendationService.getRecommendation({
@@ -177,6 +164,7 @@ async function getPersonalizedRecommendation(req, res, next) {
         },
         warnings: recommendation.warnings || [],
         contextSummary: recommendation.contextSummary || context || {},
+        studentContext: studentContext ? studentContext.toJSON() : null,
         preferenceAlignment: recJson.preferenceAlignment || null,
         recommendationReasons: recJson.recommendationReasons || [],
         reasons: recJson.recommendationReasons || [],
@@ -196,7 +184,8 @@ async function getPersonalizedRecommendation(req, res, next) {
           departureTime,
           targetArrivalTime,
           appliedConstraints: constraints,
-          appliedPreferences: preferences
+          appliedPreferences: preferences,
+          studentContext: studentContext ? studentContext.toJSON() : null
         }
       });
     }
@@ -228,6 +217,7 @@ async function getPersonalizedRecommendation(req, res, next) {
       },
       warnings: recJson.warnings || [],
       contextSummary: recJson.contextSummary || context || {},
+      studentContext: studentContext ? studentContext.toJSON() : null,
       preferenceAlignment: recJson.preferenceAlignment,
       recommendationReasons: recJson.recommendationReasons || [],
       reasons: recJson.recommendationReasons || [],
@@ -247,7 +237,8 @@ async function getPersonalizedRecommendation(req, res, next) {
         departureTime,
         targetArrivalTime,
         appliedConstraints: constraints,
-        appliedPreferences: preferences
+        appliedPreferences: preferences,
+        studentContext: studentContext ? studentContext.toJSON() : null
       }
     });
   } catch (err) {
