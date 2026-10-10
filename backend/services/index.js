@@ -124,8 +124,17 @@ const {
   DeterministicCommuteExplanationProvider,
   MockAiCommuteExplanationProvider
 } = require('./safeCommuteExplanationAdapter');
+const {
+  personalizationUncertaintyService,
+  PersonalizationUncertaintyService,
+  FRESHNESS_THRESHOLDS_MS
+} = require('./personalizationUncertaintyService');
 
 module.exports = {
+  // Personalization & Uncertainty Details Service
+  personalizationUncertaintyService,
+  PersonalizationUncertaintyService,
+  FRESHNESS_THRESHOLDS_MS,
   // Safe AI Commute Explanation Adapter
   safeCommuteExplanationAdapter,
   SafeCommuteExplanationAdapter,

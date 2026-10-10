@@ -21,6 +21,7 @@ const {
   provenanceTierEnum
 } = require('./CommuteContracts');
 const { ValidationError } = require('../errors');
+const { personalizationUncertaintyService } = require('../services/personalizationUncertaintyService');
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -581,8 +582,87 @@ class RecommendedRouteDetail {
 }
 
 // ============================================================================
-// 5. PERSONALIZED COMMUTE RECOMMENDATION DOMAIN MODEL
+// 5. PERSONALIZATION & UNCERTAINTY CONTRACTS & DOMAIN MODEL
 // ============================================================================
+
+const preferencesAppliedSchema = z.object({
+  routePreference: z.string().default('balanced'),
+  preferredModes: z.array(z.string()).default([]),
+  avoidModes: z.array(z.string()).default([]),
+  maxWalkingMinutes: z.coerce.number().min(0).nullable().default(null),
+  maxBudgetRupees: z.coerce.number().min(0).nullable().default(null),
+  maxTransfers: z.coerce.number().min(0).nullable().default(null),
+  source: z.string().default('DEFAULT'),
+  summary: z.string().default('')
+}).default({});
+
+const scheduleContextUsedSchema = z.object({
+  hasScheduleContext: z.boolean().default(false),
+  source: z.string().default('NONE'),
+  eventTitle: z.string().nullable().default(null),
+  eventStartTime: z.string().nullable().default(null),
+  targetArrivalTime: z.string().nullable().default(null),
+  location: z.string().nullable().default(null),
+  isDestinationMatched: z.boolean().default(false),
+  bufferMinutes: z.coerce.number().min(0).default(0),
+  isExamDay: z.boolean().default(false),
+  hasScheduleConflict: z.boolean().default(false),
+  scheduleConflictDetail: z.string().nullable().default(null),
+  summary: z.string().default('')
+}).default({});
+
+const majorFactorSchema = z.object({
+  factor: z.string(),
+  description: z.string(),
+  importance: z.enum(['HIGH', 'MEDIUM', 'LOW']).default('HIGH'),
+  dataTier: provenanceTierEnum.default(PROVENANCE_TIERS.ESTIMATED)
+});
+
+const uncertaintyIndicatorSchema = z.object({
+  type: z.string(),
+  description: z.string(),
+  severity: z.enum(['LOW', 'MODERATE', 'HIGH', 'SEVERE']).default('LOW')
+});
+
+const dataQualityAndUncertaintySchema = z.object({
+  uncertaintyLevel: z.enum(['LOW', 'MODERATE', 'HIGH', 'SEVERE']).default('LOW'),
+  indicators: z.array(uncertaintyIndicatorSchema).default([]),
+  dataQualityWarnings: z.array(z.string()).default([]),
+  missingDataNotice: z.string().nullable().default(null),
+  hasSyntheticData: z.boolean().default(false),
+  hasStaleData: z.boolean().default(false),
+  hasMissingData: z.boolean().default(false),
+  liveFeedStatus: z.object({
+    hasLiveGps: z.boolean().default(false),
+    trackingMode: z.string().default('STATIC_TIMETABLE_AND_REPORTS'),
+    statement: z.string().default('Real-time vehicle GPS tracking is not available; projections rely on published timetables and commuter-reported alerts.')
+  }).default({}),
+  provenanceSummary: z.object({
+    dataTiers: z.array(z.string()).default(['ESTIMATED']),
+    overallTier: z.string().default('ESTIMATED'),
+    allVerified: z.boolean().default(false),
+    hasSyntheticData: z.boolean().default(false),
+    hasUserReportedData: z.boolean().default(false),
+    hasUnverifiedData: z.boolean().default(true)
+  }).default({}),
+  provenanceBreakdown: z.record(z.any()).default({})
+}).default({});
+
+const explanationAuditSchema = z.object({
+  mode: z.enum(['AI_ASSISTED', 'DETERMINISTIC']).default('DETERMINISTIC'),
+  isAiEnhanced: z.boolean().default(false),
+  provider: z.string().default('Deterministic Grounded Engine'),
+  fallbackOccurred: z.boolean().default(false),
+  fallbackReason: z.string().nullable().default(null),
+  validationPassed: z.boolean().default(true),
+  statement: z.string().default('Deterministic rule-based explanation generated from verified route metrics.')
+}).default({});
+
+const personalizationDetailsSchema = z.object({
+  preferencesApplied: preferencesAppliedSchema,
+  scheduleContextUsed: scheduleContextUsedSchema,
+  majorFactors: z.array(majorFactorSchema).default([])
+}).default({});
 
 const personalizedCommuteRecommendationSchema = z.object({
   id: z.string().min(1, 'Recommendation ID is required'),
@@ -617,6 +697,14 @@ const personalizedCommuteRecommendationSchema = z.object({
   contextSummary: z.record(z.any()).default({}),
   explanation: z.any().nullable().optional().default(null),
   departureAdvice: z.any().nullable().optional().default(null),
+  preferencesApplied: preferencesAppliedSchema,
+  scheduleContextUsed: scheduleContextUsedSchema,
+  majorFactors: z.array(majorFactorSchema).default([]),
+  dataQualityWarnings: z.array(z.string()).default([]),
+  uncertaintyDetails: dataQualityAndUncertaintySchema,
+  explanationAudit: explanationAuditSchema,
+  personalizationDetails: personalizationDetailsSchema,
+  dataQualityAndUncertainty: dataQualityAndUncertaintySchema,
   generatedAt: z.coerce.number().int().positive().default(() => Date.now())
 });
 
@@ -734,6 +822,10 @@ class PersonalizedCommuteRecommendation {
 
     const prov = DataProvenance.estimated('Personalized Recommendation Fallback Engine', 'Deterministic fallback calculation').toJSON();
 
+    const personalizationDetails = params.personalizationDetails || personalizationUncertaintyService.buildFallbackPersonalizationDetails(params);
+    const dataQualityAndUncertainty = params.dataQualityAndUncertainty || personalizationUncertaintyService.buildFallbackDataQualityAndUncertainty(params);
+    const explanationAudit = params.explanationAudit || personalizationUncertaintyService.buildExplanationAudit({ explanation: null });
+
     return new PersonalizedCommuteRecommendation({
       id: recId,
       studentId: params.studentId || null,
@@ -761,6 +853,14 @@ class PersonalizedCommuteRecommendation {
         hasUnverifiedData: true
       },
       contextSummary: params.context || {},
+      preferencesApplied: personalizationDetails.preferencesApplied,
+      scheduleContextUsed: personalizationDetails.scheduleContextUsed,
+      majorFactors: personalizationDetails.majorFactors,
+      dataQualityWarnings: dataQualityAndUncertainty.dataQualityWarnings,
+      uncertaintyDetails: dataQualityAndUncertainty,
+      explanationAudit,
+      personalizationDetails,
+      dataQualityAndUncertainty,
       generatedAt: Date.now()
     });
   }
@@ -930,6 +1030,32 @@ class PersonalizedCommuteRecommendation {
 
     const recId = options.id || `rec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
+    const personalizationDetails = options.personalizationDetails || personalizationUncertaintyService.buildPersonalizationDetails({
+      primaryRoute: selected,
+      alternatives,
+      preferences: options.preferences,
+      context: options.context,
+      studentContext: options.context?.studentContext,
+      academicContext: options.context?.academicContext,
+      departureAdvice: options.departureAdvice,
+      explanation: options.explanation,
+      targetArrivalTime: options.targetArrivalTime,
+      reasons
+    });
+
+    const dataQualityAndUncertainty = options.dataQualityAndUncertainty || personalizationUncertaintyService.buildDataQualityAndUncertainty({
+      primaryRoute: selected,
+      alternatives,
+      context: options.context,
+      departureAdvice: options.departureAdvice,
+      explanation: options.explanation,
+      currentTime: options.currentTime || options.context?.currentTime || Date.now()
+    });
+
+    const explanationAudit = options.explanationAudit || personalizationUncertaintyService.buildExplanationAudit({
+      explanation: options.explanation
+    });
+
     return new PersonalizedCommuteRecommendation({
       id: recId,
       studentId: options.studentId || null,
@@ -959,6 +1085,14 @@ class PersonalizedCommuteRecommendation {
       contextSummary: options.context || {},
       explanation: options.explanation || null,
       departureAdvice: options.departureAdvice || null,
+      preferencesApplied: personalizationDetails.preferencesApplied,
+      scheduleContextUsed: personalizationDetails.scheduleContextUsed,
+      majorFactors: personalizationDetails.majorFactors,
+      dataQualityWarnings: dataQualityAndUncertainty.dataQualityWarnings,
+      uncertaintyDetails: dataQualityAndUncertainty,
+      explanationAudit,
+      personalizationDetails,
+      dataQualityAndUncertainty,
       generatedAt: options.generatedAt || Date.now()
     });
   }
@@ -993,6 +1127,25 @@ class PersonalizedCommuteRecommendation {
       contextSummary: { ...this.contextSummary },
       explanation: this.explanation ? (typeof this.explanation.toJSON === 'function' ? this.explanation.toJSON() : this.explanation) : null,
       departureAdvice: this.departureAdvice ? (typeof this.departureAdvice.toJSON === 'function' ? this.departureAdvice.toJSON() : this.departureAdvice) : null,
+      preferencesApplied: { ...this.preferencesApplied },
+      scheduleContextUsed: { ...this.scheduleContextUsed },
+      majorFactors: (this.majorFactors || []).map(f => ({ ...f })),
+      dataQualityWarnings: [...(this.dataQualityWarnings || [])],
+      uncertaintyDetails: { ...this.uncertaintyDetails },
+      explanationAudit: { ...this.explanationAudit },
+      personalizationDetails: {
+        preferencesApplied: { ...(this.personalizationDetails?.preferencesApplied || this.preferencesApplied) },
+        scheduleContextUsed: { ...(this.personalizationDetails?.scheduleContextUsed || this.scheduleContextUsed) },
+        majorFactors: (this.personalizationDetails?.majorFactors || this.majorFactors || []).map(f => ({ ...f }))
+      },
+      dataQualityAndUncertainty: {
+        ...this.dataQualityAndUncertainty,
+        indicators: (this.dataQualityAndUncertainty?.indicators || []).map(i => ({ ...i })),
+        dataQualityWarnings: [...(this.dataQualityAndUncertainty?.dataQualityWarnings || [])],
+        liveFeedStatus: { ...(this.dataQualityAndUncertainty?.liveFeedStatus || {}) },
+        provenanceSummary: { ...(this.dataQualityAndUncertainty?.provenanceSummary || {}) },
+        provenanceBreakdown: { ...(this.dataQualityAndUncertainty?.provenanceBreakdown || {}) }
+      },
       generatedAt: this.generatedAt
     };
   }
@@ -1016,6 +1169,13 @@ module.exports = {
   preferenceAlignmentSchema,
   recommendedRouteDetailSchema,
   personalizedCommuteRecommendationSchema,
+  preferencesAppliedSchema,
+  scheduleContextUsedSchema,
+  majorFactorSchema,
+  uncertaintyIndicatorSchema,
+  dataQualityAndUncertaintySchema,
+  explanationAuditSchema,
+  personalizationDetailsSchema,
 
   // Domain Classes
   RecommendationReason,

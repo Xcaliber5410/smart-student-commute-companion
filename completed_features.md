@@ -290,12 +290,36 @@ API Response Envelope (commuteCandidateController)
   - `backend/scripts/test_safe_commute_explanation_adapter.js` (`npm run test:safe-ai-explanation`)
   - 13/13 comprehensive tests validating valid output, malformed responses, duration hallucinations, false fastest claims, ungrounded fare inventions, synthetic-to-verified mislabeling, transfer count mismatch, bounded timeouts, HTTP provider errors, missing API credentials, privacy scrubbing, deterministic authority preservation, and offline fallback.
 
+#### 14. Personalization & Uncertainty Details
+- **Architecture & Domain Models**:
+  - Exposes comprehensive personalization details, data quality indicators, provenance breakdowns, and qualitative uncertainty assessments (`backend/services/personalizationUncertaintyService.js`, `backend/models/PersonalizedCommuteRecommendation.js`).
+  - Added schemas: `preferencesAppliedSchema`, `scheduleContextUsedSchema`, `majorFactorSchema`, `uncertaintyIndicatorSchema`, `dataQualityAndUncertaintySchema`, `explanationAuditSchema`, and `personalizationDetailsSchema`.
+- **Personalization Details**:
+  - `preferencesApplied`: Documents route optimization goals, preferred modes, avoided modes, walking tolerances, budget limits, transfer caps, and preference source (`EXPLICIT_INPUT`, `SAVED_PREFERENCE`, `DEFAULT`).
+  - `scheduleContextUsed`: Documents academic schedule integration, event title, class start time, campus destination matching, punctuality buffers (10m lecture / 20m exam), and schedule conflict warnings.
+  - `majorFactors`: Itemizes decisive factors driving route selection (e.g. `FEWER_TRANSFERS`, `DISRUPTION_AVOIDANCE`, `SCHEDULE_ALIGNMENT`, `PREFERRED_MODE`, `LOW_WALKING`).
+- **Data Quality & Qualitative Uncertainty**:
+  - Qualitative uncertainty level strictly constrained to `'LOW' | 'MODERATE' | 'HIGH' | 'SEVERE'`; never invents numerical confidence percentages.
+  - `indicators`: Grounds uncertainty in concrete evidence (disruption delays, road traffic congestion, adverse weather slowdowns, static timetable intervals).
+  - `dataQualityWarnings`: Clearly flags missing, stale, or synthetic data.
+  - Missing data distinction: Explicitly documents that missing data (such as unmetered private fares or unmonitored bus stops) represents an information gap and does NOT signify that the route is closed, unsafe, or unavailable.
+  - Stale data alerts: Flags corridor disruptions updated >2 hours ago and traffic observations >60 minutes old.
+  - Synthetic data integrity: Flags `hasSyntheticData: true` and warns that metrics are synthetic simulation artifacts; never treats synthetic data as verified.
+  - Honest live-feed disclosure (`liveFeedStatus`): `hasLiveGps: false`, stating projections rely on static timetables and reported alerts without implying live feeds.
+- **Explanation Audit & API Contract**:
+  - `explanationAudit`: Documents whether `AI_ASSISTED` or `DETERMINISTIC` explanation was applied, provider name, and exact fallback reason if fallback occurred (`TIMEOUT`, `PROVIDER_ERROR`, `VALIDATION_FAILED`, `MISSING_CREDENTIALS`).
+  - Backward compatibility: Preserves all existing properties in `PersonalizedCommuteRecommendation.toJSON()` and `POST /api/commute/recommendations` responses while exposing new structured fields.
+- **Automated Verification**:
+  - `backend/scripts/test_commute_personalization_uncertainty_details.js` (`npm run test:commute-details`)
+  - 14/14 tests passing covering missing context, academic context, exam day context, mixed provenance, synthetic data integrity, stale information detection, missing data vs safety distinction, qualitative uncertainty (no percentages), live feed disclosures, AI fallback audit, AI enhanced audit, privacy safeguards, API integration, and fallback responses.
+
 ---
 
 ## Known Boundaries & Non-Claims
 - **No AI Guesswork in Route Selection**: All route scores, rankings, departure windows, and feasibility evaluations are 100% deterministic mathematical calculations based on timetables, disruptions, traffic levels, and weather.
 - **Optional AI Explanations Grounded & Audited**: AI only provides natural language phrasing of already verified recommendations. All AI output is strictly validated against underlying candidate data and instantly falls back to deterministic explanations upon any divergence or error.
-- **Transparent Provenance**: Grounded in multi-tier audit trails (`VERIFIED`, `USER_REPORTED`, `ESTIMATED`, `SYNTHETIC`) without inventing unverified facts or live transit tracking.
+- **Qualitative Uncertainty Only**: Uncertainty is communicated via qualitative tiers (`LOW`, `MODERATE`, `HIGH`, `SEVERE`) and evidence indicators; numerical confidence percentages are never fabricated.
+- **Transparent Provenance**: Grounded in multi-tier audit trails (`VERIFIED`, `USER_REPORTED`, `ESTIMATED`, `SYNTHETIC`) without inventing unverified facts or claiming real-time transit telemetry.
 - **Privacy Guaranteed**: Precise student coordinates, door numbers, tokens, and personal calendars are never transmitted to external AI providers.
 - **No Fabrication of Academic Schedules**: Students without scheduled calendar entries are never assumed to have classes. Missing context falls back safely to user input or documented defaults.
 - **No Inferred Location Connections**: Missing or mismatched class locations are never assumed to connect to commute destinations.
