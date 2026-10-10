@@ -96,6 +96,14 @@ const departureAdviceSchema = z.object({
   headline: z.string().min(1, 'Headline is required'),
   explanation: z.string().min(1, 'Explanation is required'),
   actionableGuidance: z.array(z.string()).default([]),
+  academicScheduleInfluence: z.object({
+    hasAcademicContext: z.boolean().default(false),
+    eventTitle: z.string().nullable().optional().default(null),
+    eventStartTime: z.string().nullable().optional().default(null),
+    eventType: z.string().nullable().optional().default(null),
+    isExamDay: z.boolean().default(false),
+    scheduleConflicts: z.array(z.any()).default([])
+  }).nullable().optional().default(null),
   provenance: provenanceSchema.default(() => DataProvenance.estimated('Departure Advice Engine').toJSON()),
   generatedAt: z.coerce.number().int().positive().default(() => Date.now())
 });
@@ -133,6 +141,7 @@ class DepartureAdvice {
       headline: this.headline,
       explanation: this.explanation,
       actionableGuidance: [...this.actionableGuidance],
+      academicScheduleInfluence: this.academicScheduleInfluence ? { ...this.academicScheduleInfluence } : null,
       provenance: this.provenance.toJSON(),
       generatedAt: this.generatedAt
     };

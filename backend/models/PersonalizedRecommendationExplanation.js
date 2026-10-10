@@ -75,6 +75,16 @@ const provenanceBreakdownSchema = z.object({
   overallTier: provenanceTierEnum.default(PROVENANCE_TIERS.ESTIMATED)
 });
 
+const academicScheduleExplanationSchema = z.object({
+  hasAcademicContext: z.boolean().default(false),
+  eventTitle: z.string().nullable().optional().default(null),
+  eventStartTime: z.string().nullable().optional().default(null),
+  location: z.string().nullable().optional().default(null),
+  isDestinationMatched: z.boolean().default(false),
+  scheduleConflicts: z.array(z.any()).default([]),
+  narrative: z.string().nullable().optional().default(null)
+});
+
 const personalizedRecommendationExplanationSchema = z.object({
   recommendationId: z.string().min(1, 'Recommendation ID is required'),
   primaryRouteId: z.string().min(1, 'Primary route ID is required'),
@@ -86,6 +96,7 @@ const personalizedRecommendationExplanationSchema = z.object({
   tradeOffs: z.array(z.string()).default([]),
   uncertaintyAndMissingInfo: uncertaintyExplanationSchema,
   alternativeExplanations: z.array(alternativeExplanationSchema).default([]),
+  academicScheduleExplanation: academicScheduleExplanationSchema.nullable().optional().default(null),
   provenanceBreakdown: provenanceBreakdownSchema.default(() => ({})),
   provenance: provenanceSchema.default(() => DataProvenance.estimated('Explanation Engine').toJSON()),
   generatedAt: z.coerce.number().int().positive().default(() => Date.now())
@@ -131,6 +142,7 @@ class PersonalizedRecommendationExplanation {
         ...a,
         metricsSummary: { ...a.metricsSummary }
       })),
+      academicScheduleExplanation: this.academicScheduleExplanation ? { ...this.academicScheduleExplanation } : null,
       provenanceBreakdown: {
         verifiedFacts: [...(this.provenanceBreakdown.verifiedFacts || [])],
         userReportedFacts: [...(this.provenanceBreakdown.userReportedFacts || [])],

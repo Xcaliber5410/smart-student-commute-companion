@@ -82,13 +82,26 @@ const recurringScheduleSummarySchema = z.object({
   daysOfWeek: z.array(z.string()).default([])
 });
 
+const scheduleConflictSchema = z.object({
+  type: z.string(),
+  title: z.string(),
+  eventTime: z.string(),
+  requestedTime: z.string().nullable().default(null),
+  detail: z.string()
+});
+
 const academicContextSchema = z.object({
   hasAcademicContext: z.boolean().default(false),
   scheduledEventsCount: z.coerce.number().int().min(0).default(0),
   hasScheduledClass: z.boolean().default(false),
+  isDestinationMatched: z.boolean().default(false),
+  isExamDay: z.boolean().default(false),
+  recommendedBufferMinutes: z.coerce.number().min(0).default(10),
   nextClass: academicEventSummarySchema.nullable().default(null),
   todayEvents: z.array(academicEventSummarySchema).default([]),
-  recurringSchedule: recurringScheduleSummarySchema.nullable().default(null)
+  recurringSchedule: recurringScheduleSummarySchema.nullable().default(null),
+  scheduleConflicts: z.array(scheduleConflictSchema).default([]),
+  influencingFactors: z.array(z.string()).default([])
 });
 
 const workloadContextSchema = z.object({
@@ -105,7 +118,9 @@ const scheduleConstraintsSchema = z.object({
   mustArriveBefore: z.string().nullable().default(null),
   recommendedBufferMinutes: z.coerce.number().min(0).default(10),
   isExamDay: z.boolean().default(false),
-  heavyWorkloadCaution: z.boolean().default(false)
+  heavyWorkloadCaution: z.boolean().default(false),
+  scheduleConflicts: z.array(z.any()).default([]),
+  influencingFactors: z.array(z.string()).default([])
 });
 
 const resolvedPersonalizationSchema = z.object({
@@ -206,9 +221,12 @@ class ContextualCommutePersonalization {
         hasAcademicContext: false,
         scheduledEventsCount: 0,
         hasScheduledClass: false,
+        isDestinationMatched: false,
         nextClass: null,
         todayEvents: [],
-        recurringSchedule: null
+        recurringSchedule: null,
+        scheduleConflicts: [],
+        influencingFactors: []
       },
       workloadContext: {
         hasWorkloadContext: false,
@@ -241,7 +259,9 @@ class ContextualCommutePersonalization {
           mustArriveBefore: arrivalDeadline,
           recommendedBufferMinutes: 10,
           isExamDay: false,
-          heavyWorkloadCaution: false
+          heavyWorkloadCaution: false,
+          scheduleConflicts: [],
+          influencingFactors: []
         }
       },
       privacyGuarantees: {
@@ -284,9 +304,14 @@ class ContextualCommutePersonalization {
         hasAcademicContext: this.academicContext.hasAcademicContext,
         scheduledEventsCount: this.academicContext.scheduledEventsCount,
         hasScheduledClass: this.academicContext.hasScheduledClass,
+        isDestinationMatched: this.academicContext.isDestinationMatched,
+        isExamDay: this.academicContext.isExamDay,
+        recommendedBufferMinutes: this.academicContext.recommendedBufferMinutes,
         nextClass: this.academicContext.nextClass ? { ...this.academicContext.nextClass } : null,
         todayEvents: this.academicContext.todayEvents.map(e => ({ ...e })),
-        recurringSchedule: this.academicContext.recurringSchedule ? { ...this.academicContext.recurringSchedule } : null
+        recurringSchedule: this.academicContext.recurringSchedule ? { ...this.academicContext.recurringSchedule } : null,
+        scheduleConflicts: this.academicContext.scheduleConflicts ? [...this.academicContext.scheduleConflicts] : [],
+        influencingFactors: this.academicContext.influencingFactors ? [...this.academicContext.influencingFactors] : []
       },
       workloadContext: {
         hasWorkloadContext: this.workloadContext.hasWorkloadContext,
@@ -311,7 +336,11 @@ class ContextualCommutePersonalization {
         effectivePreferredModes: [...this.resolvedPersonalization.effectivePreferredModes],
         effectiveAvoidModes: [...this.resolvedPersonalization.effectiveAvoidModes],
         effectiveConstraints: { ...this.resolvedPersonalization.effectiveConstraints },
-        scheduleConstraints: { ...this.resolvedPersonalization.scheduleConstraints }
+        scheduleConstraints: {
+          ...this.resolvedPersonalization.scheduleConstraints,
+          scheduleConflicts: this.resolvedPersonalization.scheduleConstraints?.scheduleConflicts ? [...this.resolvedPersonalization.scheduleConstraints.scheduleConflicts] : [],
+          influencingFactors: this.resolvedPersonalization.scheduleConstraints?.influencingFactors ? [...this.resolvedPersonalization.scheduleConstraints.influencingFactors] : []
+        }
       },
       privacyGuarantees: { ...this.privacyGuarantees }
     };
@@ -328,6 +357,7 @@ module.exports = {
   academicContextSchema,
   academicEventSummarySchema,
   recurringScheduleSummarySchema,
+  scheduleConflictSchema,
   workloadContextSchema,
   scheduleConstraintsSchema,
   resolvedPersonalizationSchema,

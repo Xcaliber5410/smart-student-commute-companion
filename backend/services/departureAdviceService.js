@@ -57,9 +57,22 @@ class DepartureAdviceService {
       alternatives = [],
       context = {},
       departureTime: explicitDepTime = null,
-      targetArrivalTime = null,
-      date = 'Mon'
+      targetArrivalTime: explicitTargetArrivalTime = null,
+      date = 'Mon',
+      academicContext: directAcademicContext = null,
+      studentContext = null
     } = params;
+
+    const academicContext = directAcademicContext ||
+      context?.academicContext ||
+      context?.studentContext?.academicContext ||
+      studentContext?.academicContext ||
+      null;
+
+    let targetArrivalTime = explicitTargetArrivalTime;
+    if (!targetArrivalTime && academicContext?.isDestinationMatched && academicContext?.nextClass?.startTimeHHMM) {
+      targetArrivalTime = academicContext.nextClass.startTimeHHMM;
+    }
 
     if (!primaryRoute) {
       throw new ValidationError('Primary route is required to generate departure advice');
@@ -128,6 +141,15 @@ class DepartureAdviceService {
       isDelayed: disruptionDelay > 0
     };
 
+    const academicScheduleInfluence = academicContext ? {
+      hasAcademicContext: Boolean(academicContext.hasAcademicContext),
+      eventTitle: academicContext.nextClass?.title || null,
+      eventStartTime: academicContext.nextClass?.startTimeHHMM || null,
+      eventType: academicContext.nextClass?.eventType || null,
+      isExamDay: Boolean(academicContext.scheduleConstraints?.isExamDay || academicContext.todayEvents?.some(e => e.eventType === 'exam')),
+      scheduleConflicts: academicContext.scheduleConflicts || []
+    } : null;
+
     // 5. Evaluate Service Operating Hours Feasibility
     if (!isPlannedWithinHours) {
       return this._buildOperatingHoursViolationAdvice({
@@ -135,21 +157,27 @@ class DepartureAdviceService {
         operatingHours,
         primaryMode,
         targetArrivalTime,
-        totalTravelWithDelay
+        totalTravelWithDelay,
+        academicScheduleInfluence
       });
     }
 
+    const requiredBuffer = academicContext?.scheduleConstraints?.recommendedBufferMinutes ||
+      (academicContext?.isExamDay || academicScheduleInfluence?.isExamDay ? 20 : (academicContext?.hasScheduledClass ? 10 : 5));
+
     // 6. Evaluate Deadline Achievability & Earlier Departure Adjustments
     if (targetArrivalTime) {
-      // Scenario A: Current plan meets arrival deadline with good margin
-      if (canMeetDeadline && marginMinutes >= 5) {
+      // Scenario A: Current plan meets arrival deadline with required safety buffer
+      if (canMeetDeadline && marginMinutes >= requiredBuffer) {
         return this._buildOnTimeAdvice({
           currentPlan,
           operatingHours,
           primaryMode,
           baseDuration,
           disruptionDelay,
-          marginMinutes
+          marginMinutes,
+          academicContext,
+          academicScheduleInfluence
         });
       }
 
@@ -166,7 +194,9 @@ class DepartureAdviceService {
         targetMinutes,
         targetArrivalTime,
         date,
-        context
+        context,
+        academicContext,
+        academicScheduleInfluence
       });
     }
 
@@ -175,7 +205,8 @@ class DepartureAdviceService {
       currentPlan,
       operatingHours,
       primaryMode,
-      disruptionDelay
+      disruptionDelay,
+      academicScheduleInfluence
     });
   }
 
@@ -187,7 +218,7 @@ class DepartureAdviceService {
    * Builds advice when current departure plan meets arrival deadline safely.
    * @private
    */
-  _buildOnTimeAdvice({ currentPlan, operatingHours, primaryMode, baseDuration, disruptionDelay, marginMinutes }) {
+  _buildOnTimeAdvice({ currentPlan, operatingHours, primaryMode, baseDuration, disruptionDelay, marginMinutes, academicContext, academicScheduleInfluence }) {
     const depM = this.scheduleService.timeToMinutes(currentPlan.departureTime);
     const windowStart = this.scheduleService.minutesToTime(depM - 5);
     const windowEnd = this.scheduleService.minutesToTime(depM + 5);
@@ -206,8 +237,22 @@ class DepartureAdviceService {
     let headline = 'Current departure plan safely meets your arrival deadline.';
     let explanation = `Departing at ${currentPlan.departureTime} arrives at ${currentPlan.contextualArrivalTime} with a ${marginMinutes}-minute safety buffer ahead of your ${currentPlan.targetArrivalTime} deadline.`;
 
+    if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
+      explanation += ` Aligned with upcoming ${academicContext.nextClass.eventType || 'class'} '${academicContext.nextClass.title}' at ${academicContext.nextClass.startTimeHHMM}.`;
+    }
+
     if (disruptionDelay > 0) {
       explanation += ` Accounts for +${disruptionDelay} min known transit delays on this corridor.`;
+    }
+
+    const actionableGuidance = [
+      `Board service within ${windowStart}–${windowEnd} to maintain your ${marginMinutes} min arrival buffer.`
+    ];
+
+    if (academicContext?.scheduleConflicts?.length > 0) {
+      academicContext.scheduleConflicts.forEach(c => {
+        actionableGuidance.push(`Schedule alert: ${c.detail}`);
+      });
     }
 
     return new DepartureAdvice({
@@ -232,9 +277,8 @@ class DepartureAdviceService {
       routeChangeRecommended: false,
       headline,
       explanation,
-      actionableGuidance: [
-        `Board service within ${windowStart}–${windowEnd} to maintain your ${marginMinutes} min arrival buffer.`
-      ],
+      actionableGuidance,
+      academicScheduleInfluence: academicScheduleInfluence || null,
       provenance: DataProvenance.verified('Timetable & Realtime Schedule Engine', 'Punctual departure window').toJSON()
     });
   }
@@ -255,11 +299,23 @@ class DepartureAdviceService {
       targetMinutes,
       targetArrivalTime,
       date,
-      context
+      context,
+      academicContext,
+      academicScheduleInfluence
     } = args;
 
-    // Minimum required safety buffer (e.g. 5 minutes ahead of target arrival deadline)
-    const requiredBuffer = 5;
+    // Minimum required safety buffer (elevated for exams or classes)
+    let requiredBuffer = 5;
+    if (academicContext?.scheduleConstraints?.recommendedBufferMinutes) {
+      requiredBuffer = academicContext.scheduleConstraints.recommendedBufferMinutes;
+    } else if (academicContext?.recommendedBufferMinutes) {
+      requiredBuffer = academicContext.recommendedBufferMinutes;
+    } else if (academicContext?.isExamDay || academicScheduleInfluence?.isExamDay) {
+      requiredBuffer = 20;
+    } else if (academicContext?.hasScheduledClass) {
+      requiredBuffer = 10;
+    }
+
     // Calculate latest safe departure time to arrive with safety buffer
     const latestSafeDepMinutes = (targetMinutes - totalTravelWithDelay - requiredBuffer + 1440) % 1440;
     const latestSafeDepTime = this.scheduleService.minutesToTime(latestSafeDepMinutes);
@@ -306,13 +362,13 @@ class DepartureAdviceService {
             `Select a 24-hour mode (such as auto or walking) or adjust your target arrival time past ${firstMorningArrTime}.`,
             'Departing earlier on this transit service is impossible due to overnight operating shutdown.'
           ],
+          academicScheduleInfluence: academicScheduleInfluence || null,
           provenance: DataProvenance.verified('Transport Service Hours Engine', 'Operating hours bound enforcement').toJSON()
         });
       }
     }
 
     // 3. Check if Disruption is too severe / Departure adjustment is insufficient vs Alternative Route
-    // If disruption delay is severe (> 30 min) and an alternative route is undisrupted and on time
     const undisruptedAlt = (alternatives || []).find(a => {
       const altDelay = Number(a.expectedDisruptionDelayMinutes || a.disruptionDelayMinutes || 0);
       const altArr = a.estimatedArrivalTime;
@@ -349,12 +405,12 @@ class DepartureAdviceService {
           `Switch to the ${undisruptedAlt.primaryMode.toUpperCase()} alternative route to avoid the ${primaryMode.toUpperCase()} disruption bottleneck.`,
           `If you must use this route, depart at ${latestSafeDepTime} (${earlierMinutes} min earlier) to offset delays.`
         ],
+        academicScheduleInfluence: academicScheduleInfluence || null,
         provenance: DataProvenance.userReported('Commuter Disruption Intelligence', 'Corridor delay exceeds rerouting threshold').toJSON()
       });
     }
 
     // 4. Feasible Earlier Departure Adjustment
-    // Synthesize realistic departure windows around the safe departure time
     const windows = [];
     const recommendedDep = latestSafeDepTime;
     const recommendedArr = this.scheduleService.minutesToTime((latestSafeDepMinutes + totalTravelWithDelay) % 1440);
@@ -369,7 +425,6 @@ class DepartureAdviceService {
       provenanceTier: PROVENANCE_TIERS.ESTIMATED
     });
 
-    // Provide a slightly earlier safer option if within hours
     const extraSafeDepMin = latestSafeDepMinutes - 10;
     if (this.scheduleService.isWithinOperatingHours(this.scheduleService.minutesToTime(extraSafeDepMin), operatingHours)) {
       const extraSafeDep = this.scheduleService.minutesToTime(extraSafeDepMin);
@@ -387,9 +442,28 @@ class DepartureAdviceService {
     const windowStart = this.scheduleService.minutesToTime(latestSafeDepMinutes - 10);
     const windowEnd = latestSafeDepTime;
 
+    let headline = `Depart ${earlierMinutes} minutes earlier to offset delays and meet your deadline.`;
+    if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
+      headline = `Depart ${earlierMinutes} minutes earlier to arrive on time for '${academicContext.nextClass.title}'.`;
+    }
+
     let explanation = `Known disruption adds +${disruptionDelay} min to your travel time, causing your planned ${currentPlan.departureTime} departure to arrive late at ${currentPlan.contextualArrivalTime}. Departing ${earlierMinutes} min earlier at ${recommendedDep} allows arrival at ${recommendedArr} ahead of your ${targetArrivalTime} deadline.`;
     if (disruptionDelay === 0) {
       explanation = `Planned departure at ${currentPlan.departureTime} arrives at ${currentPlan.contextualArrivalTime}, missing your ${targetArrivalTime} deadline. Departing ${earlierMinutes} min earlier at ${recommendedDep} ensures on-time arrival by ${recommendedArr}.`;
+    }
+    if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
+      explanation += ` Aligned with '${academicContext.nextClass.title}' (${academicContext.nextClass.startTimeHHMM}).`;
+    }
+
+    const actionableGuidance = [
+      `Adjust departure from ${currentPlan.departureTime} to ${recommendedDep} (${windowStart}–${windowEnd}).`,
+      `Arriving at destination by ${recommendedArr} guarantees meeting your ${targetArrivalTime} target.`
+    ];
+
+    if (academicContext?.scheduleConflicts?.length > 0) {
+      academicContext.scheduleConflicts.forEach(c => {
+        actionableGuidance.push(`Schedule alert: ${c.detail}`);
+      });
     }
 
     return new DepartureAdvice({
@@ -412,12 +486,10 @@ class DepartureAdviceService {
       },
       adjustmentFeasible: true,
       routeChangeRecommended: false,
-      headline: `Depart ${earlierMinutes} minutes earlier to offset delays and meet your deadline.`,
+      headline,
       explanation,
-      actionableGuidance: [
-        `Adjust departure from ${currentPlan.departureTime} to ${recommendedDep} (${windowStart}–${windowEnd}).`,
-        `Arriving at destination by ${recommendedArr} guarantees meeting your ${targetArrivalTime} target.`
-      ],
+      actionableGuidance,
+      academicScheduleInfluence: academicScheduleInfluence || null,
       provenance: disruptionDelay > 0
         ? DataProvenance.userReported('Transit Disruption & Timetable Analysis', 'Calculated earlier departure shift').toJSON()
         : DataProvenance.estimated('Timetable Propagation Engine', 'Calculated earlier departure shift').toJSON()
@@ -428,7 +500,7 @@ class DepartureAdviceService {
    * Builds advice when requested departure falls outside service operating hours.
    * @private
    */
-  _buildOperatingHoursViolationAdvice({ currentPlan, operatingHours, primaryMode, targetArrivalTime, totalTravelWithDelay }) {
+  _buildOperatingHoursViolationAdvice({ currentPlan, operatingHours, primaryMode, targetArrivalTime, totalTravelWithDelay, academicScheduleInfluence }) {
     const firstDeparture = operatingHours.start;
     const firstArrTime = this.scheduleService.minutesToTime(
       this.scheduleService.timeToMinutes(firstDeparture) + totalTravelWithDelay
@@ -460,6 +532,7 @@ class DepartureAdviceService {
         `Wait until first service at ${firstDeparture}, or select a 24-hour mode (auto or walking).`,
         `Operating window: ${operatingHours.start}–${operatingHours.end}.`
       ],
+      academicScheduleInfluence: academicScheduleInfluence || null,
       provenance: DataProvenance.verified('Transit Operating Hours Master Data', 'Service window validation').toJSON()
     });
   }
@@ -468,7 +541,7 @@ class DepartureAdviceService {
    * Builds advice when no arrival deadline was requested.
    * @private
    */
-  _buildNoTargetAdvice({ currentPlan, operatingHours, primaryMode, disruptionDelay }) {
+  _buildNoTargetAdvice({ currentPlan, operatingHours, primaryMode, disruptionDelay, academicScheduleInfluence }) {
     const depM = this.scheduleService.timeToMinutes(currentPlan.departureTime);
     const windowStart = this.scheduleService.minutesToTime(depM - 5);
     const windowEnd = this.scheduleService.minutesToTime(depM + 10);
@@ -505,6 +578,7 @@ class DepartureAdviceService {
       actionableGuidance: [
         `Target departure between ${windowStart} and ${windowEnd} to accommodate transit headway variance.`
       ],
+      academicScheduleInfluence: academicScheduleInfluence || null,
       provenance: DataProvenance.estimated('Timetable Propagation Engine', 'Open window estimate').toJSON()
     });
   }

@@ -545,6 +545,9 @@ class PersonalizedRouteRecommendationService {
     // -------------------------------------------------------------------------
     const recId = options.recommendationId || generateDeterministicRecId(meta);
 
+    const academicContext = context?.academicContext || context?.studentContext?.academicContext || null;
+    const studentContext = context?.studentContext || null;
+
     let explanation = null;
     try {
       explanation = this.explanationService.explainRecommendation({
@@ -555,7 +558,9 @@ class PersonalizedRouteRecommendationService {
         constraints,
         context,
         targetArrivalTime,
-        rawTradeOffs: tradeOffs
+        rawTradeOffs: tradeOffs,
+        academicContext,
+        studentContext
       });
     } catch (err) {
       // Explanation generation failure must not crash the recommendation
@@ -572,7 +577,9 @@ class PersonalizedRouteRecommendationService {
         targetArrivalTime,
         date: options.date || options.dayOfWeek || 'Mon',
         preferences,
-        constraints
+        constraints,
+        academicContext,
+        studentContext
       });
     } catch (err) {
       // Departure advice failure must not crash the recommendation

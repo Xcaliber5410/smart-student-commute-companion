@@ -431,6 +431,9 @@ class ContextualPersonalizationService {
    * @private
    */
   _resolvePersonalizationParameters({ explicitInput, savedPrefs, academicContext, workloadContext }) {
+    academicContext.scheduleConflicts = academicContext.scheduleConflicts || [];
+    academicContext.influencingFactors = academicContext.influencingFactors || [];
+
     // 1. Origin Resolution
     let effectiveOrigin = '';
     let originSource = CONTEXT_SOURCES.DEFAULT;
@@ -467,26 +470,85 @@ class ContextualPersonalizationService {
       destinationSource = CONTEXT_SOURCES.SAVED_PREFERENCE;
     }
 
-    // 3. Arrival Deadline Resolution
+    // 3. Check Academic Destination Connection
+    // Invariant: If class location is missing or does not match commute destination, do not invent a connection!
+    const hasClass = Boolean(academicContext.nextClass);
+    const classLoc = academicContext.nextClass?.location;
+    const isDestinationMatched = hasClass && Boolean(classLoc) && this.isLocationMatchingDestination(classLoc, effectiveDestination);
+    academicContext.isDestinationMatched = isDestinationMatched;
+
+    if (hasClass) {
+      if (!classLoc) {
+        academicContext.influencingFactors.push(
+          `Class '${academicContext.nextClass.title}' location is missing; no commute destination connection inferred.`
+        );
+      } else if (!isDestinationMatched) {
+        academicContext.influencingFactors.push(
+          `Class '${academicContext.nextClass.title}' location ('${classLoc}') does not match commute destination ('${effectiveDestination}'); no connection inferred.`
+        );
+        academicContext.scheduleConflicts.push({
+          type: 'COMMUTE_DESTINATION_MISMATCH',
+          title: academicContext.nextClass.title,
+          eventTime: academicContext.nextClass.startTimeHHMM,
+          requestedTime: explicitInput.desiredDepartureTime || null,
+          detail: `Commute destination '${effectiveDestination}' differs from '${academicContext.nextClass.title}' location '${classLoc}'.`
+        });
+      }
+    }
+
+    // 4. Arrival Deadline Resolution
     let effectiveArrivalDeadline = null;
     let arrivalDeadlineSource = CONTEXT_SOURCES.NONE;
 
     if (explicitInput.desiredArrivalTime) {
+      // Preserve explicit arrival deadline strictly
       effectiveArrivalDeadline = explicitInput.desiredArrivalTime;
       arrivalDeadlineSource = CONTEXT_SOURCES.EXPLICIT_INPUT;
-    } else if (academicContext.nextClass?.startTimeHHMM) {
-      // Arrival deadline derived from class start time!
+
+      if (isDestinationMatched && academicContext.nextClass?.startTimeHHMM) {
+        if (this._isTimeAfter(explicitInput.desiredArrivalTime, academicContext.nextClass.startTimeHHMM)) {
+          academicContext.scheduleConflicts.push({
+            type: 'ARRIVAL_AFTER_CLASS_START',
+            title: academicContext.nextClass.title,
+            eventTime: academicContext.nextClass.startTimeHHMM,
+            requestedTime: explicitInput.desiredArrivalTime,
+            detail: `Requested arrival at ${explicitInput.desiredArrivalTime} is after '${academicContext.nextClass.title}' starts at ${academicContext.nextClass.startTimeHHMM}.`
+          });
+          academicContext.influencingFactors.push(
+            `Schedule conflict: requested arrival deadline (${explicitInput.desiredArrivalTime}) is after '${academicContext.nextClass.title}' starts at ${academicContext.nextClass.startTimeHHMM}.`
+          );
+        } else {
+          academicContext.influencingFactors.push(
+            `Preserved explicit arrival deadline of ${explicitInput.desiredArrivalTime} ahead of '${academicContext.nextClass.title}' at ${academicContext.nextClass.startTimeHHMM}.`
+          );
+        }
+      } else {
+        academicContext.influencingFactors.push(
+          `Preserved explicit arrival deadline of ${explicitInput.desiredArrivalTime}.`
+        );
+      }
+    } else if (isDestinationMatched && academicContext.nextClass?.startTimeHHMM) {
+      // Arrival deadline derived from class start time because destination matches
       effectiveArrivalDeadline = academicContext.nextClass.startTimeHHMM;
       arrivalDeadlineSource = CONTEXT_SOURCES.ACADEMIC_EVENT;
+      academicContext.influencingFactors.push(
+        `Upcoming class '${academicContext.nextClass.title}' at ${academicContext.nextClass.startTimeHHMM} established arrival deadline of ${academicContext.nextClass.startTimeHHMM}.`
+      );
     } else if (academicContext.recurringSchedule?.targetArrivalTime) {
       effectiveArrivalDeadline = academicContext.recurringSchedule.targetArrivalTime;
       arrivalDeadlineSource = CONTEXT_SOURCES.RECURRING_SCHEDULE;
+      academicContext.influencingFactors.push(
+        `Recurring weekly schedule established arrival deadline of ${effectiveArrivalDeadline}.`
+      );
     } else if (savedPrefs.defaultArrivalTime) {
       effectiveArrivalDeadline = savedPrefs.defaultArrivalTime;
       arrivalDeadlineSource = CONTEXT_SOURCES.SAVED_PREFERENCE;
+      academicContext.influencingFactors.push(
+        `Saved student preference established arrival deadline of ${effectiveArrivalDeadline}.`
+      );
     }
 
-    // 4. Departure Time Resolution
+    // 5. Departure Time Resolution
     let effectiveDepartureTime = '08:00';
     let departureTimeSource = CONTEXT_SOURCES.DEFAULT;
 
@@ -494,12 +556,11 @@ class ContextualPersonalizationService {
       effectiveDepartureTime = explicitInput.desiredDepartureTime;
       departureTimeSource = CONTEXT_SOURCES.EXPLICIT_INPUT;
     } else if (effectiveArrivalDeadline) {
-      // Default to 45 mins before arrival deadline
       effectiveDepartureTime = this._subtractMinutes(effectiveArrivalDeadline, 45);
       departureTimeSource = CONTEXT_SOURCES.DERIVED_CONTEXT;
     }
 
-    // 5. Route Preference Profile Resolution
+    // 6. Route Preference Profile Resolution
     let effectiveRoutePreference = 'balanced';
     let routePreferenceSource = CONTEXT_SOURCES.DEFAULT;
 
@@ -511,7 +572,7 @@ class ContextualPersonalizationService {
       routePreferenceSource = CONTEXT_SOURCES.SAVED_PREFERENCE;
     }
 
-    // 6. Mode Preferences Resolution
+    // 7. Mode Preferences Resolution
     const effectivePreferredModes = Array.isArray(explicitInput.preferredModes)
       ? explicitInput.preferredModes
       : savedPrefs.preferredModes;
@@ -520,7 +581,7 @@ class ContextualPersonalizationService {
       ? explicitInput.avoidModes
       : savedPrefs.avoidModes;
 
-    // 7. Constraints Resolution (explicit overrides saved preference limits)
+    // 8. Constraints Resolution
     const effectiveConstraints = {
       maxTransfers: explicitInput.constraints?.maxTransfers !== undefined && explicitInput.constraints?.maxTransfers !== null
         ? Number(explicitInput.constraints.maxTransfers)
@@ -533,10 +594,29 @@ class ContextualPersonalizationService {
         : savedPrefs.maxBudgetRupees
     };
 
-    // 8. Schedule & Workload Constraints
+    // 9. Schedule & Workload Constraints
     const isExamDay = academicContext.todayEvents.some(e => e.eventType === 'exam');
-    const recommendedBufferMinutes = isExamDay ? 20 : (academicContext.hasScheduledClass ? 10 : 5);
+    const recommendedBufferMinutes = isExamDay ? 20 : (isDestinationMatched ? 10 : 5);
     const heavyWorkloadCaution = Boolean(workloadContext.isHeavyDay);
+
+    academicContext.isExamDay = isExamDay;
+    academicContext.recommendedBufferMinutes = recommendedBufferMinutes;
+
+    if (isExamDay) {
+      academicContext.influencingFactors.push('Exam day detected: elevated 20-minute punctuality buffer recommended.');
+    }
+    if (heavyWorkloadCaution) {
+      academicContext.influencingFactors.push('Heavy academic workload detected: reliable low-risk transit recommended.');
+    }
+    if (workloadContext.hasConflicts) {
+      academicContext.scheduleConflicts.push({
+        type: 'WORKLOAD_CONFLICTS',
+        title: 'Workload Conflicts',
+        eventTime: 'today',
+        requestedTime: null,
+        detail: `${workloadContext.conflictsCount} academic schedule conflict(s) detected in student calendar.`
+      });
+    }
 
     return {
       effectiveOrigin,
@@ -556,9 +636,73 @@ class ContextualPersonalizationService {
         mustArriveBefore: effectiveArrivalDeadline,
         recommendedBufferMinutes,
         isExamDay,
-        heavyWorkloadCaution
+        heavyWorkloadCaution,
+        scheduleConflicts: academicContext.scheduleConflicts,
+        influencingFactors: academicContext.influencingFactors
       }
     };
+  }
+
+  /**
+   * Helper: checks if an academic event's location matches the commute destination.
+   * Prevents inventing connections between missing or mismatched locations and destinations.
+   *
+   * @param {string|null} eventLocation
+   * @param {string|null} commuteDestination
+   * @returns {boolean}
+   */
+  isLocationMatchingDestination(eventLocation, commuteDestination) {
+    if (!eventLocation || typeof eventLocation !== 'string') return false;
+    if (!commuteDestination || typeof commuteDestination !== 'string') return false;
+
+    const loc = eventLocation.trim().toLowerCase();
+    const dest = commuteDestination.trim().toLowerCase();
+
+    if (!loc || !dest) return false;
+
+    // Internal room/hall check: if eventLocation is ONLY a room/lab/floor without campus,
+    // its campus destination is missing
+    const internalOnlyRegex = /^(room|lab|hall|floor|class|classroom|cabin|cr|lh)\s*[-#]?\s*\d+[a-z]?$/i;
+    if (internalOnlyRegex.test(loc)) {
+      return false;
+    }
+
+    const cleanLoc = loc.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+    const cleanDest = dest.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (cleanLoc === cleanDest) return true;
+    if (cleanLoc.includes(cleanDest) || cleanDest.includes(cleanLoc)) return true;
+
+    // Campus alias tokens
+    const campusAliases = [
+      { key: 'djsanghvi', tokens: ['dj sanghvi', 'd j sanghvi', 'djsanghvi', 'djsce', 'sanghvi'] },
+      { key: 'vjti', tokens: ['vjti', 'veermata jijabai'] },
+      { key: 'spit', tokens: ['spit', 'sardar patel'] },
+      { key: 'iitb', tokens: ['iit bombay', 'iit powai', 'iitb'] },
+      { key: 'nmims', tokens: ['nmims', 'narsee monjee'] },
+      { key: 'mithibai', tokens: ['mithibai'] }
+    ];
+
+    for (const campus of campusAliases) {
+      const locMatches = campus.tokens.some(t => cleanLoc.includes(t));
+      const destMatches = campus.tokens.some(t => cleanDest.includes(t));
+      if (locMatches && destMatches) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Helper: returns true if timeA is strictly after timeB (HH:MM format).
+   * @private
+   */
+  _isTimeAfter(timeA, timeB) {
+    if (!timeA || !timeB) return false;
+    const [hA, mA] = timeA.split(':').map(Number);
+    const [hB, mB] = timeB.split(':').map(Number);
+    return (hA * 60 + mA) > (hB * 60 + mB);
   }
 
   /**
@@ -570,7 +714,7 @@ class ContextualPersonalizationService {
     if (!loc || typeof loc !== 'string') return false;
     const clean = loc.toLowerCase().trim();
     if (clean.includes('room') || clean.includes('lab') || clean.includes('floor') || clean.includes('hall')) {
-      return false; // Classroom inside campus, not campus transit destination
+      return false;
     }
     return clean.length >= 3;
   }

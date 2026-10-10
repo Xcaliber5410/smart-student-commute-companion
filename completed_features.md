@@ -217,7 +217,30 @@ API Response Envelope (commuteCandidateController)
   - Exposes normalized, privacy-safe `studentContext` with transparent source provenance in both success and fallback responses.
 - **Automated Verification**:
   - `backend/scripts/test_contextual_commute_personalization.js` (`npm run test:contextual-personalization`)
-  - 13/13 test scenarios covering anonymous requests, missing academic context, lecture derivation, explicit overrides, exam buffers, recurring schedules, saved preferences, heavy workload flagging, student authorization barriers, privacy guardrails, safe repository failure fallbacks, clean serialization, and HTTP API integration.
+#### 11. Academic Schedule Context Integration
+- **Pipeline Integration**:
+  - Connects existing academic/calendar context (`CalendarEvent`, `StudentSchedule`, `workloadAnalysisService`) directly to the commute recommendation, departure advice, and explanation layers.
+  - Transparent destination matching (`isLocationMatchingDestination`):
+    - Rigorously checks whether an academic event location matches the commute destination.
+    - Prevents inventing connections when class locations are missing (`null`) or internal room numbers without campus context ("Room 302").
+    - Prevents connecting classes at other campuses (e.g. VJTI Matunga) to commutes to D.J. Sanghvi.
+  - Strict preservation of explicit input:
+    - Never silently replaces an explicit student arrival deadline with an inferred class start time.
+    - When a student provides an explicit arrival deadline that falls after class start, preserves the explicit deadline and raises a clear `ARRIVAL_AFTER_CLASS_START` schedule conflict.
+  - Departure Advice Integration (`DepartureAdviceService`):
+    - Calculates departure advice using actual feasible journey estimates and IST conventions.
+    - Factors in known corridor disruption delays (+15 min) alongside baseline durations to suggest justified earlier departure times.
+    - Enforces academic punctuality buffers (10 min for regular classes/labs; elevated 20 min for exams).
+    - Surfaces `academicScheduleInfluence` and actionable schedule conflict alerts on departure advice.
+  - Explanation Layer Integration (`RecommendationExplanationService`):
+    - Explains exactly which academic schedule context influenced the result.
+    - Adds `academic_schedule` to `satisfiedPreferences` when journeys arrive on time for scheduled lectures.
+    - Integrates class timing narratives and provides `academicScheduleExplanation` domain metadata.
+  - Normal Commute Continuity:
+    - When no academic context exists, 100% normal commute functionality is retained without errors or degraded recommendations.
+- **Automated Verification**:
+  - `backend/scripts/test_academic_schedule_commute_integration.js` (`npm run test:academic-schedule-commute`)
+  - 9/9 test scenarios covering upcoming classes, missing schedules, conflicting arrival deadlines, missing event locations, mismatched locations, disrupted journeys with earlier departure calculation, exam day elevated buffers, explanation transparency, and HTTP API integration.
 
 ---
 
@@ -225,5 +248,7 @@ API Response Envelope (commuteCandidateController)
 - **No AI Guesswork / Speculation**: All route scores, rankings, departure windows, and explanations are 100% deterministic mathematical calculations based on timetables, disruptions, traffic levels, and weather.
 - **Transparent Provenance**: Grounded in multi-tier audit trails (`VERIFIED`, `USER_REPORTED`, `ESTIMATED`, `SYNTHETIC`) without inventing unverified facts or live transit tracking.
 - **No Fabrication of Academic Schedules**: Students without scheduled calendar entries are never assumed to have classes. Missing context falls back safely to user input or documented defaults.
+- **No Inferred Location Connections**: Missing or mismatched class locations are never assumed to connect to commute destinations.
+
 
 

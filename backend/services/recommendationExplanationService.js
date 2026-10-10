@@ -54,9 +54,22 @@ class RecommendationExplanationService {
       preferences = {},
       constraints = {},
       context = {},
-      targetArrivalTime = null,
-      rawTradeOffs = []
+      targetArrivalTime: explicitTargetArrivalTime = null,
+      rawTradeOffs = [],
+      academicContext: directAcademicContext = null,
+      studentContext = null
     } = params;
+
+    const academicContext = directAcademicContext ||
+      context?.academicContext ||
+      context?.studentContext?.academicContext ||
+      studentContext?.academicContext ||
+      null;
+
+    let targetArrivalTime = explicitTargetArrivalTime;
+    if (!targetArrivalTime && academicContext?.isDestinationMatched && academicContext?.nextClass?.startTimeHHMM) {
+      targetArrivalTime = academicContext.nextClass.startTimeHHMM;
+    }
 
     if (!primaryRoute) {
       throw new ValidationError('Primary route is required to generate recommendation explanations');
@@ -66,15 +79,29 @@ class RecommendationExplanationService {
     const altsNorm = (alternatives || []).map(a => this._normalizeRouteMetrics(a));
 
     // 1. Component Explanations
-    const timingExplanation = this._buildTimingExplanation(primaryNorm, targetArrivalTime);
+    const timingExplanation = this._buildTimingExplanation(primaryNorm, targetArrivalTime, academicContext);
     const disruptionEffects = this._buildDisruptionExplanation(primaryNorm, context);
-    const satisfiedPreferences = this._buildSatisfiedPreferences(primaryNorm, preferences, constraints, targetArrivalTime);
+    const satisfiedPreferences = this._buildSatisfiedPreferences(primaryNorm, preferences, constraints, targetArrivalTime, academicContext);
     const selectionReason = this._buildSelectionReason(primaryNorm, altsNorm, preferences, targetArrivalTime, disruptionEffects);
-    const summary = this._buildSummary(primaryNorm, altsNorm, preferences, targetArrivalTime, disruptionEffects);
+    const summary = this._buildSummary(primaryNorm, altsNorm, preferences, targetArrivalTime, disruptionEffects, academicContext);
     const tradeOffs = this._buildTradeOffs(primaryNorm, altsNorm, rawTradeOffs);
     const alternativeExplanations = this._buildAlternativeCircumstances(primaryNorm, altsNorm, context);
     const uncertaintyAndMissingInfo = this._buildUncertaintyAndMissingInfo(primaryNorm, altsNorm, context);
     const provenanceBreakdown = this._buildProvenanceBreakdown(primaryNorm, altsNorm, context);
+
+    const academicScheduleExplanation = academicContext && academicContext.hasAcademicContext ? {
+      hasAcademicContext: true,
+      eventTitle: academicContext.nextClass?.title || null,
+      eventStartTime: academicContext.nextClass?.startTimeHHMM || null,
+      location: academicContext.nextClass?.location || null,
+      isDestinationMatched: Boolean(academicContext.isDestinationMatched),
+      scheduleConflicts: academicContext.scheduleConflicts || [],
+      narrative: academicContext.isDestinationMatched
+        ? `Commute aligned with scheduled ${academicContext.nextClass?.eventType || 'class'} '${academicContext.nextClass?.title}' starting at ${academicContext.nextClass?.startTimeHHMM}.`
+        : (academicContext.nextClass
+          ? `Class '${academicContext.nextClass.title}' location (${academicContext.nextClass.location || 'unspecified'}) does not match commute destination; no destination connection inferred.`
+          : 'Academic events present in calendar.')
+    } : null;
 
     return new PersonalizedRecommendationExplanation({
       recommendationId,
@@ -87,6 +114,7 @@ class RecommendationExplanationService {
       tradeOffs,
       uncertaintyAndMissingInfo,
       alternativeExplanations,
+      academicScheduleExplanation,
       provenanceBreakdown,
       generatedAt: Date.now()
     });
@@ -154,7 +182,7 @@ class RecommendationExplanationService {
    * e.g. "Recommended because it has fewer transfers and arrives before your requested time."
    * @private
    */
-  _buildSummary(primary, alts, preferences, targetArrivalTime, disruption) {
+  _buildSummary(primary, alts, preferences, targetArrivalTime, disruption, academicContext) {
     const reasons = [];
 
     // Fewer transfers check
@@ -168,7 +196,11 @@ class RecommendationExplanationService {
     // On-time arrival check
     const arrivesOnTime = targetArrivalTime && primary.estimatedArrivalTime && primary.estimatedArrivalTime <= targetArrivalTime;
     if (arrivesOnTime) {
-      reasons.push('arrives before your requested time');
+      if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
+        reasons.push(`arrives before your ${academicContext.nextClass.startTimeHHMM} ${academicContext.nextClass.eventType || 'class'} ('${academicContext.nextClass.title}')`);
+      } else {
+        reasons.push('arrives before your requested time');
+      }
     }
 
     // Fastest check
@@ -246,7 +278,7 @@ class RecommendationExplanationService {
    * Formulates satisfied student preferences and constraint alignments.
    * @private
    */
-  _buildSatisfiedPreferences(primary, preferences, constraints, targetArrivalTime) {
+  _buildSatisfiedPreferences(primary, preferences, constraints, targetArrivalTime, academicContext) {
     const list = [];
     const routePref = String(preferences?.route_preference || preferences?.preference || 'balanced').toLowerCase();
 
@@ -308,7 +340,21 @@ class RecommendationExplanationService {
       }
     }
 
-    // 3. Arrival Target Constraint
+    // 3. Academic Schedule Constraint
+    if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
+      const classDeadline = academicContext.nextClass.startTimeHHMM;
+      const arrivesBeforeClass = primary.estimatedArrivalTime ? primary.estimatedArrivalTime <= classDeadline : true;
+      list.push({
+        preference: 'academic_schedule',
+        isSatisfied: arrivesBeforeClass,
+        detail: arrivesBeforeClass
+          ? `Aligned with upcoming ${academicContext.nextClass.eventType || 'class'} '${academicContext.nextClass.title}' at ${classDeadline} (${primary.estimatedArrivalTime ? `arrives at ${primary.estimatedArrivalTime}` : 'on-time'}).`
+          : `Arrives at ${primary.estimatedArrivalTime}, after upcoming class '${academicContext.nextClass.title}' (${classDeadline}) starts.`,
+        priority: 1
+      });
+    }
+
+    // 4. Arrival Target Constraint
     if (targetArrivalTime && primary.estimatedArrivalTime) {
       const onTime = primary.estimatedArrivalTime <= targetArrivalTime;
       list.push({
@@ -321,7 +367,7 @@ class RecommendationExplanationService {
       });
     }
 
-    // 4. Max Walking Tolerance
+    // 5. Max Walking Tolerance
     const maxWalk = constraints.maxWalkingMinutes || preferences.max_walking_minutes;
     if (maxWalk !== undefined && maxWalk !== null) {
       const compliant = primary.walkingTimeMinutes <= maxWalk;
@@ -335,7 +381,7 @@ class RecommendationExplanationService {
       });
     }
 
-    // 5. Max Transfers
+    // 6. Max Transfers
     const maxTrans = constraints.maxTransfers || preferences.max_transfers;
     if (maxTrans !== undefined && maxTrans !== null) {
       const compliant = primary.transfers <= maxTrans;
@@ -356,7 +402,7 @@ class RecommendationExplanationService {
    * Explains expected travel and arrival times with margin buffers.
    * @private
    */
-  _buildTimingExplanation(primary, targetArrivalTime) {
+  _buildTimingExplanation(primary, targetArrivalTime, academicContext) {
     let marginMinutes = null;
     let isPunctual = true;
 
@@ -379,6 +425,10 @@ class RecommendationExplanationService {
       }
     } else {
       narrative += '.';
+    }
+
+    if (academicContext?.nextClass && academicContext?.isDestinationMatched) {
+      narrative += ` Aligned with '${academicContext.nextClass.title}' (${academicContext.nextClass.startTimeHHMM}).`;
     }
 
     return {
