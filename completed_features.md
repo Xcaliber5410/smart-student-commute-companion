@@ -338,6 +338,38 @@ API Response Envelope (commuteCandidateController)
   - `backend/scripts/integration_contextual_commute_explanations_api_test.js` (`npm run test:contextual-explanations-api`)
   - 8/8 comprehensive integration tests covering normal commute results, academic schedule context, missing academic context, AI provider error/timeout fallback, 400 validation error on malformed input, 401 unauthorized on missing/bad token, 403 forbidden on cross-student schedule access, and honest 200 fallback when no route is feasible.
 
+#### 16. Master Integration Verification: Contextual Commute Personalization Pipeline
+- **Verification Suite**: `backend/scripts/integration_contextual_commute_master_verification_test.js`
+- **Command**: `npm run test:contextual-commute-master`
+- **Status**: 20/20 Scenarios Passing
+- **Verified End-to-End Pipeline**:
+  `student commute input → route generation → disruption/context analysis → constraints → personalized recommendation → academic schedule context → contextual explanation → optional AI explanation → uncertainty/provenance metadata → API response`
+- **Coverage Details**:
+  1. **Normal Commute without Academic Context**: Works seamlessly with full backward-compatibility when no calendar entries or academic context exist.
+  2. **Upcoming Class with Known Start Time**: Automatically incorporates class start time, campus destination match, and punctuality buffer (10-min lecture / 20-min exam).
+  3. **Missing Class Location**: Never invents campus connections when class location is null or vague room number; safely treats location as unverified.
+  4. **Explicit Arrival Deadline**: Preserves student's explicit deadline without silent replacement; raises transparent schedule conflicts if arrival deadline exceeds class start.
+  5. **Disrupted Journey Departure Advice**: Calculates earlier departure windows based on actual journey estimates, corridor disruptions, and buffer needs.
+  6. **Preference-Sensitive Route Selection**: Deterministically prioritizes routes matching student preferences (`cheaper`, `fewest_transfers`, `least_walking`, `faster`, `preferred_modes`).
+  7. **Explanations Matching Actual Metrics**: Ensures structured narratives accurately cite true route travel times, transfer counts, and fare amounts without discrepancies.
+  8. **Rejection of Unsupported Claims**: Rejects or omits hallucinated "fastest" claims, invalid duration divergence (>15%), and ungrounded fare claims.
+  9. **AI Provider Success**: Seamlessly enriches structured recommendations with natural language summaries via `AiCommuteExplanationProvider` when configured.
+  10. **AI Provider Timeout / Error Fallback**: Safely catches network timeouts and HTTP errors, instantly falling back to deterministic explanations without service interruption.
+  11. **Missing AI Credentials**: Instantly defaults to deterministic explanation provider when API keys are absent, avoiding unneeded network overhead.
+  12. **Deterministic Fallback Explanations**: Produces rich, structured, rule-based explanations for every route attribute, preference, and disruption.
+  13. **Synthetic & Estimated Transport Data**: Explicitly flags `hasSyntheticData: true` and never treats simulation artifacts as verified transit feeds.
+  14. **Mixed Provenance Integrity**: Preserves distinct tiers (`VERIFIED`, `USER_REPORTED`, `ESTIMATED`, `SYNTHETIC`) across schedules, disruptions, and fares.
+  15. **Missing or Stale Context**: Accurately detects and warns about stale disruptions (>2h) and stale traffic observations (>1h).
+  16. **Student Authorization & Privacy**: Blocks cross-student schedule inspection with HTTP 403 `FORBIDDEN`, requires authentication (401), and sanitizes private PII/GPS coordinates.
+  17. **No Feasible Route Fallback**: Returns clean HTTP 200 with `hasFeasibleRoute: false`, structured fallback reasons, and actionable student guidance.
+  18. **Deterministic Results**: Produces identical route selection, scoring, and explanations for repeated identical inputs.
+  19. **Existing API Compatibility**: Supports both `POST /api/commute/recommendations` and alias `POST /api/student/commute/recommendations` while retaining legacy response structures.
+  20. **Existing Backend Regression Coverage**: Confirms zero regressions across deterministic route scoring, hard constraint filters, and student context services.
+- **AI Integration Status**:
+  - Live AI integration exists via `GeminiCommuteExplanationProvider` (supporting `@google/genai` and direct Google Gemini REST API with `gemini-2.5-flash`), featuring bounded 4000ms timeouts, strict privacy sanitization (`buildPrivacySafePromptPayload`), and output validation (`validateAiExplanationOutput`).
+  - Deterministic recommendation selection remains 100% authoritative: AI never generates/selects routes, alters route scores, or overrides constraints.
+  - When live AI credentials are not provided or an AI error/timeout occurs, the system utilizes the zero-dependency `DeterministicCommuteExplanationProvider` fallback.
+
 ---
 
 ## Known Boundaries & Non-Claims

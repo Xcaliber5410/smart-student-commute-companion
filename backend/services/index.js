@@ -122,7 +122,10 @@ const {
   AiCommuteExplanationProvider,
   GeminiCommuteExplanationProvider,
   DeterministicCommuteExplanationProvider,
-  MockAiCommuteExplanationProvider
+  MockAiCommuteExplanationProvider,
+  validateAiExplanationOutput,
+  buildPrivacySafePromptPayload,
+  sanitizeCoarseArea
 } = require('./safeCommuteExplanationAdapter');
 const {
   personalizationUncertaintyService,
@@ -142,6 +145,9 @@ module.exports = {
   GeminiCommuteExplanationProvider,
   DeterministicCommuteExplanationProvider,
   MockAiCommuteExplanationProvider,
+  validateAiExplanationOutput,
+  buildPrivacySafePromptPayload,
+  sanitizeCoarseArea,
   // Contextual Commute Personalization (P9)
   contextualPersonalizationService,
   ContextualPersonalizationService,

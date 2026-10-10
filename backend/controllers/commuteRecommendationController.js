@@ -135,7 +135,8 @@ async function getPersonalizedRecommendation(req, res, next) {
       targetArrivalTime,
       date,
       dayOfWeek,
-      currentTime: req.body.currentTime || context?.currentTime
+      currentTime: req.body.currentTime || context?.currentTime,
+      useAiExplanation: req.body.useAiExplanation !== undefined ? req.body.useAiExplanation : undefined
     });
 
     const recJson = typeof recommendation.toJSON === 'function'
@@ -173,8 +174,15 @@ async function getPersonalizedRecommendation(req, res, next) {
       targetArrivalTime: targetArrivalTime || departureAdvice?.targetArrivalTime || null,
       onTimeStatus: departureAdvice?.onTimeStatus || (recJson.estimatedArrivalTime ? 'ON_TRACK' : 'UNKNOWN'),
       bufferMinutes: scheduleContext?.bufferMinutes || 0,
-      isEarlierDepartureRecommended: departureAdvice?.isEarlierDepartureRecommended || false,
-      recommendedDepartureTime: departureAdvice?.recommendedDepartureTime || recJson.departureTime || departureTime
+      isEarlierDepartureRecommended: Boolean(
+        departureAdvice?.isEarlierDepartureRecommended ||
+        departureAdvice?.adviceType === 'EARLIER_DEPARTURE_RECOMMENDED' ||
+        (departureAdvice?.suggestedDeparture?.earlierByMinutes && departureAdvice.suggestedDeparture.earlierByMinutes > 0)
+      ),
+      recommendedDepartureTime: departureAdvice?.suggestedDeparture?.recommendedDepartureTime ||
+        departureAdvice?.recommendedDepartureTime ||
+        recJson.departureTime ||
+        departureTime
     };
 
     // Resolve disruption effects

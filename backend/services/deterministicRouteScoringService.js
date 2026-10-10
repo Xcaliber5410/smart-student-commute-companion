@@ -245,7 +245,11 @@ class DeterministicRouteScoringService {
 
     let routeEval = evaluation;
     if (!(evaluation instanceof RouteEvaluation)) {
-      routeEval = this.routeEvaluationService.evaluateRoute(evaluation, contextOrImpact, options);
+      if (evaluation && typeof evaluation === 'object' && evaluation.journeyId && evaluation.baselineTravelTime !== undefined) {
+        routeEval = new RouteEvaluation(evaluation);
+      } else {
+        routeEval = this.routeEvaluationService.evaluateRoute(evaluation, contextOrImpact, options);
+      }
     }
 
     const rates = this.rates;

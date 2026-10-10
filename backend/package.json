@@ -89,6 +89,7 @@
     "test:safe-ai-explanation": "node scripts/test_safe_commute_explanation_adapter.js",
     "test:commute-details": "node scripts/test_commute_personalization_uncertainty_details.js",
     "test:contextual-explanations-api": "node scripts/integration_contextual_commute_explanations_api_test.js",
+    "test:contextual-commute-master": "node scripts/integration_contextual_commute_master_verification_test.js",
     "test:alternate-routes": "node scripts/test_alternate_route_generation.js",
     "test:commute-integration": "node scripts/integration_commute_route_generation_test.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",
