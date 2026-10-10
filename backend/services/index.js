@@ -116,8 +116,23 @@ const {
   contextualPersonalizationService,
   ContextualPersonalizationService
 } = require('./contextualPersonalizationService');
+const {
+  safeCommuteExplanationAdapter,
+  SafeCommuteExplanationAdapter,
+  AiCommuteExplanationProvider,
+  GeminiCommuteExplanationProvider,
+  DeterministicCommuteExplanationProvider,
+  MockAiCommuteExplanationProvider
+} = require('./safeCommuteExplanationAdapter');
 
 module.exports = {
+  // Safe AI Commute Explanation Adapter
+  safeCommuteExplanationAdapter,
+  SafeCommuteExplanationAdapter,
+  AiCommuteExplanationProvider,
+  GeminiCommuteExplanationProvider,
+  DeterministicCommuteExplanationProvider,
+  MockAiCommuteExplanationProvider,
   // Contextual Commute Personalization (P9)
   contextualPersonalizationService,
   ContextualPersonalizationService,

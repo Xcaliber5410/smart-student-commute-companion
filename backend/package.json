@@ -86,6 +86,7 @@
     "test:recommendations-verification": "node scripts/integration_personalized_recommendations_verification_test.js",
     "test:contextual-personalization": "node scripts/test_contextual_commute_personalization.js",
     "test:academic-schedule-commute": "node scripts/test_academic_schedule_commute_integration.js",
+    "test:safe-ai-explanation": "node scripts/test_safe_commute_explanation_adapter.js",
     "test:alternate-routes": "node scripts/test_alternate_route_generation.js",
     "test:commute-integration": "node scripts/integration_commute_route_generation_test.js",
     "test:study-resource-service": "node scripts/test_study_resource_service.js",

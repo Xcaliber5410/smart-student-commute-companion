@@ -95,6 +95,15 @@ const earlierDepartureExplanationSchema = z.object({
   provenanceTier: provenanceTierEnum.default(PROVENANCE_TIERS.ESTIMATED)
 });
 
+const aiExplanationMetadataSchema = z.object({
+  isAiEnhanced: z.boolean().default(false),
+  provider: z.string().default('Deterministic Grounded Engine'),
+  model: z.string().nullable().optional().default(null),
+  confidence: z.string().default('high'),
+  fallbackReason: z.string().nullable().optional().default(null),
+  validationPassed: z.boolean().default(true)
+});
+
 const personalizedRecommendationExplanationSchema = z.object({
   recommendationId: z.string().min(1, 'Recommendation ID is required'),
   primaryRouteId: z.string().min(1, 'Primary route ID is required'),
@@ -108,6 +117,7 @@ const personalizedRecommendationExplanationSchema = z.object({
   alternativeExplanations: z.array(alternativeExplanationSchema).default([]),
   academicScheduleExplanation: academicScheduleExplanationSchema.nullable().optional().default(null),
   earlierDepartureExplanation: earlierDepartureExplanationSchema.nullable().optional().default(null),
+  aiMetadata: aiExplanationMetadataSchema.nullable().optional().default(null),
   provenanceBreakdown: provenanceBreakdownSchema.default(() => ({})),
   provenance: provenanceSchema.default(() => DataProvenance.estimated('Explanation Engine').toJSON()),
   generatedAt: z.coerce.number().int().positive().default(() => Date.now())
@@ -155,6 +165,7 @@ class PersonalizedRecommendationExplanation {
       })),
       academicScheduleExplanation: this.academicScheduleExplanation ? { ...this.academicScheduleExplanation } : null,
       earlierDepartureExplanation: this.earlierDepartureExplanation ? { ...this.earlierDepartureExplanation } : null,
+      aiMetadata: this.aiMetadata ? { ...this.aiMetadata } : null,
       provenanceBreakdown: {
         verifiedFacts: [...(this.provenanceBreakdown.verifiedFacts || [])],
         userReportedFacts: [...(this.provenanceBreakdown.userReportedFacts || [])],
@@ -178,5 +189,6 @@ module.exports = {
   uncertaintyExplanationSchema,
   provenanceBreakdownSchema,
   academicScheduleExplanationSchema,
-  earlierDepartureExplanationSchema
+  earlierDepartureExplanationSchema,
+  aiExplanationMetadataSchema
 };

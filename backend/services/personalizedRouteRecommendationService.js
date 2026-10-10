@@ -40,6 +40,7 @@ const { routeComparisonService } = require('./routeComparisonService');
 const { deterministicRouteScoringService } = require('./deterministicRouteScoringService');
 const { recommendationExplanationService } = require('./recommendationExplanationService');
 const { departureAdviceService } = require('./departureAdviceService');
+const { safeCommuteExplanationAdapter } = require('./safeCommuteExplanationAdapter');
 const { ValidationError } = require('../errors');
 
 /**
@@ -114,6 +115,7 @@ class PersonalizedRouteRecommendationService {
     this.routeScoringService = options.routeScoringService || deterministicRouteScoringService;
     this.explanationService = options.recommendationExplanationService || options.explanationService || recommendationExplanationService;
     this.departureAdviceService = options.departureAdviceService || departureAdviceService;
+    this.aiExplanationAdapter = options.aiExplanationAdapter || safeCommuteExplanationAdapter;
   }
 
   /**
@@ -167,7 +169,7 @@ class PersonalizedRouteRecommendationService {
     let rawCandidates = [];
     if (Array.isArray(params.evaluations) && params.evaluations.length > 0) {
       // Pre-evaluated routes supplied directly
-      return this._recommendFromEvaluations(params.evaluations, {
+      return await this._recommendFromEvaluations(params.evaluations, {
         studentId,
         origin,
         destination,
@@ -333,7 +335,7 @@ class PersonalizedRouteRecommendationService {
     // -------------------------------------------------------------------------
     // STAGE 6: PERSONALIZED DETERMINISTIC SCORING & RANKING
     // -------------------------------------------------------------------------
-    return this._recommendFromEvaluations(uniqueEvaluations, {
+    return await this._recommendFromEvaluations(uniqueEvaluations, {
       studentId,
       origin,
       destination,
@@ -351,7 +353,7 @@ class PersonalizedRouteRecommendationService {
    *
    * @private
    */
-  _recommendFromEvaluations(evaluations, meta) {
+  async _recommendFromEvaluations(evaluations, meta) {
     const {
       studentId,
       departureTime,
@@ -584,6 +586,28 @@ class PersonalizedRouteRecommendationService {
       });
     } catch (err) {
       // Explanation generation failure must not crash the recommendation
+    }
+
+    // Optional Safe AI Explanation Enhancement
+    if (explanation && options.useAiExplanation !== false && this.aiExplanationAdapter) {
+      try {
+        explanation = await this.aiExplanationAdapter.enhanceExplanation({
+          recommendation: {
+            id: recId,
+            origin: meta.origin,
+            destination: meta.destination,
+            selectedRoute: primaryRoute,
+            alternativeRoutes: distinctAlternatives,
+            departureAdvice,
+            targetArrivalTime,
+            academicContext
+          },
+          deterministicExplanation: explanation,
+          options
+        });
+      } catch (err) {
+        // AI failure must NEVER crash or block the recommendation
+      }
     }
 
     return PersonalizedCommuteRecommendation.fromEvaluatedRoute(primaryRoute, {

@@ -261,11 +261,42 @@ API Response Envelope (commuteCandidateController)
   - `backend/scripts/test_recommendation_explanation_service.js` (`npm run test:recommendation-explanations`)
   - 15/15 unit tests covering selection reasons, disruption effects, trade-offs, preference satisfaction truthfulness, fastest/cheapest honesty, schedule alignment honesty, earlier departure reasons, exam buffers, provenance breakdown, and end-to-end recommendation integration.
 
+#### 13. Safe Commute Explanation Adapter
+- **Architecture & Deterministic Authority**:
+  - Optional AI-assisted explanation layer for commute recommendations (`backend/services/safeCommuteExplanationAdapter.js`).
+  - Deterministic route selection remains 100% authoritative: AI never generates/selects routes, never modifies scores or feasibility, and never overrides hard constraints.
+  - Transforms structured recommendation data into clear, natural language summaries, disruption context, schedule alignment narratives, and trade-off comparisons.
+- **Provider Abstraction**:
+  - Pluggable `AiCommuteExplanationProvider` interface with `generateExplanation(promptPayload, options)`.
+  - `GeminiCommuteExplanationProvider`: integrates with `@google/genai` or direct Gemini REST API (`gemini-2.5-flash`), with bounded 4000ms timeout.
+  - `DeterministicCommuteExplanationProvider`: zero-dependency offline provider producing rule-based natural language summaries.
+  - `MockAiCommuteExplanationProvider`: test utility allowing precise mocking of latency, responses, and errors.
+- **Strict Privacy & Sanitization**:
+  - `sanitizeCoarseArea` and `buildPrivacySafePromptPayload`: scrubs door/flat numbers, room identifiers, floor details, standalone decimals, GPS coordinates, postal codes, student IDs, and credential tokens before composing prompts.
+  - Passes only high-level coarse zones, travel times, transfer counts, disruption descriptions, and provenance tiers.
+- **Strict Output Validation & Grounding (`validateAiExplanationOutput`)**:
+  - Rejects hallucinations and ungrounded statements:
+    - Duration mismatch (>15% divergence from calculated duration).
+    - False fastest claims when candidate route is not the fastest.
+    - Hallucinated or fabricated fare amounts when cost data is null/missing.
+    - False zero-transfers claims when transfers > 0.
+    - Fabricated or mislabeled synthetic data as verified.
+    - Leaked tokens or API keys.
+- **Resilient Fallback**:
+  - Deterministic explanation is always computed first.
+  - Gracefully falls back to deterministic explanation upon timeout, network error, HTTP error, validation rejection, or absent API key.
+  - Surfaces non-intrusive `aiMetadata` (`isAiEnhanced`, `provider`, `model`, `validationPassed`, `fallbackReason`) in `PersonalizedRecommendationExplanation`.
+- **Automated Verification**:
+  - `backend/scripts/test_safe_commute_explanation_adapter.js` (`npm run test:safe-ai-explanation`)
+  - 13/13 comprehensive tests validating valid output, malformed responses, duration hallucinations, false fastest claims, ungrounded fare inventions, synthetic-to-verified mislabeling, transfer count mismatch, bounded timeouts, HTTP provider errors, missing API credentials, privacy scrubbing, deterministic authority preservation, and offline fallback.
+
 ---
 
 ## Known Boundaries & Non-Claims
-- **No AI Guesswork / Speculation**: All route scores, rankings, departure windows, and explanations are 100% deterministic mathematical calculations based on timetables, disruptions, traffic levels, and weather.
+- **No AI Guesswork in Route Selection**: All route scores, rankings, departure windows, and feasibility evaluations are 100% deterministic mathematical calculations based on timetables, disruptions, traffic levels, and weather.
+- **Optional AI Explanations Grounded & Audited**: AI only provides natural language phrasing of already verified recommendations. All AI output is strictly validated against underlying candidate data and instantly falls back to deterministic explanations upon any divergence or error.
 - **Transparent Provenance**: Grounded in multi-tier audit trails (`VERIFIED`, `USER_REPORTED`, `ESTIMATED`, `SYNTHETIC`) without inventing unverified facts or live transit tracking.
+- **Privacy Guaranteed**: Precise student coordinates, door numbers, tokens, and personal calendars are never transmitted to external AI providers.
 - **No Fabrication of Academic Schedules**: Students without scheduled calendar entries are never assumed to have classes. Missing context falls back safely to user input or documented defaults.
 - **No Inferred Location Connections**: Missing or mismatched class locations are never assumed to connect to commute destinations.
 
