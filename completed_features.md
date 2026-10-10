@@ -313,6 +313,31 @@ API Response Envelope (commuteCandidateController)
   - `backend/scripts/test_commute_personalization_uncertainty_details.js` (`npm run test:commute-details`)
   - 14/14 tests passing covering missing context, academic context, exam day context, mixed provenance, synthetic data integrity, stale information detection, missing data vs safety distinction, qualitative uncertainty (no percentages), live feed disclosures, AI fallback audit, AI enhanced audit, privacy safeguards, API integration, and fallback responses.
 
+#### 15. Contextual Commute Explanations API
+- **API Endpoints**:
+  - `POST /api/commute/recommendations` and alias `POST /api/student/commute/recommendations` (`backend/controllers/commuteRecommendationController.js`).
+  - Fully backward-compatible while returning rich contextual explanation fields and personalization metadata.
+- **Supported Return Fields**:
+  - **Primary Recommendation**: `primaryRecommendation` (and aliases `selectedRoute`, `primaryRoute`).
+  - **Alternative Routes**: `alternativeRoutes` (and aliases `meaningfulAlternatives`, `alternatives`).
+  - **Route Selection Reasons**: `selectionReason`, `recommendationReasons`, and `reasons`.
+  - **Relevant Schedule Context**: `scheduleContext` (and alias `scheduleContextUsed`) documenting upcoming lecture/lab/exam timing, destination match, 10m/20m punctuality buffer, and schedule conflicts.
+  - **Arrival & Departure Advice**: `arrivalAdvice` (with `onTimeStatus`, `bufferMinutes`, `estimatedArrivalTime`, `targetArrivalTime`) and `departureAdvice` (with `isEarlierDepartureRecommended`, `earlierByMinutes`, `recommendedDepartureTime`).
+  - **Route Trade-Offs**: `routeTradeOffs` (and alias `tradeOffs`).
+  - **Disruption Effects**: `disruptionEffects` with `delayMinutes`, `hasDisruptions`, and corridor `advisories`.
+  - **Provenance**: Granular 4-tier provenance tracking (`provenance`, `provenanceSummary`).
+  - **Uncertainty & Missing Data Warnings**: `uncertaintyDetails` (qualitative tier, evidence indicators, honest live-feed disclosure) alongside `dataQualityWarnings` and filtered `missingDataWarnings`.
+  - **Explanation Method**: Explicitly reports `explanationMethod` (`'deterministic'` or `'ai-assisted'`), `explanationMode` (`'DETERMINISTIC'` or `'AI_ASSISTED'`), and `isAiEnhanced` boolean.
+- **Privacy & Authorization Safeguards**:
+  - Rejects attempts to request or inspect another student's profile/calendar with HTTP 403 `FORBIDDEN` (`ForbiddenError`), eliminating cross-student schedule leakage.
+  - Strict privacy scrubbing: Residential door numbers, floor details, GPS coordinates, and auth tokens are forbidden and never exposed.
+  - Transparent fallback: When no route meets student constraints, returns HTTP 200 with `hasFeasibleRoute: false`, `status: 'FALLBACK'`, `fallbackReason`, actionable `fallbackGuidance`, and `explanationMethod: 'deterministic'`.
+- **Documentation Artifact**:
+  - `docs/commute_recommendations_api_schema.md`: Complete OpenAPI/TypeScript interfaces, field dictionary, UI guidelines, and example payloads.
+- **Automated Verification**:
+  - `backend/scripts/integration_contextual_commute_explanations_api_test.js` (`npm run test:contextual-explanations-api`)
+  - 8/8 comprehensive integration tests covering normal commute results, academic schedule context, missing academic context, AI provider error/timeout fallback, 400 validation error on malformed input, 401 unauthorized on missing/bad token, 403 forbidden on cross-student schedule access, and honest 200 fallback when no route is feasible.
+
 ---
 
 ## Known Boundaries & Non-Claims

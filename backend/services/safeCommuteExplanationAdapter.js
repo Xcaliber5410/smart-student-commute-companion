@@ -190,7 +190,7 @@ class MockAiCommuteExplanationProvider extends AiCommuteExplanationProvider {
     this.model = 'mock-model';
     this.mockOutput = options.mockOutput || null;
     this.delayMs = options.delayMs || 0;
-    this.shouldFail = options.shouldFail || false;
+    this.shouldFail = Boolean(options.shouldFail || options.shouldError);
     this.errorMessage = options.errorMessage || 'Mock provider failed';
     this.configured = options.isConfigured !== undefined ? options.isConfigured : true;
     this.lastPayload = null;
